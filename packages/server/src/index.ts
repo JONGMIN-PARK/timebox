@@ -12,6 +12,7 @@ import ddayRoutes from "./routes/ddays.js";
 import categoryRoutes from "./routes/categories.js";
 import timeblockRoutes from "./routes/timeblocks.js";
 import telegramRoutes from "./routes/telegram.js";
+import backupRoutes from "./routes/backup.js";
 import { initTelegramBot } from "./telegram/bot.js";
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use("/api/ddays", authMiddleware, ddayRoutes);
 app.use("/api/categories", authMiddleware, categoryRoutes);
 app.use("/api/timeblocks", authMiddleware, timeblockRoutes);
 app.use("/api/telegram", authMiddleware, telegramRoutes);
+app.use("/api/backup", authMiddleware, backupRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {

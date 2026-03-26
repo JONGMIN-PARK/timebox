@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, UserCheck } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle } from "lucide-react";
 
 interface UserInfo {
   id: number;
@@ -32,6 +32,8 @@ export default function SettingsPage() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ username: "", password: "", displayName: "", role: "user" });
   const [message, setMessage] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const isAdmin = user?.role === "admin";
   const pendingRequests = requests.filter((r) => r.status === "pending");
@@ -148,6 +150,74 @@ export default function SettingsPage() {
                   {label}
                 </button>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Data Management */}
+        <section className="animate-in">
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Data</h2>
+          <div className="card p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={async () => {
+                  setExporting(true);
+                  try {
+                    const res = await api.get<any>("/backup/export");
+                    if (res.success && res.data) {
+                      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `timebox-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      showMsg("Data exported successfully");
+                    }
+                  } catch { showMsg("Export failed"); }
+                  setExporting(false);
+                }}
+                disabled={exporting}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl btn-ghost bg-slate-50 dark:bg-slate-700/40 text-sm font-medium"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? "Exporting..." : "Export Data"}
+              </button>
+              <label className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl btn-ghost bg-slate-50 dark:bg-slate-700/40 text-sm font-medium cursor-pointer">
+                <Upload className="w-4 h-4" />
+                {importing ? "Importing..." : "Import Data"}
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setImporting(true);
+                    try {
+                      const text = await file.text();
+                      const parsed = JSON.parse(text);
+                      const backupData = parsed.data || parsed;
+                      const mode = confirm("Replace all existing data?\n\nOK = Replace\nCancel = Merge (add to existing)") ? "replace" : "merge";
+                      const res = await api.post<{ imported: Record<string, number> }>("/backup/import", { data: backupData, mode });
+                      if (res.success && res.data) {
+                        const imp = res.data.imported;
+                        showMsg(`Imported: ${imp.todos} todos, ${imp.events} events, ${imp.ddays} D-Days, ${imp.timeBlocks} blocks`);
+                      } else {
+                        showMsg("Import failed");
+                      }
+                    } catch { showMsg("Invalid file"); }
+                    setImporting(false);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50/80 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                Export downloads all your data as JSON. Import can merge with or replace existing data.
+              </p>
             </div>
           </div>
         </section>
