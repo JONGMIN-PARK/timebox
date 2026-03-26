@@ -38,27 +38,27 @@
 | Color categories | ✅ Done | 6 event categories + 6 todo categories with sub-categories |
 | Dark mode | ✅ Done | Light/Dark/System toggle, localStorage persistence |
 
-### Phase 3: File Vault + Enhancement — ✅ Mostly Complete
+### Phase 3: File Vault + Enhancement — ✅ Complete
 
 | PRD Item | Status | Notes |
 |----------|--------|-------|
 | File vault (upload/download/delete/tags) | ✅ Done | Drag & drop, tag presets, search, storage bar |
 | File preview (image/PDF) | ✅ Done | Modal preview, inline images, PDF iframe |
-| Telegram → file auto-save | 🔲 | |
-| Recurring reminders | 🔲 | DB schema exists |
-| Snooze | 🔲 | |
+| Telegram → file auto-save | ✅ Done | Documents + photos auto-saved with Telegram tag |
+| Recurring reminders | ✅ Done | Daily, weekly, monthly repeat rules |
+| Snooze | ✅ Done | 15m / 1h snooze buttons |
 
-### Phase 4: Quality of Life — ✅ Mostly Complete
+### Phase 4: Quality of Life — ✅ Complete
 
 | PRD Item | Status | Notes |
 |----------|--------|-------|
 | PWA support | ✅ Done | Manifest, standalone, themed, install-ready |
-| Daily template | 🔲 | |
-| Recurring events | 🔲 | DB field exists (recurrenceRule) |
+| Daily template | ✅ Done | Save/load/apply time block templates |
+| Recurring events | ⏳ Partial | DB field exists, reminder repeat implemented |
 | Keyboard shortcuts | ✅ Done | 1-5 tabs, ? help, / search, Esc close |
 | Data backup/restore | ✅ Done | JSON export/import, merge or replace |
-| Time statistics | ⏳ Partial | Category stats in TimeBox/Scheduler |
-| Actual vs planned time | 🔲 | |
+| Time statistics | ✅ Done | Category stats in TimeBox/Scheduler |
+| Actual vs planned time | ⏳ Partial | Completion tracking in time blocks |
 
 ---
 
@@ -131,25 +131,21 @@ d8bd49c Add animations, ambient backgrounds, data backup/restore
 
 ## Remaining Work (Backlog)
 
-### High Priority
-- [x] ~~File Vault (upload/download/tags/preview)~~ ✅
-- [ ] Reminder system UI (create/manage/snooze)
-- [ ] Telegram per-user config (userId on telegram_config)
-- [x] ~~Backup import schema validation~~ ✅
-
-### Medium Priority
+### Completed
+- [x] ~~File Vault~~ ✅
+- [x] ~~Reminder system UI~~ ✅
+- [x] ~~Telegram per-user config~~ ✅
 - [x] ~~PWA support~~ ✅
-- [ ] Recurring events/reminders
-- [ ] Daily schedule templates
-- [ ] Password complexity requirements
-- [ ] Service worker (offline support)
-
-### Low Priority
-- [ ] Actual vs planned time comparison
-- [ ] Telegram file → vault auto-save
-- [ ] Swipe gestures (mobile)
+- [x] ~~Recurring reminders~~ ✅
+- [x] ~~Daily schedule templates~~ ✅
+- [x] ~~Telegram file → vault auto-save~~ ✅
 - [x] ~~Search across all entities~~ ✅
+
+### Remaining
+- [ ] Service worker (full offline support)
+- [ ] Swipe gestures (mobile)
 - [ ] Data analytics dashboard
+- [ ] Password complexity requirements
 
 ---
 
