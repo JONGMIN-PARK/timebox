@@ -7,13 +7,16 @@ import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
 import TimeBoxView from "@/components/timebox/TimeBoxView";
 import ElonScheduler from "@/components/scheduler/ElonScheduler";
+import FileVault from "@/components/files/FileVault";
 import SettingsPage from "@/pages/SettingsPage";
 import { useAuthStore } from "@/stores/authStore";
 import HelpModal from "@/components/HelpModal";
+import SearchModal from "@/components/SearchModal";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
   const [showHelp, setShowHelp] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const { fetchMe } = useAuthStore();
 
   useEffect(() => {
@@ -34,7 +37,8 @@ export default function DashboardPage() {
         case "4": setActiveTab("files"); break;
         case "5": setActiveTab("scheduler"); break;
         case "?": setShowHelp(true); break;
-        case "Escape": setShowHelp(false); break;
+        case "/": e.preventDefault(); setShowSearch(true); break;
+        case "Escape": setShowHelp(false); setShowSearch(false); break;
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -54,15 +58,7 @@ export default function DashboardPage() {
       case "settings":
         return <SettingsPage />;
       case "files":
-        return (
-          <div className="flex items-center justify-center h-full text-slate-400">
-            <div className="text-center">
-              <p className="text-4xl mb-3">📁</p>
-              <p className="text-sm font-medium">File Vault</p>
-              <p className="text-xs text-slate-400 mt-1">Coming Soon</p>
-            </div>
-          </div>
-        );
+        return <FileVault />;
       default:
         return <CalendarView />;
     }
@@ -99,6 +95,7 @@ export default function DashboardPage() {
 
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
     </div>
   );
 }

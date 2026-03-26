@@ -44,9 +44,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden">
-      <div className="absolute inset-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-600/8 blur-[100px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/6 blur-[100px]" />
+      <div className="absolute inset-0 particles">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-600/10 blur-[120px] animate-[ambientFloat_20s_ease-in-out_infinite]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/8 blur-[120px] animate-[ambientFloat_25s_ease-in-out_infinite_reverse]" />
+        <div className="absolute top-[40%] right-[30%] w-[30%] h-[30%] rounded-full bg-pink-600/5 blur-[100px] animate-[ambientFloat_15s_ease-in-out_infinite_2s]" />
       </div>
 
       <div className="relative w-full max-w-[380px] p-8">
@@ -54,7 +55,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-lg shadow-blue-600/30 mb-5">
             <Clock className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-semibold text-white tracking-tight">TimeBox</h1>
+          <h1 className="text-2xl font-semibold text-white tracking-tight gradient-text">TimeBox</h1>
           <p className="text-slate-500 mt-1.5 text-sm">
             {mode === "login" && "Sign in to continue"}
             {mode === "request" && "Request an account"}
