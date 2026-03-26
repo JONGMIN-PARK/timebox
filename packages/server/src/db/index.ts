@@ -11,6 +11,7 @@ const dbPath = process.env.DB_PATH || path.join(__dirname, "../../data/timebox.d
 
 // Ensure data directory exists
 import fs from "fs";
+import bcrypt from "bcrypt";
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -150,7 +151,6 @@ export function initDb() {
   // Create default admin if no users exist
   const userCount = sqlite.prepare("SELECT COUNT(*) as cnt FROM users").get() as { cnt: number };
   if (userCount.cnt === 0) {
-    const bcrypt = require("bcrypt");
     const hash = bcrypt.hashSync("admin123", 10);
     sqlite.prepare("INSERT INTO users (username, password_hash, display_name, role) VALUES (?, ?, ?, ?)").run("admin", hash, "Admin", "admin");
     console.log("Default admin user created: admin / admin123");
