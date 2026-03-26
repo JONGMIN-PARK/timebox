@@ -19,7 +19,7 @@ interface TodoState {
   loading: boolean;
   setFilter: (filter: "all" | "active" | "completed") => void;
   fetchTodos: () => Promise<void>;
-  addTodo: (title: string, priority?: string) => Promise<void>;
+  addTodo: (title: string, priority?: string, dueDate?: string) => Promise<void>;
   toggleTodo: (id: number) => Promise<void>;
   deleteTodo: (id: number) => Promise<void>;
   updateTodo: (id: number, updates: Partial<Todo>) => Promise<void>;
@@ -43,8 +43,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }
   },
 
-  addTodo: async (title, priority = "medium") => {
-    const res = await api.post<Todo>("/todos", { title, priority });
+  addTodo: async (title, priority = "medium", dueDate?: string) => {
+    const date = dueDate || new Date().toISOString().slice(0, 10);
+    const res = await api.post<Todo>("/todos", { title, priority, dueDate: date });
     if (res.success && res.data) {
       set({ todos: [...get().todos, res.data] });
     }
