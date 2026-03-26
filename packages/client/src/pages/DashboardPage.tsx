@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import TodoList from "@/components/todo/TodoList";
 import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
+import TimeBoxView from "@/components/timebox/TimeBoxView";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -14,11 +15,7 @@ export default function DashboardPage() {
       case "calendar":
         return <CalendarView />;
       case "timebox":
-        return (
-          <div className="flex items-center justify-center h-full text-slate-400">
-            <p>타임박스 (Phase 2에서 구현)</p>
-          </div>
-        );
+        return <TimeBoxView />;
       case "todo":
         return <TodoList />;
       case "files":

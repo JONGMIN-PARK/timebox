@@ -1,6 +1,7 @@
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
+import { useThemeStore } from "@/stores/themeStore";
 
 interface SidebarProps {
   activeTab: string;
@@ -16,6 +17,14 @@ const tabs = [
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { logout } = useAuthStore();
+  const { theme, setTheme } = useThemeStore();
+
+  const cycleTheme = () => {
+    const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+    setTheme(next);
+  };
+
+  const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
 
   return (
     <aside className="hidden md:flex flex-col w-16 lg:w-56 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
@@ -50,9 +59,14 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Bottom actions */}
       <div className="py-4 px-2 space-y-1 border-t border-slate-200 dark:border-slate-700">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">
-          <Settings className="w-5 h-5" />
-          <span className="hidden lg:block">설정</span>
+        <button
+          onClick={cycleTheme}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+        >
+          <ThemeIcon className="w-5 h-5" />
+          <span className="hidden lg:block">
+            {{ light: "라이트", dark: "다크", system: "시스템" }[theme]}
+          </span>
         </button>
         <button
           onClick={logout}

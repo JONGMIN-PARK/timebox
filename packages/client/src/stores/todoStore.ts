@@ -23,6 +23,7 @@ interface TodoState {
   toggleTodo: (id: number) => Promise<void>;
   deleteTodo: (id: number) => Promise<void>;
   updateTodo: (id: number, updates: Partial<Todo>) => Promise<void>;
+  reorderTodos: (items: { id: number; sortOrder: number }[]) => Promise<void>;
 }
 
 export const useTodoStore = create<TodoState>((set, get) => ({
@@ -70,5 +71,16 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     if (res.success && res.data) {
       set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
     }
+  },
+
+  reorderTodos: async (items) => {
+    // Optimistic update
+    const todosMap = new Map(get().todos.map((t) => [t.id, t]));
+    items.forEach(({ id, sortOrder }) => {
+      const todo = todosMap.get(id);
+      if (todo) todosMap.set(id, { ...todo, sortOrder });
+    });
+    set({ todos: Array.from(todosMap.values()) });
+    await api.put("/todos/reorder", { items });
   },
 }));

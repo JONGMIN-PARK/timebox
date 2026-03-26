@@ -10,6 +10,9 @@ import todoRoutes from "./routes/todos.js";
 import eventRoutes from "./routes/events.js";
 import ddayRoutes from "./routes/ddays.js";
 import categoryRoutes from "./routes/categories.js";
+import timeblockRoutes from "./routes/timeblocks.js";
+import telegramRoutes from "./routes/telegram.js";
+import { initTelegramBot } from "./telegram/bot.js";
 
 dotenv.config();
 
@@ -39,6 +42,8 @@ app.use("/api/todos", authMiddleware, todoRoutes);
 app.use("/api/events", authMiddleware, eventRoutes);
 app.use("/api/ddays", authMiddleware, ddayRoutes);
 app.use("/api/categories", authMiddleware, categoryRoutes);
+app.use("/api/timeblocks", authMiddleware, timeblockRoutes);
+app.use("/api/telegram", authMiddleware, telegramRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
@@ -51,4 +56,11 @@ if (process.env.NODE_ENV === "production") {
 
 app.listen(PORT, () => {
   console.log(`TimeBox server running on http://localhost:${PORT}`);
+
+  // Initialize Telegram bot (non-blocking)
+  try {
+    initTelegramBot();
+  } catch (err) {
+    console.log("Telegram bot init skipped:", (err as Error).message);
+  }
 });

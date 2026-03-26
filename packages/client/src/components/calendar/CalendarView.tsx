@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useEventStore } from "@/stores/eventStore";
+import { useCategoryStore } from "@/stores/categoryStore";
 import {
   format,
   startOfMonth,
@@ -12,30 +13,75 @@ import {
   isToday,
   addMonths,
   subMonths,
+  addWeeks,
+  subWeeks,
+  addDays,
+  subDays,
   parseISO,
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+type ViewMode = "month" | "week" | "day";
+
+const HOUR_HEIGHT = 56;
+const START_HOUR = 6;
+const END_HOUR = 24;
+const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR);
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent } = useEventStore();
+  const { categories, fetchCategories } = useCategoryStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00" });
+  const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+  const timelineRef = useRef<HTMLDivElement>(null);
 
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  // Calculate date ranges based on view mode
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    if (viewMode === "month") {
+      const ms = startOfMonth(currentDate);
+      const me = endOfMonth(currentDate);
+      return { rangeStart: startOfWeek(ms, { weekStartsOn: 0 }), rangeEnd: endOfWeek(me, { weekStartsOn: 0 }) };
+    } else if (viewMode === "week") {
+      return { rangeStart: startOfWeek(currentDate, { weekStartsOn: 0 }), rangeEnd: endOfWeek(currentDate, { weekStartsOn: 0 }) };
+    } else {
+      return { rangeStart: currentDate, rangeEnd: currentDate };
+    }
+  }, [currentDate, viewMode]);
+
+  const days = useMemo(
+    () => eachDayOfInterval({ start: rangeStart, end: rangeEnd }),
+    [rangeStart, rangeEnd],
+  );
 
   useEffect(() => {
-    const start = format(calendarStart, "yyyy-MM-dd'T'00:00:00");
-    const end = format(calendarEnd, "yyyy-MM-dd'T'23:59:59");
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
+    const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
-  }, [currentDate]);
+  }, [currentDate, viewMode]);
+
+  // Scroll to current time in week/day view
+  useEffect(() => {
+    if ((viewMode === "week" || viewMode === "day") && timelineRef.current) {
+      const now = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      const scrollTo = ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT - 100;
+      timelineRef.current.scrollTop = Math.max(0, scrollTo);
+    }
+  }, [viewMode]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, typeof events>();
@@ -52,130 +98,325 @@ export default function CalendarView() {
     ? eventsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []
     : [];
 
+  const navigate = (direction: -1 | 1) => {
+    if (viewMode === "month") setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+    else if (viewMode === "week") setCurrentDate(direction === 1 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
+    else setCurrentDate(direction === 1 ? addDays(currentDate, 1) : subDays(currentDate, 1));
+  };
+
+  const headerTitle = () => {
+    if (viewMode === "month") return format(currentDate, "yyyy년 M월", { locale: ko });
+    if (viewMode === "week") {
+      const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
+      const we = endOfWeek(currentDate, { weekStartsOn: 0 });
+      return `${format(ws, "M/d")} - ${format(we, "M/d")}`;
+    }
+    return format(currentDate, "M월 d일 (EEE)", { locale: ko });
+  };
+
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEvent.title.trim() || !selectedDate) return;
     const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const cat = categories.find((c) => c.id === newEvent.categoryId);
     await addEvent({
       title: newEvent.title.trim(),
       startTime: `${dateStr}T${newEvent.startTime}:00`,
       endTime: `${dateStr}T${newEvent.endTime}:00`,
       allDay: false,
+      categoryId: newEvent.categoryId || undefined,
+      color: cat?.color || "#3b82f6",
     });
-    setNewEvent({ title: "", startTime: "09:00", endTime: "10:00" });
+    setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
     setShowAddModal(false);
-    // Refresh
-    const start = format(calendarStart, "yyyy-MM-dd'T'00:00:00");
-    const end = format(calendarEnd, "yyyy-MM-dd'T'23:59:59");
+    const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
+    const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
   };
 
+  // Current time line
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentTimeTop = ((currentMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
   return (
     <div className="flex flex-col h-full">
-      {/* Month navigation */}
+      {/* Navigation header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-        <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-          <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-        </button>
-        <h2 className="font-semibold text-slate-900 dark:text-white">
-          {format(currentDate, "yyyy년 M월", { locale: ko })}
-        </h2>
-        <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-          <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-        </button>
-      </div>
-
-      {/* Day headers */}
-      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700">
-        {["일", "월", "화", "수", "목", "금", "토"].map((day, i) => (
-          <div
-            key={day}
-            className={cn(
-              "text-center text-xs font-medium py-2",
-              i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500",
-            )}
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+          </button>
+          <h2 className="font-semibold text-slate-900 dark:text-white min-w-[120px] text-center">
+            {headerTitle()}
+          </h2>
+          <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+          </button>
+          <button
+            onClick={() => setCurrentDate(new Date())}
+            className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 ml-1"
           >
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar grid */}
-      <div className="flex-1 grid grid-cols-7 auto-rows-fr">
-        {days.map((day) => {
-          const dateKey = format(day, "yyyy-MM-dd");
-          const dayEvents = eventsByDate.get(dateKey) || [];
-          const isSelected = selectedDate && isSameDay(day, selectedDate);
-          const dayOfWeek = day.getDay();
-
-          return (
+            오늘
+          </button>
+        </div>
+        {/* View mode toggle */}
+        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+          {(["month", "week", "day"] as ViewMode[]).map((mode) => (
             <button
-              key={dateKey}
-              onClick={() => setSelectedDate(day)}
+              key={mode}
+              onClick={() => setViewMode(mode)}
               className={cn(
-                "relative flex flex-col items-center p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors",
-                !isSameMonth(day, currentDate) && "opacity-30",
-                isSelected && "bg-blue-50 dark:bg-blue-900/20",
-                !isSelected && "hover:bg-slate-50 dark:hover:bg-slate-700/30",
+                "text-xs px-2.5 py-1 rounded-md transition-colors",
+                viewMode === mode
+                  ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
               )}
             >
-              <span
-                className={cn(
-                  "w-7 h-7 flex items-center justify-center rounded-full text-sm",
-                  isToday(day) && "bg-blue-600 text-white font-bold",
-                  !isToday(day) && dayOfWeek === 0 && "text-red-500",
-                  !isToday(day) && dayOfWeek === 6 && "text-blue-500",
-                  !isToday(day) && dayOfWeek !== 0 && dayOfWeek !== 6 && "text-slate-700 dark:text-slate-300",
-                )}
-              >
-                {format(day, "d")}
-              </span>
-              {/* Event dots */}
-              <div className="flex gap-0.5 mt-0.5">
-                {dayEvents.slice(0, 3).map((ev) => (
-                  <div key={ev.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
-                ))}
-              </div>
+              {{ month: "월", week: "주", day: "일" }[mode]}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {/* Selected date detail */}
-      {selectedDate && (
-        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+      {/* === MONTH VIEW === */}
+      {viewMode === "month" && (
+        <>
+          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700">
+            {["일", "월", "화", "수", "목", "금", "토"].map((day, i) => (
+              <div key={day} className={cn("text-center text-xs font-medium py-2", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
+                {day}
+              </div>
+            ))}
+          </div>
+          <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+            {days.map((day) => {
+              const dateKey = format(day, "yyyy-MM-dd");
+              const dayEvents = eventsByDate.get(dateKey) || [];
+              const isSelected = selectedDate && isSameDay(day, selectedDate);
+              const dow = day.getDay();
+              return (
+                <button
+                  key={dateKey}
+                  onClick={() => setSelectedDate(day)}
+                  onDoubleClick={() => { setSelectedDate(day); setViewMode("day"); setCurrentDate(day); }}
+                  className={cn(
+                    "relative flex flex-col items-center p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors",
+                    !isSameMonth(day, currentDate) && "opacity-30",
+                    isSelected && "bg-blue-50 dark:bg-blue-900/20",
+                    !isSelected && "hover:bg-slate-50 dark:hover:bg-slate-700/30",
+                  )}
+                >
+                  <span className={cn(
+                    "w-7 h-7 flex items-center justify-center rounded-full text-sm",
+                    isToday(day) && "bg-blue-600 text-white font-bold",
+                    !isToday(day) && dow === 0 && "text-red-500",
+                    !isToday(day) && dow === 6 && "text-blue-500",
+                    !isToday(day) && dow !== 0 && dow !== 6 && "text-slate-700 dark:text-slate-300",
+                  )}>
+                    {format(day, "d")}
+                  </span>
+                  <div className="flex gap-0.5 mt-0.5">
+                    {dayEvents.slice(0, 3).map((ev) => (
+                      <div key={ev.id} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {/* Selected date detail */}
+          {selectedDate && (
+            <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
+                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                  {format(selectedDate, "M월 d일 (EEE)", { locale: ko })}
+                </span>
+                <button onClick={() => setShowAddModal(true)} className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                {selectedDateEvents.length === 0 ? (
+                  <p className="px-4 py-4 text-sm text-slate-400 text-center">일정이 없습니다</p>
+                ) : (
+                  selectedDateEvents.map((ev) => (
+                    <div key={ev.id} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      <div className="w-1 h-8 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
+                        <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
+                      </div>
+                      <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100">
+                        <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* === WEEK VIEW === */}
+      {viewMode === "week" && (
+        <>
+          {/* Day headers */}
+          <div className="grid grid-cols-[3rem_repeat(7,1fr)] border-b border-slate-200 dark:border-slate-700">
+            <div />
+            {days.map((day) => {
+              const dow = day.getDay();
+              return (
+                <button
+                  key={format(day, "yyyy-MM-dd")}
+                  onClick={() => { setViewMode("day"); setCurrentDate(day); }}
+                  className={cn(
+                    "flex flex-col items-center py-2 hover:bg-slate-50 dark:hover:bg-slate-700/30",
+                  )}
+                >
+                  <span className={cn("text-xs font-medium", dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-slate-500")}>
+                    {format(day, "EEE", { locale: ko })}
+                  </span>
+                  <span className={cn(
+                    "w-7 h-7 flex items-center justify-center rounded-full text-sm mt-0.5",
+                    isToday(day) && "bg-blue-600 text-white font-bold",
+                    !isToday(day) && "text-slate-700 dark:text-slate-300",
+                  )}>
+                    {format(day, "d")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {/* Timeline grid */}
+          <div ref={timelineRef} className="flex-1 overflow-y-auto">
+            <div className="relative grid grid-cols-[3rem_repeat(7,1fr)]" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
+              {/* Hour labels */}
+              {HOURS.map((hour) => (
+                <div key={hour} className="absolute left-0 w-12 text-right pr-2" style={{ top: (hour - START_HOUR) * HOUR_HEIGHT - 6 }}>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{hour.toString().padStart(2, "0")}:00</span>
+                </div>
+              ))}
+              {/* Hour grid lines */}
+              {HOURS.map((hour) => (
+                <div key={`line-${hour}`} className="absolute left-12 right-0 border-t border-slate-100 dark:border-slate-700/50" style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }} />
+              ))}
+              {/* Current time line */}
+              {currentMinutes >= START_HOUR * 60 && (
+                <div className="absolute left-12 right-0 z-10 flex items-center pointer-events-none" style={{ top: currentTimeTop }}>
+                  <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
+                  <div className="flex-1 h-0.5 bg-red-500" />
+                </div>
+              )}
+              {/* Day columns with events */}
+              {days.map((day, colIdx) => {
+                const dateKey = format(day, "yyyy-MM-dd");
+                const dayEvents = eventsByDate.get(dateKey) || [];
+                return (
+                  <div
+                    key={dateKey}
+                    className="relative border-r border-slate-100 dark:border-slate-700/50"
+                    style={{ gridColumn: colIdx + 2 }}
+                    onClick={() => { setSelectedDate(day); setShowAddModal(true); }}
+                  >
+                    {dayEvents.map((ev) => {
+                      const startMin = timeToMinutes(ev.startTime.slice(11, 16));
+                      const endMin = timeToMinutes(ev.endTime.slice(11, 16));
+                      const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                      const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 20);
+                      return (
+                        <div
+                          key={ev.id}
+                          className="absolute left-0.5 right-0.5 rounded border-l-3 px-1 py-0.5 overflow-hidden cursor-pointer group"
+                          style={{
+                            top,
+                            height,
+                            borderLeftColor: ev.color || "#3b82f6",
+                            backgroundColor: (ev.color || "#3b82f6") + "20",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-xs font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
+                          {height >= 36 && (
+                            <p className="text-[10px] text-slate-400">{ev.startTime.slice(11, 16)}</p>
+                          )}
+                          <button
+                            onClick={() => deleteEvent(ev.id)}
+                            className="absolute top-0.5 right-0.5 hidden group-hover:flex w-4 h-4 items-center justify-center rounded bg-white/80 dark:bg-slate-800/80"
+                          >
+                            <X className="w-3 h-3 text-red-500" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* === DAY VIEW === */}
+      {viewMode === "day" && (
+        <>
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
-            <span className="text-sm font-medium text-slate-900 dark:text-white">
-              {format(selectedDate, "M월 d일 (EEE)", { locale: ko })}
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              {events.filter((e) => e.startTime.startsWith(format(currentDate, "yyyy-MM-dd"))).length}개 일정
             </span>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white"
-            >
+            <button onClick={() => { setSelectedDate(currentDate); setShowAddModal(true); }} className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white">
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <div className="max-h-40 overflow-y-auto">
-            {selectedDateEvents.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-400 text-center">일정이 없습니다</p>
-            ) : (
-              selectedDateEvents.map((ev) => (
-                <div key={ev.id} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                  <div className="w-1 h-8 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
-                    <p className="text-xs text-slate-400">
-                      {ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}
-                    </p>
-                  </div>
-                  <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100">
-                    <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                  </button>
+          <div ref={timelineRef} className="flex-1 overflow-y-auto">
+            <div className="relative" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
+              {HOURS.map((hour) => (
+                <div key={hour} className="absolute left-0 right-0 border-t border-slate-100 dark:border-slate-700/50" style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}>
+                  <span className="absolute -top-2.5 left-2 text-xs text-slate-400 dark:text-slate-500 w-10">
+                    {hour.toString().padStart(2, "0")}:00
+                  </span>
                 </div>
-              ))
-            )}
+              ))}
+              {/* Current time */}
+              {isToday(currentDate) && currentMinutes >= START_HOUR * 60 && (
+                <div className="absolute left-12 right-2 z-10 flex items-center pointer-events-none" style={{ top: currentTimeTop }}>
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1" />
+                  <div className="flex-1 h-0.5 bg-red-500" />
+                </div>
+              )}
+              {/* Events */}
+              {(eventsByDate.get(format(currentDate, "yyyy-MM-dd")) || []).map((ev) => {
+                const startMin = timeToMinutes(ev.startTime.slice(11, 16));
+                const endMin = timeToMinutes(ev.endTime.slice(11, 16));
+                const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+                const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 24);
+                return (
+                  <div
+                    key={ev.id}
+                    className="absolute left-14 right-3 rounded-lg border-l-4 px-3 py-1.5 group"
+                    style={{
+                      top,
+                      height,
+                      borderLeftColor: ev.color || "#3b82f6",
+                      backgroundColor: (ev.color || "#3b82f6") + "18",
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
+                        {height >= 40 && <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>}
+                      </div>
+                      <button onClick={() => deleteEvent(ev.id)} className="hidden group-hover:flex w-5 h-5 items-center justify-center">
+                        <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Add event modal */}
@@ -197,33 +438,44 @@ export default function CalendarView() {
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
+            {/* Category selector */}
+            {categories.length > 0 && (
+              <div>
+                <label className="text-xs text-slate-500 mb-1.5 block">카테고리</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setNewEvent({ ...newEvent, categoryId: cat.id })}
+                      className={cn(
+                        "text-xs py-1 px-2.5 rounded-full border-2 transition-colors",
+                        newEvent.categoryId === cat.id
+                          ? "border-current font-medium"
+                          : "border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700",
+                      )}
+                      style={newEvent.categoryId === cat.id ? { color: cat.color, backgroundColor: cat.color + "15" } : undefined}
+                    >
+                      {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="text-xs text-slate-500 mb-1 block">시작</label>
-                <input
-                  type="time"
-                  value={newEvent.startTime}
-                  onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
-                  className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
-                />
+                <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
               <div className="flex-1">
                 <label className="text-xs text-slate-500 mb-1 block">종료</label>
-                <input
-                  type="time"
-                  value={newEvent.endTime}
-                  onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
-                  className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
-                />
+                <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
             </div>
             <div className="flex gap-2">
-              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">
-                추가
-              </button>
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">
-                취소
-              </button>
+              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">추가</button>
+              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">취소</button>
             </div>
           </form>
         </div>

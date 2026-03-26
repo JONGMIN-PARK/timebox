@@ -1,35 +1,37 @@
 import { useEffect, useState } from "react";
 import { useTodoStore } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
-export default function TodoList() {
-  const { todos, filter, loading, setFilter, fetchTodos, addTodo, toggleTodo, deleteTodo } = useTodoStore();
-  const [newTitle, setNewTitle] = useState("");
-  const [showCompleted, setShowCompleted] = useState(false);
+interface TodoItemProps {
+  todo: { id: number; title: string; completed: boolean; priority: string; dueDate: string | null };
+  onToggle: (id: number) => void;
+  onDelete: (id: number) => void;
+}
 
-  useEffect(() => {
-    fetchTodos();
-  }, [fetchTodos]);
+function SortableTodoItem({ todo, onToggle, onDelete }: TodoItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
 
-  const activeTodos = todos.filter((t) => !t.completed);
-  const completedTodos = todos.filter((t) => t.completed);
-  const completionRate = todos.length > 0 ? Math.round((completedTodos.length / todos.length) * 100) : 0;
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    await addTodo(newTitle.trim());
-    setNewTitle("");
-  };
-
-  const priorityColor = (p: string) => {
-    switch (p) {
-      case "high": return "text-red-500";
-      case "medium": return "text-amber-500";
-      case "low": return "text-slate-400";
-      default: return "text-slate-400";
-    }
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   };
 
   const priorityDot = (p: string) => {
@@ -42,6 +44,71 @@ export default function TodoList() {
   };
 
   return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "group flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors",
+        isDragging && "opacity-50 bg-slate-100 dark:bg-slate-700 z-50",
+      )}
+    >
+      <button {...attributes} {...listeners} className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none">
+        <GripVertical className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+      </button>
+      <button onClick={() => onToggle(todo.id)} className="flex-shrink-0">
+        <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priorityDot(todo.priority))} />
+          <span className="text-sm text-slate-900 dark:text-white truncate">{todo.title}</span>
+        </div>
+        {todo.dueDate && <span className="text-xs text-slate-400 ml-3.5">{todo.dueDate}</span>}
+      </div>
+      <button onClick={() => onDelete(todo.id)} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
+      </button>
+    </li>
+  );
+}
+
+export default function TodoList() {
+  const { todos, filter, loading, setFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, reorderTodos } = useTodoStore();
+  const [newTitle, setNewTitle] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  useEffect(() => {
+    fetchTodos();
+  }, [fetchTodos]);
+
+  const activeTodos = todos.filter((t) => !t.completed).sort((a, b) => a.sortOrder - b.sortOrder);
+  const completedTodos = todos.filter((t) => t.completed);
+  const completionRate = todos.length > 0 ? Math.round((completedTodos.length / todos.length) * 100) : 0;
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    await addTodo(newTitle.trim());
+    setNewTitle("");
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = activeTodos.findIndex((t) => t.id === active.id);
+    const newIndex = activeTodos.findIndex((t) => t.id === over.id);
+    const reordered = arrayMove(activeTodos, oldIndex, newIndex);
+
+    reorderTodos(reordered.map((t, i) => ({ id: t.id, sortOrder: i })));
+  };
+
+  return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
@@ -49,12 +116,8 @@ export default function TodoList() {
           <h2 className="font-semibold text-slate-900 dark:text-white">투두 리스트</h2>
           <span className="text-xs text-slate-500">{completedTodos.length}/{todos.length}</span>
         </div>
-        {/* Progress bar */}
         <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-500 rounded-full transition-all duration-300"
-            style={{ width: `${completionRate}%` }}
-          />
+          <div className="h-full bg-blue-500 rounded-full transition-all duration-300" style={{ width: `${completionRate}%` }} />
         </div>
       </div>
 
@@ -98,34 +161,18 @@ export default function TodoList() {
 
       {/* Todo items */}
       <div className="flex-1 overflow-y-auto">
-        {/* Active todos */}
-        <ul className="py-2">
-          {(filter === "completed" ? [] : activeTodos).map((todo) => (
-            <li
-              key={todo.id}
-              className="group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-            >
-              <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0">
-                <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors" />
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priorityDot(todo.priority))} />
-                  <span className="text-sm text-slate-900 dark:text-white truncate">{todo.title}</span>
-                </div>
-                {todo.dueDate && (
-                  <span className="text-xs text-slate-400 ml-3.5">{todo.dueDate}</span>
-                )}
-              </div>
-              <button
-                onClick={() => deleteTodo(todo.id)}
-                className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        {/* Active todos - sortable */}
+        {filter !== "completed" && (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={activeTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              <ul className="py-2">
+                {activeTodos.map((todo) => (
+                  <SortableTodoItem key={todo.id} todo={todo} onToggle={toggleTodo} onDelete={deleteTodo} />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        )}
 
         {/* Completed section */}
         {filter !== "active" && completedTodos.length > 0 && (
@@ -140,18 +187,13 @@ export default function TodoList() {
             {showCompleted && (
               <ul>
                 {completedTodos.map((todo) => (
-                  <li
-                    key={todo.id}
-                    className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                  >
+                  <li key={todo.id} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <div className="w-4" />
                     <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0">
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                     </button>
                     <span className="flex-1 text-sm text-slate-400 line-through truncate">{todo.title}</span>
-                    <button
-                      onClick={() => deleteTodo(todo.id)}
-                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
+                    <button onClick={() => deleteTodo(todo.id)} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
                     </button>
                   </li>
