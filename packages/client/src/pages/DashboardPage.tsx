@@ -6,8 +6,8 @@ import TodoList from "@/components/todo/TodoList";
 import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
 import TimeBoxView from "@/components/timebox/TimeBoxView";
-import SettingsPage from "@/pages/SettingsPage";
 import ElonScheduler from "@/components/scheduler/ElonScheduler";
+import SettingsPage from "@/pages/SettingsPage";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function DashboardPage() {
@@ -33,7 +33,11 @@ export default function DashboardPage() {
       case "files":
         return (
           <div className="flex items-center justify-center h-full text-slate-400">
-            <p>File Vault (Coming Soon)</p>
+            <div className="text-center">
+              <p className="text-4xl mb-3">📁</p>
+              <p className="text-sm font-medium">File Vault</p>
+              <p className="text-xs text-slate-400 mt-1">Coming Soon</p>
+            </div>
           </div>
         );
       default:
@@ -41,24 +45,24 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = activeTab !== "settings" && activeTab !== "scheduler";
+  const showRightPanel = !["settings", "scheduler"].includes(activeTab);
 
   return (
-    <div className="h-screen flex bg-slate-50 dark:bg-slate-900 pb-[52px] md:pb-0">
+    <div className="h-screen flex bg-slate-50 dark:bg-slate-900 pb-[48px] md:pb-0">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header onAddClick={() => {}} />
 
         <div className="flex-1 flex overflow-hidden">
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-hidden animate-in">
             {renderMainContent()}
           </main>
 
           {showRightPanel && (
-            <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
+            <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
               {activeTab !== "todo" && (
-                <div className="flex-1 border-b border-slate-200 dark:border-slate-700">
+                <div className="flex-1 border-b border-slate-200/60 dark:border-slate-700/40">
                   <TodoList />
                 </div>
               )}

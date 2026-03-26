@@ -20,6 +20,7 @@ export default {
       },
       fontFamily: {
         sans: [
+          "Inter",
           "Pretendard",
           "-apple-system",
           "BlinkMacSystemFont",
