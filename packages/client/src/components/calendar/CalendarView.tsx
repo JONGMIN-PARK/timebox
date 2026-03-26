@@ -20,7 +20,7 @@ import {
   subDays,
   parseISO,
 } from "date-fns";
-import { ko } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, CheckSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -155,13 +155,13 @@ export default function CalendarView() {
   };
 
   const headerTitle = () => {
-    if (viewMode === "month") return format(currentDate, "yyyy년 M월", { locale: ko });
+    if (viewMode === "month") return format(currentDate, "MMMM yyyy", { locale: enUS });
     if (viewMode === "week") {
       const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
       const we = endOfWeek(currentDate, { weekStartsOn: 0 });
       return `${format(ws, "M/d")} - ${format(we, "M/d")}`;
     }
-    return format(currentDate, "M월 d일 (EEE)", { locale: ko });
+    return format(currentDate, "MMM d (EEE)", { locale: enUS });
   };
 
   const handleAddEvent = async (e: React.FormEvent) => {
@@ -240,7 +240,7 @@ export default function CalendarView() {
             onClick={() => setCurrentDate(new Date())}
             className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 ml-1"
           >
-            오늘
+            Today
           </button>
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
@@ -255,7 +255,7 @@ export default function CalendarView() {
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
               )}
             >
-              {{ month: "월", week: "주", day: "일" }[mode]}
+              {{ month: "M", week: "W", day: "D" }[mode]}
             </button>
           ))}
         </div>
@@ -265,7 +265,7 @@ export default function CalendarView() {
       {viewMode === "month" && (
         <>
           <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700">
-            {["일", "월", "화", "수", "목", "금", "토"].map((day, i) => (
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
               <div key={day} className={cn("text-center text-xs font-medium py-2", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
                 {day}
               </div>
@@ -327,7 +327,7 @@ export default function CalendarView() {
             <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
               <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
                 <span className="text-sm font-medium text-slate-900 dark:text-white">
-                  {format(selectedDate, "M월 d일 (EEE)", { locale: ko })}
+                  {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
                 </span>
                 <button onClick={() => setShowAddModal(true)} className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white">
                   <Plus className="w-4 h-4" />
@@ -335,7 +335,7 @@ export default function CalendarView() {
               </div>
               <div className="max-h-48 overflow-y-auto">
                 {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
-                  <p className="px-4 py-4 text-sm text-slate-400 text-center">일정이 없습니다</p>
+                  <p className="px-4 py-4 text-sm text-slate-400 text-center">No events</p>
                 ) : (
                   <>
                     {/* Events */}
@@ -362,7 +362,7 @@ export default function CalendarView() {
                             {t.title}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {t.priority === "high" ? "높음" : t.priority === "medium" ? "보통" : "낮음"}
+                            {t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low"}
                           </p>
                         </div>
                       </div>
@@ -391,7 +391,7 @@ export default function CalendarView() {
                   className="flex flex-col items-center py-2 hover:bg-slate-50 dark:hover:bg-slate-700/30"
                 >
                   <span className={cn("text-xs font-medium", dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-slate-500")}>
-                    {format(day, "EEE", { locale: ko })}
+                    {format(day, "EEE", { locale: enUS })}
                   </span>
                   <span className={cn(
                     "w-7 h-7 flex items-center justify-center rounded-full text-sm mt-0.5",
@@ -472,10 +472,10 @@ export default function CalendarView() {
           <div className="border-b border-slate-100 dark:border-slate-700/50">
             <div className="flex items-center justify-between px-4 py-2">
               <span className="text-sm text-slate-500 dark:text-slate-400">
-                {events.filter((e) => e.startTime.startsWith(format(currentDate, "yyyy-MM-dd"))).length}개 일정
+                {events.filter((e) => e.startTime.startsWith(format(currentDate, "yyyy-MM-dd"))).length} events
                 {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).length > 0 && (
                   <span className="ml-2">
-                    · {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).length}개 투두
+                    · {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).length} todos
                   </span>
                 )}
               </span>
@@ -557,19 +557,19 @@ export default function CalendarView() {
             className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
           >
             <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(selectedDate, "M월 d일", { locale: ko })} 일정 추가
+              {format(selectedDate, "MMM d", { locale: enUS })} Add Event
             </h3>
             <input
               type="text"
               value={newEvent.title}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-              placeholder="일정 제목"
+              placeholder="Event title"
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
             {categories.length > 0 && (
               <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">카테고리</label>
+                <label className="text-xs text-slate-500 mb-1.5 block">Category</label>
                 <div className="flex flex-wrap gap-1.5">
                   {categories.map((cat) => (
                     <button
@@ -593,17 +593,17 @@ export default function CalendarView() {
             )}
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">시작</label>
+                <label className="text-xs text-slate-500 mb-1 block">Start</label>
                 <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">종료</label>
+                <label className="text-xs text-slate-500 mb-1 block">End</label>
                 <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
             </div>
             <div className="flex gap-2">
-              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">추가</button>
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">취소</button>
+              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">Add</button>
+              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">Cancel</button>
             </div>
           </form>
         </div>

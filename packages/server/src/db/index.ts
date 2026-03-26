@@ -27,7 +27,11 @@ export function initDb() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      pin_hash TEXT NOT NULL,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      display_name TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
+      active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -40,6 +44,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       description TEXT,
       start_time TEXT NOT NULL,
@@ -54,6 +59,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS time_blocks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       date TEXT NOT NULL,
       start_time TEXT NOT NULL,
       end_time TEXT NOT NULL,
@@ -67,6 +73,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS todos (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       completed INTEGER NOT NULL DEFAULT 0,
       priority TEXT NOT NULL DEFAULT 'medium',
@@ -79,6 +86,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS ddays (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       target_date TEXT NOT NULL,
       color TEXT DEFAULT '#3b82f6',
@@ -89,6 +97,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS reminders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       title TEXT NOT NULL,
       message TEXT,
       remind_at TEXT NOT NULL,
@@ -104,6 +113,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS files (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
       original_name TEXT NOT NULL,
       stored_name TEXT NOT NULL,
       mime_type TEXT NOT NULL,
@@ -128,12 +138,21 @@ export function initDb() {
   if (count.cnt === 0) {
     sqlite.exec(`
       INSERT INTO categories (name, color, icon) VALUES
-        ('업무', '#3b82f6', 'briefcase'),
-        ('개인', '#8b5cf6', 'user'),
-        ('운동', '#10b981', 'dumbbell'),
-        ('공부', '#f59e0b', 'book-open'),
-        ('미팅', '#ef4444', 'users'),
-        ('휴식', '#6b7280', 'coffee');
+        ('Work', '#3b82f6', 'briefcase'),
+        ('Personal', '#8b5cf6', 'user'),
+        ('Exercise', '#10b981', 'dumbbell'),
+        ('Study', '#f59e0b', 'book-open'),
+        ('Meeting', '#ef4444', 'users'),
+        ('Break', '#6b7280', 'coffee');
     `);
+  }
+
+  // Create default admin if no users exist
+  const userCount = sqlite.prepare("SELECT COUNT(*) as cnt FROM users").get() as { cnt: number };
+  if (userCount.cnt === 0) {
+    const bcrypt = require("bcrypt");
+    const hash = bcrypt.hashSync("admin123", 10);
+    sqlite.prepare("INSERT INTO users (username, password_hash, display_name, role) VALUES (?, ?, ?, ?)").run("admin", hash, "Admin", "admin");
+    console.log("Default admin user created: admin / admin123");
   }
 }

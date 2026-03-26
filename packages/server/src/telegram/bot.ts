@@ -158,6 +158,7 @@ export function initTelegramBot() {
     const end = timeRange?.end || "10:00";
 
     db.insert(events).values({
+      userId: 1,
       title,
       startTime: `${dateStr}T${start}:00`,
       endTime: `${dateStr}T${end}:00`,
@@ -185,6 +186,7 @@ export function initTelegramBot() {
     const maxOrder = db.select().from(todos).all().reduce((max, t) => Math.max(max, t.sortOrder), -1);
 
     db.insert(todos).values({
+      userId: 1,
       title: text,
       priority,
       sortOrder: maxOrder + 1,

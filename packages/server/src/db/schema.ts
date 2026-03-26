@@ -1,10 +1,14 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
-// ── Users ──
+// ── Users (multi-user) ──
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  pinHash: text("pin_hash").notNull(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  displayName: text("display_name"),
+  role: text("role").notNull().default("user"), // "admin" | "user"
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -21,6 +25,7 @@ export const categories = sqliteTable("categories", {
 // ── Events (Calendar) ──
 export const events = sqliteTable("events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   description: text("description"),
   startTime: text("start_time").notNull(),
@@ -40,6 +45,7 @@ export const events = sqliteTable("events", {
 // ── TimeBlocks ──
 export const timeBlocks = sqliteTable("time_blocks", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   date: text("date").notNull(),
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
@@ -58,6 +64,7 @@ export const timeBlocks = sqliteTable("time_blocks", {
 // ── Todos ──
 export const todos = sqliteTable("todos", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
   priority: text("priority").notNull().default("medium"),
@@ -75,6 +82,7 @@ export const todos = sqliteTable("todos", {
 // ── D-Days ──
 export const ddays = sqliteTable("ddays", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   targetDate: text("target_date").notNull(),
   color: text("color").default("#3b82f6"),
@@ -90,6 +98,7 @@ export const ddays = sqliteTable("ddays", {
 // ── Reminders ──
 export const reminders = sqliteTable("reminders", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   message: text("message"),
   remindAt: text("remind_at").notNull(),
@@ -110,6 +119,7 @@ export const reminders = sqliteTable("reminders", {
 // ── Files ──
 export const files = sqliteTable("files", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
   originalName: text("original_name").notNull(),
   storedName: text("stored_name").notNull(),
   mimeType: text("mime_type").notNull(),

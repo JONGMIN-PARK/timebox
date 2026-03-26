@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useTodoStore } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -69,16 +69,29 @@ interface SortableItemProps {
   onToggle: (id: number) => void;
   onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void;
+  onUpdateTitle: (id: number, title: string) => void;
 }
 
-function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate }: SortableItemProps) {
+function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitle }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(todo.title);
+  const editRef = useRef<HTMLInputElement>(null);
   const daysLeft = getDaysLeft(todo.dueDate);
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  const handleSaveTitle = () => {
+    if (editTitle.trim() && editTitle.trim() !== todo.title) {
+      onUpdateTitle(todo.id, editTitle.trim());
+    } else {
+      setEditTitle(todo.title);
+    }
+    setIsEditing(false);
   };
 
   return (
@@ -99,10 +112,27 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate }: SortableIt
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priorityDot(todo.priority))} />
-          <span className="text-sm text-slate-900 dark:text-white truncate">{todo.title}</span>
+          {isEditing ? (
+            <input
+              ref={editRef}
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={handleSaveTitle}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditTitle(todo.title); setIsEditing(false); } }}
+              className="flex-1 text-sm bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+              autoFocus
+            />
+          ) : (
+            <span
+              className="text-sm text-slate-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
+              onDoubleClick={() => { setIsEditing(true); setEditTitle(todo.title); }}
+            >
+              {todo.title}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 ml-3.5 mt-0.5">
-          {/* Date display / picker */}
           <button
             onClick={() => setShowDatePicker(!showDatePicker)}
             className={cn("text-xs flex items-center gap-1 hover:text-blue-500 transition-colors", daysLeftColor(daysLeft))}
@@ -111,7 +141,7 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate }: SortableIt
             {todo.dueDate ? (
               <span>{todo.dueDate} <span className="font-medium">{daysLeftLabel(daysLeft)}</span></span>
             ) : (
-              <span className="text-slate-400">날짜 설정</span>
+              <span className="text-slate-400">Set date</span>
             )}
           </button>
         </div>
@@ -120,19 +150,26 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate }: SortableIt
             <input
               type="date"
               value={todo.dueDate || new Date().toISOString().slice(0, 10)}
-              onChange={(e) => {
-                onUpdateDate(todo.id, e.target.value);
-                setShowDatePicker(false);
-              }}
+              onChange={(e) => { onUpdateDate(todo.id, e.target.value); setShowDatePicker(false); }}
               className="text-xs bg-slate-100 dark:bg-slate-700 rounded px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
           </div>
         )}
       </div>
-      <button onClick={() => onDelete(todo.id)} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
-      </button>
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        {!isEditing && (
+          <button
+            onClick={() => { setIsEditing(true); setEditTitle(todo.title); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center"
+          >
+            <Pencil className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
+          </button>
+        )}
+        <button onClick={() => onDelete(todo.id)} className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center">
+          <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+        </button>
+      </div>
     </li>
   );
 }
@@ -169,15 +206,17 @@ export default function TodoList() {
     updateTodo(id, { dueDate: date });
   };
 
+  const handleUpdateTitle = (id: number, title: string) => {
+    updateTodo(id, { title });
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     setDragActiveId(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
     const oldIndex = activeTodos.findIndex((t) => t.id === active.id);
     const newIndex = activeTodos.findIndex((t) => t.id === over.id);
     const reordered = arrayMove(activeTodos, oldIndex, newIndex);
-
     reorderTodos(reordered.map((t, i) => ({ id: t.id, sortOrder: i })));
   };
 
@@ -185,10 +224,9 @@ export default function TodoList() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-slate-900 dark:text-white">투두 리스트</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">Todo List</h2>
           <span className="text-xs text-slate-500">{completedTodos.length}/{todos.length}</span>
         </div>
         <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -196,14 +234,13 @@ export default function TodoList() {
         </div>
       </div>
 
-      {/* Add todo */}
       <form onSubmit={handleAdd} className="px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 space-y-2">
         <div className="flex gap-2">
           <input
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="할 일 추가..."
+            placeholder="Add a task..."
             className="flex-1 text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
@@ -222,11 +259,10 @@ export default function TodoList() {
             onChange={(e) => setNewDueDate(e.target.value)}
             className="text-xs bg-slate-100 dark:bg-slate-700 rounded px-2 py-1 text-slate-700 dark:text-slate-300 outline-none"
           />
-          <span className="text-xs text-slate-400">목표 날짜</span>
+          <span className="text-xs text-slate-400">Due date</span>
         </div>
       </form>
 
-      {/* Filter tabs */}
       <div className="flex gap-1 px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
         {(["all", "active", "completed"] as const).map((f) => (
           <button
@@ -239,14 +275,12 @@ export default function TodoList() {
                 : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700",
             )}
           >
-            {f === "all" ? "전체" : f === "active" ? "진행 중" : "완료"}
+            {f === "all" ? "All" : f === "active" ? "Active" : "Done"}
           </button>
         ))}
       </div>
 
-      {/* Todo items */}
       <div className="flex-1 overflow-y-auto">
-        {/* Active todos - sortable */}
         {filter !== "completed" && (
           <DndContext
             sensors={sensors}
@@ -264,6 +298,7 @@ export default function TodoList() {
                     onToggle={toggleTodo}
                     onDelete={deleteTodo}
                     onUpdateDate={handleUpdateDate}
+                    onUpdateTitle={handleUpdateTitle}
                   />
                 ))}
               </ul>
@@ -280,7 +315,6 @@ export default function TodoList() {
           </DndContext>
         )}
 
-        {/* Completed section */}
         {filter !== "active" && completedTodos.length > 0 && (
           <div>
             <button
@@ -288,30 +322,25 @@ export default function TodoList() {
               className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-500 w-full hover:bg-slate-50 dark:hover:bg-slate-700/50"
             >
               {showCompleted ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              완료 ({completedTodos.length})
+              Done ({completedTodos.length})
             </button>
             {showCompleted && (
               <ul>
-                {completedTodos.map((todo) => {
-                  const daysLeft = getDaysLeft(todo.dueDate);
-                  return (
-                    <li key={todo.id} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <div className="w-4" />
-                      <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0">
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-slate-400 line-through truncate block">{todo.title}</span>
-                        {todo.dueDate && (
-                          <span className="text-xs text-slate-400">{todo.dueDate}</span>
-                        )}
-                      </div>
-                      <button onClick={() => deleteTodo(todo.id)} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                      </button>
-                    </li>
-                  );
-                })}
+                {completedTodos.map((todo) => (
+                  <li key={todo.id} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <div className="w-4" />
+                    <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0">
+                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-slate-400 line-through truncate block">{todo.title}</span>
+                      {todo.dueDate && <span className="text-xs text-slate-400">{todo.dueDate}</span>}
+                    </div>
+                    <button onClick={() => deleteTodo(todo.id)} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
@@ -320,7 +349,7 @@ export default function TodoList() {
         {todos.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <CheckCircle2 className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm">할 일을 추가하세요</p>
+            <p className="text-sm">Add your first task</p>
           </div>
         )}
       </div>

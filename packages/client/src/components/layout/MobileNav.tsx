@@ -1,4 +1,4 @@
-import { Calendar, Clock, CheckSquare, FileBox } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MobileNavProps {
@@ -7,10 +7,10 @@ interface MobileNavProps {
 }
 
 const tabs = [
-  { id: "calendar", label: "달력", icon: Calendar },
-  { id: "timebox", label: "타임박스", icon: Clock },
-  { id: "todo", label: "투두", icon: CheckSquare },
-  { id: "files", label: "파일", icon: FileBox },
+  { id: "calendar", label: "Calendar", icon: Calendar },
+  { id: "timebox", label: "TimeBox", icon: Clock },
+  { id: "todo", label: "Todos", icon: CheckSquare },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {

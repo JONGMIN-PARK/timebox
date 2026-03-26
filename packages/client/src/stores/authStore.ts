@@ -1,26 +1,36 @@
 import { create } from "zustand";
 import { api, setToken, clearToken, isAuthenticated } from "@/lib/api";
 
+interface User {
+  id: number;
+  username: string;
+  displayName: string | null;
+  role: string;
+}
+
 interface AuthState {
   authenticated: boolean;
+  user: User | null;
   loading: boolean;
   error: string | null;
-  login: (pin: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => void;
+  fetchMe: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   authenticated: isAuthenticated(),
+  user: null,
   loading: false,
   error: null,
 
-  login: async (pin: string) => {
+  login: async (username, password) => {
     set({ loading: true, error: null });
-    const res = await api.post<{ token: string }>("/auth/login", { pin });
+    const res = await api.post<{ token: string; user: User }>("/auth/login", { username, password });
     if (res.success && res.data) {
       setToken(res.data.token);
-      set({ authenticated: true, loading: false });
+      set({ authenticated: true, user: res.data.user, loading: false });
       return true;
     }
     set({ error: res.error || "Login failed", loading: false });
@@ -29,10 +39,17 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     clearToken();
-    set({ authenticated: false });
+    set({ authenticated: false, user: null });
   },
 
   checkAuth: () => {
     set({ authenticated: isAuthenticated() });
+  },
+
+  fetchMe: async () => {
+    const res = await api.get<User>("/auth/me");
+    if (res.success && res.data) {
+      set({ user: res.data });
+    }
   },
 }));

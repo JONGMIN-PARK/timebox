@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import Header from "@/components/layout/Header";
@@ -6,9 +6,16 @@ import TodoList from "@/components/todo/TodoList";
 import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
 import TimeBoxView from "@/components/timebox/TimeBoxView";
+import SettingsPage from "@/pages/SettingsPage";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
+  const { fetchMe } = useAuthStore();
+
+  useEffect(() => {
+    fetchMe();
+  }, []);
 
   const renderMainContent = () => {
     switch (activeTab) {
@@ -18,10 +25,12 @@ export default function DashboardPage() {
         return <TimeBoxView />;
       case "todo":
         return <TodoList />;
+      case "settings":
+        return <SettingsPage />;
       case "files":
         return (
           <div className="flex items-center justify-center h-full text-slate-400">
-            <p>파일 보관소 (Phase 3에서 구현)</p>
+            <p>File Vault (Coming Soon)</p>
           </div>
         );
       default:
@@ -29,38 +38,35 @@ export default function DashboardPage() {
     }
   };
 
+  const showRightPanel = activeTab !== "settings";
+
   return (
     <div className="h-screen flex bg-slate-50 dark:bg-slate-900">
-      {/* Sidebar - desktop */}
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
         <Header onAddClick={() => {}} />
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Center content */}
           <main className="flex-1 overflow-hidden">
             {renderMainContent()}
           </main>
 
-          {/* Right panel - desktop only */}
-          <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
-            {/* Todo list in right panel when calendar is active */}
-            {activeTab !== "todo" && (
-              <div className="flex-1 border-b border-slate-200 dark:border-slate-700">
-                <TodoList />
+          {showRightPanel && (
+            <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-y-auto">
+              {activeTab !== "todo" && (
+                <div className="flex-1 border-b border-slate-200 dark:border-slate-700">
+                  <TodoList />
+                </div>
+              )}
+              <div className="p-4">
+                <DDayWidget />
               </div>
-            )}
-            {/* D-Day widget */}
-            <div className="p-4">
-              <DDayWidget />
-            </div>
-          </aside>
+            </aside>
+          )}
         </div>
       </div>
 
-      {/* Mobile bottom nav */}
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );

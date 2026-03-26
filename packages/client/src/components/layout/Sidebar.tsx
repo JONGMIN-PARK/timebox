@@ -9,14 +9,14 @@ interface SidebarProps {
 }
 
 const tabs = [
-  { id: "calendar", label: "달력", icon: Calendar },
-  { id: "timebox", label: "타임박스", icon: Clock },
-  { id: "todo", label: "투두", icon: CheckSquare },
-  { id: "files", label: "파일", icon: FileBox },
+  { id: "calendar", label: "Calendar", icon: Calendar },
+  { id: "timebox", label: "TimeBox", icon: Clock },
+  { id: "todo", label: "Todos", icon: CheckSquare },
+  { id: "files", label: "Files", icon: FileBox },
 ];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
 
   const cycleTheme = () => {
@@ -65,15 +65,33 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         >
           <ThemeIcon className="w-5 h-5" />
           <span className="hidden lg:block">
-            {{ light: "라이트", dark: "다크", system: "시스템" }[theme]}
+            {{ light: "Light", dark: "Dark", system: "System" }[theme]}
           </span>
         </button>
+        <button
+          onClick={() => onTabChange("settings")}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
+            activeTab === "settings"
+              ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700",
+          )}
+        >
+          <Settings className="w-5 h-5" />
+          <span className="hidden lg:block">Settings</span>
+        </button>
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5">
+          <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-xs font-bold text-blue-600">
+            {(user?.displayName || user?.username || "U")[0].toUpperCase()}
+          </div>
+          <span className="text-xs text-slate-500 truncate">{user?.displayName || user?.username}</span>
+        </div>
         <button
           onClick={logout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
         >
           <LogOut className="w-5 h-5" />
-          <span className="hidden lg:block">로그아웃</span>
+          <span className="hidden lg:block">Sign Out</span>
         </button>
       </div>
     </aside>

@@ -25,14 +25,14 @@ export interface TimeBlock {
 }
 
 export const CATEGORY_CONFIG: Record<TimeBlockCategory, { label: string; color: string; icon: string }> = {
-  deep_work: { label: "심층 작업", color: "#3b82f6", icon: "🧠" },
-  meeting: { label: "미팅", color: "#8b5cf6", icon: "👥" },
-  email: { label: "이메일", color: "#f59e0b", icon: "📧" },
-  exercise: { label: "운동", color: "#10b981", icon: "💪" },
-  break: { label: "휴식", color: "#6b7280", icon: "☕" },
-  personal: { label: "개인", color: "#ec4899", icon: "🏠" },
-  admin: { label: "행정", color: "#f97316", icon: "📋" },
-  other: { label: "기타", color: "#94a3b8", icon: "📌" },
+  deep_work: { label: "Deep Work", color: "#3b82f6", icon: "🧠" },
+  meeting: { label: "Meeting", color: "#8b5cf6", icon: "👥" },
+  email: { label: "Email", color: "#f59e0b", icon: "📧" },
+  exercise: { label: "Exercise", color: "#10b981", icon: "💪" },
+  break: { label: "Break", color: "#6b7280", icon: "☕" },
+  personal: { label: "Personal", color: "#ec4899", icon: "🏠" },
+  admin: { label: "Admin", color: "#f97316", icon: "📋" },
+  other: { label: "Other", color: "#94a3b8", icon: "📌" },
 };
 
 interface TimeBlockState {

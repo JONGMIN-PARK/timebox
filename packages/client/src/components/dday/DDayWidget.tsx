@@ -43,7 +43,7 @@ export default function DDayWidget() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="이벤트 이름"
+            placeholder="Event name"
             className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none"
             autoFocus
           />
@@ -54,8 +54,8 @@ export default function DDayWidget() {
             className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
           />
           <div className="flex gap-2">
-            <button type="submit" className="flex-1 text-xs py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500">추가</button>
-            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-xs py-1.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg">취소</button>
+            <button type="submit" className="flex-1 text-xs py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-500">Add</button>
+            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-xs py-1.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg">Cancel</button>
           </div>
         </form>
       )}
@@ -93,7 +93,7 @@ export default function DDayWidget() {
         ))}
         {ddays.length === 0 && (
           <div className="px-4 py-8 text-center text-sm text-slate-400">
-            D-Day를 추가하세요
+            Add your first D-Day
           </div>
         )}
       </div>

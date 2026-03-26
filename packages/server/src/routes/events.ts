@@ -2,23 +2,22 @@ import { Router } from "express";
 import { db } from "../db/index.js";
 import { events } from "../db/schema.js";
 import { eq, and, gte, lte } from "drizzle-orm";
+import { type AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-// GET /api/events?start=&end=
-router.get("/", (req, res) => {
+router.get("/", (req: AuthRequest, res) => {
   try {
+    const userId = req.userId!;
     const { start, end } = req.query;
     let result;
 
     if (start && end) {
-      result = db
-        .select()
-        .from(events)
-        .where(and(gte(events.startTime, start as string), lte(events.endTime, end as string)))
+      result = db.select().from(events)
+        .where(and(eq(events.userId, userId), gte(events.startTime, start as string), lte(events.endTime, end as string)))
         .all();
     } else {
-      result = db.select().from(events).all();
+      result = db.select().from(events).where(eq(events.userId, userId)).all();
     }
 
     res.json({ success: true, data: result });
@@ -27,9 +26,9 @@ router.get("/", (req, res) => {
   }
 });
 
-// POST /api/events
-router.post("/", (req, res) => {
+router.post("/", (req: AuthRequest, res) => {
   try {
+    const userId = req.userId!;
     const { title, description, startTime, endTime, allDay, categoryId, recurrenceRule, color } = req.body;
     if (!title?.trim() || !startTime || !endTime) {
       res.status(400).json({ success: false, error: "Title, startTime, endTime are required" });
@@ -37,6 +36,7 @@ router.post("/", (req, res) => {
     }
 
     const result = db.insert(events).values({
+      userId,
       title: title.trim(),
       description: description || null,
       startTime,
@@ -53,10 +53,10 @@ router.post("/", (req, res) => {
   }
 });
 
-// PUT /api/events/:id
-router.put("/:id", (req, res) => {
+router.put("/:id", (req: AuthRequest, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
+    const userId = req.userId!;
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
     if (req.body.title !== undefined) updates.title = req.body.title.trim();
@@ -67,8 +67,7 @@ router.put("/:id", (req, res) => {
     if (req.body.categoryId !== undefined) updates.categoryId = req.body.categoryId;
     if (req.body.color !== undefined) updates.color = req.body.color;
 
-    const result = db.update(events).set(updates).where(eq(events.id, id)).returning().get();
-
+    const result = db.update(events).set(updates).where(and(eq(events.id, id), eq(events.userId, userId))).returning().get();
     if (!result) {
       res.status(404).json({ success: false, error: "Event not found" });
       return;
@@ -80,17 +79,15 @@ router.put("/:id", (req, res) => {
   }
 });
 
-// DELETE /api/events/:id
-router.delete("/:id", (req, res) => {
+router.delete("/:id", (req: AuthRequest, res) => {
   try {
-    const id = parseInt(req.params.id);
-    const result = db.delete(events).where(eq(events.id, id)).returning().get();
-
+    const id = parseInt(req.params.id as string);
+    const userId = req.userId!;
+    const result = db.delete(events).where(and(eq(events.id, id), eq(events.userId, userId))).returning().get();
     if (!result) {
       res.status(404).json({ success: false, error: "Event not found" });
       return;
     }
-
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to delete event" });

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
-import { ko } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -105,7 +105,7 @@ export default function TimeBoxView() {
             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <h2 className="font-semibold text-slate-900 dark:text-white min-w-[140px] text-center">
-            {format(parseISO(selectedDate), "M월 d일 (EEE)", { locale: ko })}
+            {format(parseISO(selectedDate), "MMM d (EEE)", { locale: enUS })}
           </h2>
           <button
             onClick={() => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}
@@ -120,7 +120,7 @@ export default function TimeBoxView() {
               onClick={goToday}
               className="text-xs px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
             >
-              오늘
+              Today
             </button>
           )}
           <button
@@ -156,7 +156,7 @@ export default function TimeBoxView() {
           );
         })}
         {sortedBlocks.length === 0 && (
-          <span className="text-xs text-slate-400">타임블록을 추가하세요</span>
+          <span className="text-xs text-slate-400">Add time blocks</span>
         )}
       </div>
 
@@ -261,19 +261,19 @@ export default function TimeBoxView() {
             className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
           >
             <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(parseISO(selectedDate), "M월 d일", { locale: ko })} 타임블록 추가
+              {format(parseISO(selectedDate), "MMM d", { locale: enUS })} — Add Time Block
             </h3>
             <input
               type="text"
               value={newBlock.title}
               onChange={(e) => setNewBlock({ ...newBlock, title: e.target.value })}
-              placeholder="블록 제목"
+              placeholder="Block title"
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
             {/* Category selector */}
             <div>
-              <label className="text-xs text-slate-500 mb-1.5 block">카테고리</label>
+              <label className="text-xs text-slate-500 mb-1.5 block">Category</label>
               <div className="grid grid-cols-4 gap-1.5">
                 {(Object.entries(CATEGORY_CONFIG) as [TimeBlockCategory, typeof CATEGORY_CONFIG[TimeBlockCategory]][]).map(
                   ([key, config]) => (
@@ -297,7 +297,7 @@ export default function TimeBoxView() {
             </div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">시작</label>
+                <label className="text-xs text-slate-500 mb-1 block">Start</label>
                 <input
                   type="time"
                   value={newBlock.startTime}
@@ -306,7 +306,7 @@ export default function TimeBoxView() {
                 />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">종료</label>
+                <label className="text-xs text-slate-500 mb-1 block">End</label>
                 <input
                   type="time"
                   value={newBlock.endTime}
@@ -317,14 +317,14 @@ export default function TimeBoxView() {
             </div>
             <div className="flex gap-2">
               <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">
-                추가
+                Add
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
                 className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg"
               >
-                취소
+                Cancel
               </button>
             </div>
           </form>
