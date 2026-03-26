@@ -14,6 +14,21 @@ export const users = sqliteTable("users", {
     .default(sql`(datetime('now'))`),
 });
 
+// ── Registration Requests ──
+export const registrationRequests = sqliteTable("registration_requests", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  username: text("username").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  displayName: text("display_name"),
+  message: text("message"),
+  status: text("status").notNull().default("pending"), // "pending" | "approved" | "rejected"
+  reviewedBy: integer("reviewed_by"),
+  reviewedAt: text("reviewed_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ── Categories ──
 export const categories = sqliteTable("categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
