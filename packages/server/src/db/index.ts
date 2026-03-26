@@ -1,7 +1,11 @@
 import pg from "pg";
+import dns from "dns";
 import { drizzle } from "drizzle-orm/node-postgres";
 import bcrypt from "bcrypt";
 import * as schema from "./schema.js";
+
+// Force IPv4 to avoid ENETUNREACH on platforms without IPv6 support
+dns.setDefaultResultOrder("ipv4first");
 
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
