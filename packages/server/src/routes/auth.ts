@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcrypt";
 import { db } from "../db/index.js";
 import { users, registrationRequests } from "../db/schema.js";
-import { signToken, authMiddleware, type AuthRequest } from "../middleware/auth.js";
+import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -90,14 +90,8 @@ router.post("/request", async (req, res) => {
 });
 
 // GET /api/auth/requests — admin: list registration requests
-router.get("/requests", authMiddleware, (req: AuthRequest, res) => {
+router.get("/requests", authMiddleware, adminMiddleware, (req: AuthRequest, res) => {
   try {
-    const requester = db.select().from(users).where(eq(users.id, req.userId!)).get();
-    if (!requester || requester.role !== "admin") {
-      res.status(403).json({ success: false, error: "Admin access required" });
-      return;
-    }
-
     const all = db.select().from(registrationRequests).all().map((r) => ({
       id: r.id, username: r.username, displayName: r.displayName, message: r.message,
       status: r.status, createdAt: r.createdAt, reviewedAt: r.reviewedAt,
@@ -110,15 +104,10 @@ router.get("/requests", authMiddleware, (req: AuthRequest, res) => {
 });
 
 // PUT /api/auth/requests/:id — admin: approve or reject
-router.put("/requests/:id", authMiddleware, async (req: AuthRequest, res) => {
+router.put("/requests/:id", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const requester = db.select().from(users).where(eq(users.id, req.userId!)).get();
-    if (!requester || requester.role !== "admin") {
-      res.status(403).json({ success: false, error: "Admin access required" });
-      return;
-    }
-
-    const id = parseInt(req.params.id as string);
+    const id = safeParseId(req.params.id);
+    if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
     const { action } = req.body; // "approve" | "reject"
 
     const request = db.select().from(registrationRequests).where(eq(registrationRequests.id, id)).get();
@@ -172,15 +161,8 @@ router.put("/requests/:id", authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // POST /api/auth/register (admin only)
-router.post("/register", authMiddleware, async (req: AuthRequest, res) => {
+router.post("/register", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Check if requester is admin
-    const requester = db.select().from(users).where(eq(users.id, req.userId!)).get();
-    if (!requester || requester.role !== "admin") {
-      res.status(403).json({ success: false, error: "Admin access required" });
-      return;
-    }
-
     const { username, password, displayName, role } = req.body;
     if (!username || !password) {
       res.status(400).json({ success: false, error: "Username and password are required" });
@@ -229,14 +211,8 @@ router.get("/me", authMiddleware, (req: AuthRequest, res) => {
 });
 
 // GET /api/auth/users (admin only)
-router.get("/users", authMiddleware, (req: AuthRequest, res) => {
+router.get("/users", authMiddleware, adminMiddleware, (req: AuthRequest, res) => {
   try {
-    const requester = db.select().from(users).where(eq(users.id, req.userId!)).get();
-    if (!requester || requester.role !== "admin") {
-      res.status(403).json({ success: false, error: "Admin access required" });
-      return;
-    }
-
     const allUsers = db.select().from(users).all().map((u) => ({
       id: u.id, username: u.username, displayName: u.displayName, role: u.role, active: u.active, createdAt: u.createdAt,
     }));
@@ -248,15 +224,10 @@ router.get("/users", authMiddleware, (req: AuthRequest, res) => {
 });
 
 // PUT /api/auth/users/:id (admin only)
-router.put("/users/:id", authMiddleware, async (req: AuthRequest, res) => {
+router.put("/users/:id", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const requester = db.select().from(users).where(eq(users.id, req.userId!)).get();
-    if (!requester || requester.role !== "admin") {
-      res.status(403).json({ success: false, error: "Admin access required" });
-      return;
-    }
-
-    const id = parseInt(req.params.id as string);
+    const id = safeParseId(req.params.id);
+    if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
     const updates: Record<string, unknown> = {};
 
     if (req.body.displayName !== undefined) updates.displayName = req.body.displayName;
@@ -282,15 +253,10 @@ router.put("/users/:id", authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // DELETE /api/auth/users/:id (admin only)
-router.delete("/users/:id", authMiddleware, (req: AuthRequest, res) => {
+router.delete("/users/:id", authMiddleware, adminMiddleware, (req: AuthRequest, res) => {
   try {
-    const requester = db.select().from(users).where(eq(users.id, req.userId!)).get();
-    if (!requester || requester.role !== "admin") {
-      res.status(403).json({ success: false, error: "Admin access required" });
-      return;
-    }
-
-    const id = parseInt(req.params.id as string);
+    const id = safeParseId(req.params.id);
+    if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
     if (id === req.userId) {
       res.status(400).json({ success: false, error: "Cannot delete yourself" });
       return;

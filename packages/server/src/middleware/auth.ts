@@ -1,7 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { db } from "../db/index.js";
+import { users } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : "dev-secret-change-me");
+
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET environment variable is required in production");
+  process.exit(1);
+}
 
 export interface AuthRequest extends Request {
   userId?: number;
@@ -14,9 +22,8 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     return;
   }
 
-  const token = authHeader.slice(7);
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { userId: number };
+    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: number };
     req.userId = payload.userId;
     next();
   } catch {
@@ -24,6 +31,20 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   }
 }
 
+export function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+  const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+  if (!user || user.role !== "admin") {
+    res.status(403).json({ success: false, error: "Admin access required" });
+    return;
+  }
+  next();
+}
+
 export function signToken(userId: number): string {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
+}
+
+export function safeParseId(id: string | string[]): number | null {
+  const parsed = parseInt(id as string);
+  return isNaN(parsed) ? null : parsed;
 }

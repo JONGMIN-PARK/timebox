@@ -9,13 +9,36 @@ import TimeBoxView from "@/components/timebox/TimeBoxView";
 import ElonScheduler from "@/components/scheduler/ElonScheduler";
 import SettingsPage from "@/pages/SettingsPage";
 import { useAuthStore } from "@/stores/authStore";
+import HelpModal from "@/components/HelpModal";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
+  const [showHelp, setShowHelp] = useState(false);
   const { fetchMe } = useAuthStore();
 
   useEffect(() => {
     fetchMe();
+  }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      // Skip if typing in input/textarea
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      switch (e.key) {
+        case "1": setActiveTab("calendar"); break;
+        case "2": setActiveTab("timebox"); break;
+        case "3": setActiveTab("todo"); break;
+        case "4": setActiveTab("files"); break;
+        case "5": setActiveTab("scheduler"); break;
+        case "?": setShowHelp(true); break;
+        case "Escape": setShowHelp(false); break;
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
   const renderMainContent = () => {
@@ -75,6 +98,7 @@ export default function DashboardPage() {
       </div>
 
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }
