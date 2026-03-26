@@ -17,9 +17,19 @@ const MAX_STORAGE = 500 * 1024 * 1024; // 500MB
 // Ensure upload dir
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
+// Fix Korean/CJK filename encoding (multer decodes as latin1)
+function fixFilename(name: string): string {
+  try {
+    return Buffer.from(name, "latin1").toString("utf8");
+  } catch {
+    return name;
+  }
+}
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
+    file.originalname = fixFilename(file.originalname);
     const ext = path.extname(file.originalname);
     cb(null, `${crypto.randomUUID()}${ext}`);
   },
@@ -101,7 +111,8 @@ router.get("/:id/download", (req: AuthRequest, res) => {
     const filePath = path.join(UPLOAD_DIR, file.storedName);
     if (!fs.existsSync(filePath)) { res.status(404).json({ success: false, error: "File missing from storage" }); return; }
 
-    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.originalName)}"`);
+    const encoded = encodeURIComponent(file.originalName);
+    res.setHeader("Content-Disposition", `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
     res.setHeader("Content-Type", file.mimeType);
     res.sendFile(filePath);
   } catch (error) {
