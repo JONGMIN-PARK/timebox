@@ -57,10 +57,14 @@ if (process.env.NODE_ENV === "production") {
 app.listen(PORT, () => {
   console.log(`TimeBox server running on http://localhost:${PORT}`);
 
-  // Initialize Telegram bot (non-blocking)
-  try {
-    initTelegramBot();
-  } catch (err) {
-    console.log("Telegram bot init skipped:", (err as Error).message);
+  // Initialize Telegram bot only in production (prevents polling conflict with local dev)
+  if (process.env.NODE_ENV === "production") {
+    try {
+      initTelegramBot();
+    } catch (err) {
+      console.log("Telegram bot init skipped:", (err as Error).message);
+    }
+  } else {
+    console.log("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
   }
 });
