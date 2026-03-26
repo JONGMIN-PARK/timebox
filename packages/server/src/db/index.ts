@@ -90,6 +90,7 @@ export function initDb() {
       title TEXT NOT NULL,
       completed INTEGER NOT NULL DEFAULT 0,
       priority TEXT NOT NULL DEFAULT 'medium',
+      category TEXT NOT NULL DEFAULT 'personal',
       due_date TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,
       parent_id INTEGER,

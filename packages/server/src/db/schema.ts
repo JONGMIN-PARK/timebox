@@ -83,6 +83,7 @@ export const todos = sqliteTable("todos", {
   title: text("title").notNull(),
   completed: integer("completed", { mode: "boolean" }).notNull().default(false),
   priority: text("priority").notNull().default("medium"),
+  category: text("category").notNull().default("personal"),
   dueDate: text("due_date"),
   sortOrder: integer("sort_order").notNull().default(0),
   parentId: integer("parent_id"),

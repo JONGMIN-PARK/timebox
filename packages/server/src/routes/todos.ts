@@ -29,7 +29,7 @@ router.get("/", (req: AuthRequest, res) => {
 router.post("/", (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    const { title, priority, dueDate, parentId } = req.body;
+    const { title, priority, category, dueDate, parentId } = req.body;
     if (!title?.trim()) {
       res.status(400).json({ success: false, error: "Title is required" });
       return;
@@ -45,6 +45,7 @@ router.post("/", (req: AuthRequest, res) => {
       userId,
       title: title.trim(),
       priority: priority || "medium",
+      category: category || "personal",
       dueDate: dueDate || null,
       parentId: parentId || null,
       sortOrder: (maxOrder?.max || 0) + 1,
@@ -87,6 +88,7 @@ router.put("/:id", (req: AuthRequest, res) => {
     if (req.body.title !== undefined) updates.title = req.body.title.trim();
     if (req.body.completed !== undefined) updates.completed = req.body.completed;
     if (req.body.priority !== undefined) updates.priority = req.body.priority;
+    if (req.body.category !== undefined) updates.category = req.body.category;
     if (req.body.dueDate !== undefined) updates.dueDate = req.body.dueDate;
     if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
 
