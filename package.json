@@ -1,0 +1,23 @@
+{
+  "name": "timebox",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TimeBox - Personal Schedule Manager",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:client": "pnpm --filter @timebox/client dev",
+    "dev:server": "pnpm --filter @timebox/server dev",
+    "build": "pnpm --filter @timebox/shared build && pnpm --filter @timebox/client build && pnpm --filter @timebox/server build",
+    "start": "pnpm --filter @timebox/server start",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,css}\"",
+    "test": "pnpm -r test"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["bcrypt", "better-sqlite3", "esbuild"]
+  }
+}

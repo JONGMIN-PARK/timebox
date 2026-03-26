@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+*.db
+*.sqlite
+uploads/
+.DS_Store
+Thumbs.db
+*.log
+.vite/
+coverage/
+.turbo/
