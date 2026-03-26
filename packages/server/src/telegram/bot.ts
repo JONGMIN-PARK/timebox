@@ -14,8 +14,8 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname2, "../../upload
 
 let bot: TelegramBot | null = null;
 
-function getUserIdFromChat(chatId: string): number {
-  const conf = db.select().from(telegramConfig).all().find((c) => c.chatId === chatId);
+async function getUserIdFromChat(chatId: string): Promise<number> {
+  const conf = (await db.select().from(telegramConfig)).find((c) => c.chatId === chatId);
   return conf?.userId || 1;
 }
 
@@ -40,7 +40,7 @@ function fmtDuration(mins: number): string {
   return mins >= 60 ? `${Math.floor(mins / 60)}h${mins % 60 > 0 ? `${mins % 60}m` : ""}` : `${mins}m`;
 }
 
-export function initTelegramBot() {
+export async function initTelegramBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) { console.log("TELEGRAM_BOT_TOKEN not set, skipping"); return; }
 
@@ -48,17 +48,17 @@ export function initTelegramBot() {
   console.log("Telegram bot initialized");
 
   // Save config with userId
-  const existing = db.select().from(telegramConfig).all();
+  const existing = await db.select().from(telegramConfig);
   if (existing.length === 0) {
-    db.insert(telegramConfig).values({ userId: 1, chatId: process.env.TELEGRAM_CHAT_ID || null, active: true }).run();
+    await db.insert(telegramConfig).values({ userId: 1, chatId: process.env.TELEGRAM_CHAT_ID || null, active: true });
   }
 
   // ── /start ──
-  bot.onText(/\/start/, (msg) => {
+  bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id.toString();
-    const conf = db.select().from(telegramConfig).limit(1).all();
+    const conf = await db.select().from(telegramConfig).limit(1);
     if (conf.length > 0) {
-      db.update(telegramConfig).set({ chatId, active: true, updatedAt: new Date().toISOString() }).where(eq(telegramConfig.id, conf[0].id)).run();
+      await db.update(telegramConfig).set({ chatId, active: true, updatedAt: new Date().toISOString() }).where(eq(telegramConfig.id, conf[0].id));
     }
     bot!.sendMessage(msg.chat.id, `✅ *TimeBox Bot Connected!*\n\nType /h for quick help or /help for full commands.`, { parse_mode: "Markdown" });
   });
@@ -104,17 +104,16 @@ export function initTelegramBot() {
   });
 
   // ── /today or /s — Daily briefing ──
-  bot.onText(/\/(today|s)$/, (msg) => {
+  bot.onText(/\/(today|s)$/, async (msg) => {
     if (!isAuthorized(msg)) return;
     const today = new Date().toISOString().slice(0, 10);
 
-    const todayEvents = db.select().from(events)
-      .where(and(gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)))
-      .all();
-    const allTodos = db.select().from(todos).all();
+    const todayEvents = await db.select().from(events)
+      .where(and(gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
+    const allTodos = await db.select().from(todos);
     const active = allTodos.filter((t) => !t.completed);
     const completed = allTodos.filter((t) => t.completed);
-    const todayBlocks = db.select().from(timeBlocks).where(eq(timeBlocks.date, today)).all();
+    const todayBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.date, today));
 
     let text = `📅 *Daily Briefing* — ${today}\n\n`;
 
@@ -150,7 +149,7 @@ export function initTelegramBot() {
   });
 
   // ── /add or /a — Add event ──
-  bot.onText(/\/(add|a)\s+(.+)/, (msg, match) => {
+  bot.onText(/\/(add|a)\s+(.+)/, async (msg, match) => {
     if (!isAuthorized(msg) || !match) return;
     const parts = match[2].trim().split(/\s+/);
     let dateStr = new Date().toISOString().slice(0, 10);
@@ -174,21 +173,20 @@ export function initTelegramBot() {
     const start = timeRange?.start || "09:00";
     const end = timeRange?.end || "10:00";
 
-    db.insert(events).values({
+    await db.insert(events).values({
       userId: 1, title, startTime: `${dateStr}T${start}:00`, endTime: `${dateStr}T${end}:00`, allDay: false, color: "#3b82f6",
-    }).run();
+    });
 
     bot!.sendMessage(msg.chat.id, `✅ *Event added*\n📅 ${dateStr} ${start}-${end}\n📝 ${title}`, { parse_mode: "Markdown" });
   });
 
   // ── /todo or /t — Add todo ──
-  bot.onText(/\/(todo|t)\s+(.+)/, (msg, match) => {
+  bot.onText(/\/(todo|t)\s+(.+)/, async (msg, match) => {
     if (!isAuthorized(msg) || !match) return;
     let text = match[2].trim();
     let priority = "medium";
     let category = "personal";
 
-    // Parse flags
     if (text.includes("!high") || text.includes("!h")) { priority = "high"; text = text.replace(/!high|!h/g, "").trim(); }
     else if (text.includes("!low") || text.includes("!l")) { priority = "low"; text = text.replace(/!low|!l/g, "").trim(); }
 
@@ -199,19 +197,20 @@ export function initTelegramBot() {
 
     if (!text) { bot!.sendMessage(msg.chat.id, "❌ Please provide a task title"); return; }
 
-    const maxOrder = db.select().from(todos).all().reduce((max, t) => Math.max(max, t.sortOrder), -1);
-    db.insert(todos).values({
+    const allTodos = await db.select().from(todos);
+    const maxOrder = allTodos.reduce((max, t) => Math.max(max, t.sortOrder), -1);
+    await db.insert(todos).values({
       userId: 1, title: text, priority, category, sortOrder: maxOrder + 1, dueDate: new Date().toISOString().slice(0, 10),
-    }).run();
+    });
 
     const emoji = priority === "high" ? "🔴" : priority === "low" ? "⚪" : "🟡";
     bot!.sendMessage(msg.chat.id, `✅ *Todo added*\n${emoji} ${text}\n📂 ${category}`, { parse_mode: "Markdown" });
   });
 
   // ── /list or /l — List active todos ──
-  bot.onText(/\/(list|l)$/, (msg) => {
+  bot.onText(/\/(list|l)$/, async (msg) => {
     if (!isAuthorized(msg)) return;
-    const active = db.select().from(todos).where(eq(todos.completed, false)).all()
+    const active = (await db.select().from(todos).where(eq(todos.completed, false)))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (active.length === 0) { bot!.sendMessage(msg.chat.id, "✨ No active todos!"); return; }
@@ -229,10 +228,10 @@ export function initTelegramBot() {
   });
 
   // ── /check N — Complete todo by number ──
-  bot.onText(/\/check\s+(\d+)/, (msg, match) => {
+  bot.onText(/\/check\s+(\d+)/, async (msg, match) => {
     if (!isAuthorized(msg) || !match) return;
     const num = parseInt(match[1]);
-    const active = db.select().from(todos).where(eq(todos.completed, false)).all()
+    const active = (await db.select().from(todos).where(eq(todos.completed, false)))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (num < 1 || num > active.length) {
@@ -241,15 +240,15 @@ export function initTelegramBot() {
     }
 
     const todo = active[num - 1];
-    db.update(todos).set({ completed: true, updatedAt: new Date().toISOString() }).where(eq(todos.id, todo.id)).run();
+    await db.update(todos).set({ completed: true, updatedAt: new Date().toISOString() }).where(eq(todos.id, todo.id));
     bot!.sendMessage(msg.chat.id, `✅ Completed: ~${todo.title}~`, { parse_mode: "Markdown" });
   });
 
   // ── /del N — Delete todo by number ──
-  bot.onText(/\/del\s+(\d+)/, (msg, match) => {
+  bot.onText(/\/del\s+(\d+)/, async (msg, match) => {
     if (!isAuthorized(msg) || !match) return;
     const num = parseInt(match[1]);
-    const active = db.select().from(todos).where(eq(todos.completed, false)).all()
+    const active = (await db.select().from(todos).where(eq(todos.completed, false)))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (num < 1 || num > active.length) {
@@ -258,14 +257,14 @@ export function initTelegramBot() {
     }
 
     const todo = active[num - 1];
-    db.delete(todos).where(eq(todos.id, todo.id)).run();
+    await db.delete(todos).where(eq(todos.id, todo.id));
     bot!.sendMessage(msg.chat.id, `🗑 Deleted: ${todo.title}`);
   });
 
   // ── /done — Show completed todos ──
-  bot.onText(/\/done$/, (msg) => {
+  bot.onText(/\/done$/, async (msg) => {
     if (!isAuthorized(msg)) return;
-    const completed = db.select().from(todos).where(eq(todos.completed, true)).all();
+    const completed = await db.select().from(todos).where(eq(todos.completed, true));
 
     if (completed.length === 0) { bot!.sendMessage(msg.chat.id, "No completed todos yet"); return; }
 
@@ -277,9 +276,9 @@ export function initTelegramBot() {
   });
 
   // ── /dday or /d ──
-  bot.onText(/\/(dday|d)$/, (msg) => {
+  bot.onText(/\/(dday|d)$/, async (msg) => {
     if (!isAuthorized(msg)) return;
-    const allDdays = db.select().from(ddays).all();
+    const allDdays = await db.select().from(ddays);
 
     if (allDdays.length === 0) { bot!.sendMessage(msg.chat.id, "📅 No D-Days set"); return; }
 
@@ -296,10 +295,10 @@ export function initTelegramBot() {
   });
 
   // ── /blocks or /b ──
-  bot.onText(/\/(blocks|b)$/, (msg) => {
+  bot.onText(/\/(blocks|b)$/, async (msg) => {
     if (!isAuthorized(msg)) return;
     const today = new Date().toISOString().slice(0, 10);
-    const blocks = db.select().from(timeBlocks).where(eq(timeBlocks.date, today)).all();
+    const blocks = await db.select().from(timeBlocks).where(eq(timeBlocks.date, today));
 
     if (blocks.length === 0) { bot!.sendMessage(msg.chat.id, "⏱ No time blocks today"); return; }
 
@@ -312,7 +311,7 @@ export function initTelegramBot() {
   });
 
   // ── /week — Week summary ──
-  bot.onText(/\/week$/, (msg) => {
+  bot.onText(/\/week$/, async (msg) => {
     if (!isAuthorized(msg)) return;
     const now = new Date();
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
@@ -320,13 +319,12 @@ export function initTelegramBot() {
     const startStr = weekStart.toISOString().slice(0, 10);
     const endStr = weekEnd.toISOString().slice(0, 10);
 
-    const weekEvents = db.select().from(events)
-      .where(and(gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)))
-      .all();
+    const weekEvents = await db.select().from(events)
+      .where(and(gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)));
 
-    const allTodos = db.select().from(todos).all();
-    const weekBlocks = db.select().from(timeBlocks).all()
-      .filter((b) => b.date >= startStr && b.date <= endStr);
+    const allTodos = await db.select().from(todos);
+    const allBlocks = await db.select().from(timeBlocks);
+    const weekBlocks = allBlocks.filter((b) => b.date >= startStr && b.date <= endStr);
 
     const totalBlockMins = weekBlocks.reduce((s, b) => {
       const [sh, sm] = b.startTime.split(":").map(Number);
@@ -334,11 +332,12 @@ export function initTelegramBot() {
       return s + (eh * 60 + em) - (sh * 60 + sm);
     }, 0);
 
+    const allDdays = await db.select().from(ddays);
     let text = `📊 *Week Summary* (${startStr} ~ ${endStr})\n\n`;
     text += `📌 Events: ${weekEvents.length}\n`;
     text += `⏱ Time blocks: ${weekBlocks.length} (${fmtDuration(totalBlockMins)})\n`;
     text += `✅ Todos: ${allTodos.filter((t) => t.completed).length}/${allTodos.length} done\n`;
-    text += `📅 Upcoming D-Days: ${db.select().from(ddays).all().filter((d) => {
+    text += `📅 Upcoming D-Days: ${allDdays.filter((d) => {
       const diff = Math.ceil((new Date(d.targetDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return diff >= 0 && diff <= 7;
     }).length}\n`;
@@ -347,14 +346,13 @@ export function initTelegramBot() {
   });
 
   // ── /stats — Statistics ──
-  bot.onText(/\/stats$/, (msg) => {
+  bot.onText(/\/stats$/, async (msg) => {
     if (!isAuthorized(msg)) return;
-    const allTodos = db.select().from(todos).all();
-    const allEvents = db.select().from(events).all();
-    const allBlocks = db.select().from(timeBlocks).all();
-    const allDdays = db.select().from(ddays).all();
+    const allTodos = await db.select().from(todos);
+    const allEvents = await db.select().from(events);
+    const allBlocks = await db.select().from(timeBlocks);
+    const allDdays = await db.select().from(ddays);
 
-    // Category breakdown
     const catCounts: Record<string, number> = {};
     allTodos.forEach((t) => {
       const root = (t.category || "personal").split(".")[0];
@@ -377,7 +375,7 @@ export function initTelegramBot() {
   // ── File handler — auto-save to vault ──
   bot.on("document", async (msg) => {
     if (!isAuthorized(msg) || !msg.document) return;
-    const userId = getUserIdFromChat(msg.chat.id.toString());
+    const userId = await getUserIdFromChat(msg.chat.id.toString());
     const doc = msg.document;
 
     try {
@@ -390,7 +388,7 @@ export function initTelegramBot() {
       const storedName = `${crypto.randomUUID()}${ext}`;
       fs.writeFileSync(path.join(UPLOAD_DIR, storedName), buffer);
 
-      db.insert(files).values({
+      await db.insert(files).values({
         userId,
         originalName: doc.file_name || "unnamed",
         storedName,
@@ -398,7 +396,7 @@ export function initTelegramBot() {
         size: doc.file_size || buffer.length,
         tags: JSON.stringify(["Telegram"]),
         uploadedVia: "telegram",
-      }).run();
+      });
 
       bot!.sendMessage(msg.chat.id, `📁 File saved to Vault: ${doc.file_name}`);
     } catch (err) {
@@ -409,8 +407,8 @@ export function initTelegramBot() {
   // ── Photo handler ──
   bot.on("photo", async (msg) => {
     if (!isAuthorized(msg) || !msg.photo) return;
-    const userId = getUserIdFromChat(msg.chat.id.toString());
-    const photo = msg.photo[msg.photo.length - 1]; // highest res
+    const userId = await getUserIdFromChat(msg.chat.id.toString());
+    const photo = msg.photo[msg.photo.length - 1];
 
     try {
       const fileLink = await bot!.getFileLink(photo.file_id);
@@ -421,7 +419,7 @@ export function initTelegramBot() {
       const storedName = `${crypto.randomUUID()}.jpg`;
       fs.writeFileSync(path.join(UPLOAD_DIR, storedName), buffer);
 
-      db.insert(files).values({
+      await db.insert(files).values({
         userId,
         originalName: `photo_${new Date().toISOString().slice(0, 10)}.jpg`,
         storedName,
@@ -429,7 +427,7 @@ export function initTelegramBot() {
         size: buffer.length,
         tags: JSON.stringify(["Telegram", "Photo"]),
         uploadedVia: "telegram",
-      }).run();
+      });
 
       bot!.sendMessage(msg.chat.id, `📸 Photo saved to Vault`);
     } catch (err) {
@@ -437,7 +435,7 @@ export function initTelegramBot() {
     }
   });
 
-  setupDailyBriefing();
+  await setupDailyBriefing();
 }
 
 function isAuthorized(msg: TelegramBot.Message): boolean {
@@ -445,8 +443,8 @@ function isAuthorized(msg: TelegramBot.Message): boolean {
   return !expected || msg.chat.id.toString() === expected;
 }
 
-function setupDailyBriefing() {
-  const conf = db.select().from(telegramConfig).limit(1).all();
+async function setupDailyBriefing() {
+  const conf = await db.select().from(telegramConfig).limit(1);
   const briefingTime = conf[0]?.dailyBriefingTime || "08:00";
   const [hour, minute] = briefingTime.split(":").map(Number);
 
@@ -454,22 +452,22 @@ function setupDailyBriefing() {
   console.log(`Daily briefing scheduled at ${briefingTime}`);
 }
 
-function sendDailyBriefing() {
+async function sendDailyBriefing() {
   if (!bot) return;
-  const conf = db.select().from(telegramConfig).limit(1).all();
+  const conf = await db.select().from(telegramConfig).limit(1);
   if (!conf[0]?.chatId || !conf[0]?.active) return;
 
   const chatId = conf[0].chatId;
   const today = new Date().toISOString().slice(0, 10);
 
-  const todayEvents = db.select().from(events)
-    .where(and(gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)))
-    .all();
-  const activeTodos = db.select().from(todos).where(eq(todos.completed, false)).all();
-  const todayBlocks = db.select().from(timeBlocks).where(eq(timeBlocks.date, today)).all();
+  const todayEvents = await db.select().from(events)
+    .where(and(gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
+  const activeTodos = await db.select().from(todos).where(eq(todos.completed, false));
+  const todayBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.date, today));
 
   const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
-  const upcoming = db.select().from(ddays).all().filter((d) => {
+  const allDdays = await db.select().from(ddays);
+  const upcoming = allDdays.filter((d) => {
     const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
     return diff >= 0 && diff <= 7;
   });

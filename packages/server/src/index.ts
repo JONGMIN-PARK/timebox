@@ -25,8 +25,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize database
-initDb();
+// Initialize database (async)
+await initDb();
 
 // Middleware
 app.use(cors());

@@ -1,22 +1,22 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { pgTable, text, integer, serial, boolean } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // ── Users (multi-user) ──
-export const users = sqliteTable("users", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   displayName: text("display_name"),
   role: text("role").notNull().default("user"), // "admin" | "user"
-  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  active: boolean("active").notNull().default(true),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── Registration Requests ──
-export const registrationRequests = sqliteTable("registration_requests", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const registrationRequests = pgTable("registration_requests", {
+  id: serial("id").primaryKey(),
   username: text("username").notNull(),
   passwordHash: text("password_hash").notNull(),
   displayName: text("display_name"),
@@ -26,51 +26,51 @@ export const registrationRequests = sqliteTable("registration_requests", {
   reviewedAt: text("reviewed_at"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── TimeBlock Templates ──
-export const timeBlockTemplates = sqliteTable("time_block_templates", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const timeBlockTemplates = pgTable("time_block_templates", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   name: text("name").notNull(),
   blocks: text("blocks").notNull(), // JSON array of {startTime, endTime, title, category, color}
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── Categories ──
-export const categories = sqliteTable("categories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
   name: text("name").notNull(),
   color: text("color").notNull().default("#3b82f6"),
   icon: text("icon"),
 });
 
 // ── Events (Calendar) ──
-export const events = sqliteTable("events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const events = pgTable("events", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   description: text("description"),
   startTime: text("start_time").notNull(),
   endTime: text("end_time").notNull(),
-  allDay: integer("all_day", { mode: "boolean" }).notNull().default(false),
+  allDay: boolean("all_day").notNull().default(false),
   categoryId: integer("category_id").references(() => categories.id),
   recurrenceRule: text("recurrence_rule"),
   color: text("color").default("#3b82f6"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── TimeBlocks ──
-export const timeBlocks = sqliteTable("time_blocks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const timeBlocks = pgTable("time_blocks", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   date: text("date").notNull(),
   startTime: text("start_time").notNull(),
@@ -78,21 +78,21 @@ export const timeBlocks = sqliteTable("time_blocks", {
   title: text("title").notNull(),
   category: text("category").notNull().default("other"),
   color: text("color"),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
+  completed: boolean("completed").notNull().default(false),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── Todos ──
-export const todos = sqliteTable("todos", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const todos = pgTable("todos", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
-  completed: integer("completed", { mode: "boolean" }).notNull().default(false),
+  completed: boolean("completed").notNull().default(false),
   priority: text("priority").notNull().default("medium"),
   category: text("category").notNull().default("personal"),
   dueDate: text("due_date"),
@@ -100,15 +100,15 @@ export const todos = sqliteTable("todos", {
   parentId: integer("parent_id"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── D-Days ──
-export const ddays = sqliteTable("ddays", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const ddays = pgTable("ddays", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   targetDate: text("target_date").notNull(),
@@ -116,15 +116,15 @@ export const ddays = sqliteTable("ddays", {
   icon: text("icon"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── Reminders ──
-export const reminders = sqliteTable("reminders", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const reminders = pgTable("reminders", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   message: text("message"),
@@ -133,19 +133,19 @@ export const reminders = sqliteTable("reminders", {
   sourceType: text("source_type").notNull().default("custom"),
   sourceId: integer("source_id"),
   channel: text("channel").notNull().default("telegram"),
-  sent: integer("sent", { mode: "boolean" }).notNull().default(false),
+  sent: boolean("sent").notNull().default(false),
   snoozedUntil: text("snoozed_until"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── Files ──
-export const files = sqliteTable("files", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const files = pgTable("files", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   originalName: text("original_name").notNull(),
   storedName: text("stored_name").notNull(),
@@ -155,20 +155,20 @@ export const files = sqliteTable("files", {
   uploadedVia: text("uploaded_via").notNull().default("web"),
   createdAt: text("created_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });
 
 // ── Telegram Config ──
-export const telegramConfig = sqliteTable("telegram_config", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
+export const telegramConfig = pgTable("telegram_config", {
+  id: serial("id").primaryKey(),
   userId: integer("user_id"),
   chatId: text("chat_id"),
   dailyBriefingTime: text("daily_briefing_time"),
-  active: integer("active", { mode: "boolean" }).notNull().default(false),
+  active: boolean("active").notNull().default(false),
   updatedAt: text("updated_at")
     .notNull()
-    .default(sql`(datetime('now'))`),
+    .default(sql`now()`),
 });

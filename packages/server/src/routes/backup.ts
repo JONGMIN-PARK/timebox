@@ -7,17 +7,17 @@ import { type AuthRequest } from "../middleware/auth.js";
 const router = Router();
 
 // GET /api/backup/export — download all user data as JSON
-router.get("/export", (req: AuthRequest, res) => {
+router.get("/export", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
 
     const data = {
       exportedAt: new Date().toISOString(),
       version: 1,
-      todos: db.select().from(todos).where(eq(todos.userId, userId)).all(),
-      events: db.select().from(events).where(eq(events.userId, userId)).all(),
-      ddays: db.select().from(ddays).where(eq(ddays.userId, userId)).all(),
-      timeBlocks: db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId)).all(),
+      todos: await db.select().from(todos).where(eq(todos.userId, userId)),
+      events: await db.select().from(events).where(eq(events.userId, userId)),
+      ddays: await db.select().from(ddays).where(eq(ddays.userId, userId)),
+      timeBlocks: await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId)),
     };
 
     res.setHeader("Content-Type", "application/json");
@@ -29,7 +29,7 @@ router.get("/export", (req: AuthRequest, res) => {
 });
 
 // POST /api/backup/import — restore user data from JSON
-router.post("/import", (req: AuthRequest, res) => {
+router.post("/import", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { data, mode } = req.body;
@@ -44,16 +44,16 @@ router.post("/import", (req: AuthRequest, res) => {
 
     // If replace mode, delete existing data first
     if (!merge) {
-      db.delete(todos).where(eq(todos.userId, userId)).run();
-      db.delete(events).where(eq(events.userId, userId)).run();
-      db.delete(ddays).where(eq(ddays.userId, userId)).run();
-      db.delete(timeBlocks).where(eq(timeBlocks.userId, userId)).run();
+      await db.delete(todos).where(eq(todos.userId, userId));
+      await db.delete(events).where(eq(events.userId, userId));
+      await db.delete(ddays).where(eq(ddays.userId, userId));
+      await db.delete(timeBlocks).where(eq(timeBlocks.userId, userId));
     }
 
     // Import todos
     if (data.todos && Array.isArray(data.todos)) {
       for (const t of data.todos) {
-        db.insert(todos).values({
+        await db.insert(todos).values({
           userId,
           title: t.title,
           completed: t.completed || false,
@@ -62,7 +62,7 @@ router.post("/import", (req: AuthRequest, res) => {
           dueDate: t.dueDate || null,
           sortOrder: t.sortOrder || 0,
           parentId: t.parentId || null,
-        }).run();
+        });
         imported.todos++;
       }
     }
@@ -70,7 +70,7 @@ router.post("/import", (req: AuthRequest, res) => {
     // Import events
     if (data.events && Array.isArray(data.events)) {
       for (const e of data.events) {
-        db.insert(events).values({
+        await db.insert(events).values({
           userId,
           title: e.title,
           description: e.description || null,
@@ -79,7 +79,7 @@ router.post("/import", (req: AuthRequest, res) => {
           allDay: e.allDay || false,
           categoryId: null,
           color: e.color || "#3b82f6",
-        }).run();
+        });
         imported.events++;
       }
     }
@@ -87,13 +87,13 @@ router.post("/import", (req: AuthRequest, res) => {
     // Import ddays
     if (data.ddays && Array.isArray(data.ddays)) {
       for (const d of data.ddays) {
-        db.insert(ddays).values({
+        await db.insert(ddays).values({
           userId,
           title: d.title,
           targetDate: d.targetDate,
           color: d.color || "#3b82f6",
           icon: d.icon || null,
-        }).run();
+        });
         imported.ddays++;
       }
     }
@@ -101,7 +101,7 @@ router.post("/import", (req: AuthRequest, res) => {
     // Import timeBlocks
     if (data.timeBlocks && Array.isArray(data.timeBlocks)) {
       for (const b of data.timeBlocks) {
-        db.insert(timeBlocks).values({
+        await db.insert(timeBlocks).values({
           userId,
           date: b.date,
           startTime: b.startTime,
@@ -110,7 +110,7 @@ router.post("/import", (req: AuthRequest, res) => {
           category: b.category || "other",
           color: b.color || null,
           completed: b.completed || false,
-        }).run();
+        });
         imported.timeBlocks++;
       }
     }

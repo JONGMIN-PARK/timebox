@@ -7,10 +7,10 @@ import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 const router = Router();
 
 // GET /api/reminders?upcoming=true&sent=false
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    let result = db.select().from(reminders).where(eq(reminders.userId, userId)).orderBy(asc(reminders.remindAt)).all();
+    let result = await db.select().from(reminders).where(eq(reminders.userId, userId)).orderBy(asc(reminders.remindAt));
 
     if (req.query.upcoming === "true") {
       const now = new Date().toISOString();
@@ -27,7 +27,7 @@ router.get("/", (req: AuthRequest, res) => {
 });
 
 // POST /api/reminders
-router.post("/", (req: AuthRequest, res) => {
+router.post("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, message, remindAt, repeatRule, sourceType, sourceId, channel } = req.body;
@@ -36,7 +36,7 @@ router.post("/", (req: AuthRequest, res) => {
       return;
     }
 
-    const result = db.insert(reminders).values({
+    const result = await db.insert(reminders).values({
       userId,
       title: title.trim(),
       message: message?.trim() || null,
@@ -45,16 +45,16 @@ router.post("/", (req: AuthRequest, res) => {
       sourceType: sourceType || "custom",
       sourceId: sourceId || null,
       channel: channel || "web_push",
-    }).returning().get();
+    }).returning();
 
-    res.status(201).json({ success: true, data: result });
+    res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to create reminder" });
   }
 });
 
 // PUT /api/reminders/:id
-router.put("/:id", (req: AuthRequest, res) => {
+router.put("/:id", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
@@ -68,17 +68,17 @@ router.put("/:id", (req: AuthRequest, res) => {
     if (req.body.sent !== undefined) updates.sent = req.body.sent;
     if (req.body.channel !== undefined) updates.channel = req.body.channel;
 
-    const result = db.update(reminders).set(updates).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).returning().get();
-    if (!result) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
+    const result = await db.update(reminders).set(updates).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).returning();
+    if (!result[0]) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
 
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to update reminder" });
   }
 });
 
 // POST /api/reminders/:id/snooze
-router.post("/:id/snooze", (req: AuthRequest, res) => {
+router.post("/:id/snooze", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
@@ -88,28 +88,28 @@ router.post("/:id/snooze", (req: AuthRequest, res) => {
     const mins = parseInt(duration) || 15;
     const snoozedUntil = new Date(Date.now() + mins * 60 * 1000).toISOString();
 
-    const result = db.update(reminders).set({
+    const result = await db.update(reminders).set({
       snoozedUntil,
       sent: false,
       updatedAt: new Date().toISOString(),
-    }).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).returning().get();
+    }).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).returning();
 
-    if (!result) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
-    res.json({ success: true, data: result });
+    if (!result[0]) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Snooze failed" });
   }
 });
 
 // DELETE /api/reminders/:id
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
 
-    const result = db.delete(reminders).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).returning().get();
-    if (!result) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
+    const result = await db.delete(reminders).where(and(eq(reminders.id, id), eq(reminders.userId, userId))).returning();
+    if (!result[0]) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: "Delete failed" });

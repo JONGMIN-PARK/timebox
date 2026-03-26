@@ -6,18 +6,18 @@ import { type AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const filter = req.query.filter as string | undefined;
     let result;
 
     if (filter === "completed") {
-      result = db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true))).orderBy(desc(todos.updatedAt)).all();
+      result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true))).orderBy(desc(todos.updatedAt));
     } else if (filter === "active") {
-      result = db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))).orderBy(asc(todos.sortOrder)).all();
+      result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))).orderBy(asc(todos.sortOrder));
     } else {
-      result = db.select().from(todos).where(eq(todos.userId, userId)).orderBy(asc(todos.sortOrder), desc(todos.createdAt)).all();
+      result = await db.select().from(todos).where(eq(todos.userId, userId)).orderBy(asc(todos.sortOrder), desc(todos.createdAt));
     }
 
     res.json({ success: true, data: result });
@@ -26,7 +26,7 @@ router.get("/", (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", (req: AuthRequest, res) => {
+router.post("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, priority, category, dueDate, parentId } = req.body;
@@ -35,29 +35,28 @@ router.post("/", (req: AuthRequest, res) => {
       return;
     }
 
-    const maxOrder = db
+    const maxOrder = await db
       .select({ max: sql<number>`COALESCE(MAX(sort_order), 0)` })
       .from(todos)
-      .where(eq(todos.userId, userId))
-      .get();
+      .where(eq(todos.userId, userId));
 
-    const result = db.insert(todos).values({
+    const result = await db.insert(todos).values({
       userId,
       title: title.trim(),
       priority: priority || "medium",
       category: category || "personal",
       dueDate: dueDate || null,
       parentId: parentId || null,
-      sortOrder: (maxOrder?.max || 0) + 1,
-    }).returning().get();
+      sortOrder: (maxOrder[0]?.max || 0) + 1,
+    }).returning();
 
-    res.status(201).json({ success: true, data: result });
+    res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to create todo" });
   }
 });
 
-router.put("/reorder", (req: AuthRequest, res) => {
+router.put("/reorder", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { items } = req.body;
@@ -67,10 +66,9 @@ router.put("/reorder", (req: AuthRequest, res) => {
     }
 
     for (const item of items) {
-      db.update(todos)
+      await db.update(todos)
         .set({ sortOrder: item.sortOrder, updatedAt: new Date().toISOString() })
-        .where(and(eq(todos.id, item.id), eq(todos.userId, userId)))
-        .run();
+        .where(and(eq(todos.id, item.id), eq(todos.userId, userId)));
     }
 
     res.json({ success: true });
@@ -79,7 +77,7 @@ router.put("/reorder", (req: AuthRequest, res) => {
   }
 });
 
-router.put("/:id", (req: AuthRequest, res) => {
+router.put("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userId = req.userId!;
@@ -92,28 +90,28 @@ router.put("/:id", (req: AuthRequest, res) => {
     if (req.body.dueDate !== undefined) updates.dueDate = req.body.dueDate;
     if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
 
-    const result = db.update(todos).set(updates).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning().get();
-    if (!result) {
+    const result = await db.update(todos).set(updates).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning();
+    if (!result[0]) {
       res.status(404).json({ success: false, error: "Todo not found" });
       return;
     }
 
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to update todo" });
   }
 });
 
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userId = req.userId!;
-    const result = db.delete(todos).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning().get();
-    if (!result) {
+    const result = await db.delete(todos).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning();
+    if (!result[0]) {
       res.status(404).json({ success: false, error: "Todo not found" });
       return;
     }
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to delete todo" });
   }

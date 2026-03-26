@@ -31,8 +31,9 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   }
 }
 
-export function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
-  const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+export async function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+  const rows = await db.select().from(users).where(eq(users.id, req.userId!));
+  const user = rows[0];
   if (!user || user.role !== "admin") {
     res.status(403).json({ success: false, error: "Admin access required" });
     return;

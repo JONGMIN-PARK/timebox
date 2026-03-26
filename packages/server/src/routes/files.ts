@@ -39,11 +39,11 @@ const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 2
 const router = Router();
 
 // GET /api/files
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { tag, search } = req.query;
-    let result = db.select().from(files).where(eq(files.userId, userId)).all();
+    let result = await db.select().from(files).where(eq(files.userId, userId));
 
     if (tag) result = result.filter((f) => JSON.parse(f.tags).includes(tag));
     if (search) result = result.filter((f) => f.originalName.toLowerCase().includes((search as string).toLowerCase()));
@@ -55,10 +55,10 @@ router.get("/", (req: AuthRequest, res) => {
 });
 
 // GET /api/files/usage
-router.get("/usage", (req: AuthRequest, res) => {
+router.get("/usage", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    const result = db.select().from(files).where(eq(files.userId, userId)).all();
+    const result = await db.select().from(files).where(eq(files.userId, userId));
     const usedBytes = result.reduce((s, f) => s + f.size, 0);
     res.json({ success: true, data: { usedBytes, maxBytes: MAX_STORAGE, fileCount: result.length } });
   } catch (error) {
@@ -67,14 +67,15 @@ router.get("/usage", (req: AuthRequest, res) => {
 });
 
 // POST /api/files/upload
-router.post("/upload", upload.single("file"), (req: AuthRequest, res) => {
+router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const file = req.file;
     if (!file) { res.status(400).json({ success: false, error: "No file uploaded" }); return; }
 
     // Check storage limit
-    const currentUsage = db.select().from(files).where(eq(files.userId, userId)).all().reduce((s, f) => s + f.size, 0);
+    const currentFiles = await db.select().from(files).where(eq(files.userId, userId));
+    const currentUsage = currentFiles.reduce((s, f) => s + f.size, 0);
     if (currentUsage + file.size > MAX_STORAGE) {
       fs.unlinkSync(file.path);
       res.status(413).json({ success: false, error: "Storage limit exceeded (500MB)" });
@@ -82,7 +83,7 @@ router.post("/upload", upload.single("file"), (req: AuthRequest, res) => {
     }
 
     const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
-    const result = db.insert(files).values({
+    const result = await db.insert(files).values({
       userId,
       originalName: file.originalname,
       storedName: file.filename,
@@ -90,22 +91,23 @@ router.post("/upload", upload.single("file"), (req: AuthRequest, res) => {
       size: file.size,
       tags: JSON.stringify(tags),
       uploadedVia: "web",
-    }).returning().get();
+    }).returning();
 
-    res.status(201).json({ success: true, data: result });
+    res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Upload failed" });
   }
 });
 
 // GET /api/files/:id/download
-router.get("/:id/download", (req: AuthRequest, res) => {
+router.get("/:id/download", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
 
-    const file = db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId))).get();
+    const rows = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+    const file = rows[0];
     if (!file) { res.status(404).json({ success: false, error: "File not found" }); return; }
 
     const filePath = path.join(UPLOAD_DIR, file.storedName);
@@ -121,13 +123,14 @@ router.get("/:id/download", (req: AuthRequest, res) => {
 });
 
 // GET /api/files/:id/preview — inline preview for images/PDFs
-router.get("/:id/preview", (req: AuthRequest, res) => {
+router.get("/:id/preview", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
 
-    const file = db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId))).get();
+    const rows = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+    const file = rows[0];
     if (!file) { res.status(404).json({ success: false, error: "File not found" }); return; }
 
     const filePath = path.join(UPLOAD_DIR, file.storedName);
@@ -142,38 +145,39 @@ router.get("/:id/preview", (req: AuthRequest, res) => {
 });
 
 // PUT /api/files/:id/tags
-router.put("/:id/tags", (req: AuthRequest, res) => {
+router.put("/:id/tags", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
 
     const { tags } = req.body;
-    const result = db.update(files).set({ tags: JSON.stringify(tags || []), updatedAt: new Date().toISOString() })
-      .where(and(eq(files.id, id), eq(files.userId, userId))).returning().get();
-    if (!result) { res.status(404).json({ success: false, error: "File not found" }); return; }
+    const result = await db.update(files).set({ tags: JSON.stringify(tags || []), updatedAt: new Date().toISOString() })
+      .where(and(eq(files.id, id), eq(files.userId, userId))).returning();
+    if (!result[0]) { res.status(404).json({ success: false, error: "File not found" }); return; }
 
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to update tags" });
   }
 });
 
 // DELETE /api/files/:id
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
 
-    const file = db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId))).get();
+    const rows = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+    const file = rows[0];
     if (!file) { res.status(404).json({ success: false, error: "File not found" }); return; }
 
     // Delete physical file
     const filePath = path.join(UPLOAD_DIR, file.storedName);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
-    db.delete(files).where(eq(files.id, id)).run();
+    await db.delete(files).where(eq(files.id, id));
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: "Delete failed" });

@@ -6,18 +6,17 @@ import { type AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { start, end } = req.query;
     let result;
 
     if (start && end) {
-      result = db.select().from(events)
-        .where(and(eq(events.userId, userId), gte(events.startTime, start as string), lte(events.endTime, end as string)))
-        .all();
+      result = await db.select().from(events)
+        .where(and(eq(events.userId, userId), gte(events.startTime, start as string), lte(events.endTime, end as string)));
     } else {
-      result = db.select().from(events).where(eq(events.userId, userId)).all();
+      result = await db.select().from(events).where(eq(events.userId, userId));
     }
 
     res.json({ success: true, data: result });
@@ -26,7 +25,7 @@ router.get("/", (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", (req: AuthRequest, res) => {
+router.post("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, description, startTime, endTime, allDay, categoryId, recurrenceRule, color } = req.body;
@@ -35,7 +34,7 @@ router.post("/", (req: AuthRequest, res) => {
       return;
     }
 
-    const result = db.insert(events).values({
+    const result = await db.insert(events).values({
       userId,
       title: title.trim(),
       description: description || null,
@@ -45,15 +44,15 @@ router.post("/", (req: AuthRequest, res) => {
       categoryId: categoryId || null,
       recurrenceRule: recurrenceRule || null,
       color: color || "#3b82f6",
-    }).returning().get();
+    }).returning();
 
-    res.status(201).json({ success: true, data: result });
+    res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to create event" });
   }
 });
 
-router.put("/:id", (req: AuthRequest, res) => {
+router.put("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userId = req.userId!;
@@ -67,28 +66,28 @@ router.put("/:id", (req: AuthRequest, res) => {
     if (req.body.categoryId !== undefined) updates.categoryId = req.body.categoryId;
     if (req.body.color !== undefined) updates.color = req.body.color;
 
-    const result = db.update(events).set(updates).where(and(eq(events.id, id), eq(events.userId, userId))).returning().get();
-    if (!result) {
+    const result = await db.update(events).set(updates).where(and(eq(events.id, id), eq(events.userId, userId))).returning();
+    if (!result[0]) {
       res.status(404).json({ success: false, error: "Event not found" });
       return;
     }
 
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to update event" });
   }
 });
 
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userId = req.userId!;
-    const result = db.delete(events).where(and(eq(events.id, id), eq(events.userId, userId))).returning().get();
-    if (!result) {
+    const result = await db.delete(events).where(and(eq(events.id, id), eq(events.userId, userId))).returning();
+    if (!result[0]) {
       res.status(404).json({ success: false, error: "Event not found" });
       return;
     }
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to delete event" });
   }

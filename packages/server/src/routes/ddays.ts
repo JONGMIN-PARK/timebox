@@ -13,10 +13,10 @@ function calcDaysLeft(targetDate: string): number {
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    const result = db.select().from(ddays).where(eq(ddays.userId, userId)).orderBy(asc(ddays.targetDate)).all();
+    const result = await db.select().from(ddays).where(eq(ddays.userId, userId)).orderBy(asc(ddays.targetDate));
     const withDaysLeft = result.map((d) => ({ ...d, daysLeft: calcDaysLeft(d.targetDate) }));
     res.json({ success: true, data: withDaysLeft });
   } catch (error) {
@@ -24,7 +24,7 @@ router.get("/", (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", (req: AuthRequest, res) => {
+router.post("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, targetDate, color, icon } = req.body;
@@ -32,14 +32,14 @@ router.post("/", (req: AuthRequest, res) => {
       res.status(400).json({ success: false, error: "Title and targetDate are required" });
       return;
     }
-    const result = db.insert(ddays).values({ userId, title: title.trim(), targetDate, color: color || "#3b82f6", icon: icon || null }).returning().get();
-    res.json({ success: true, data: { ...result, daysLeft: calcDaysLeft(result.targetDate) } });
+    const result = await db.insert(ddays).values({ userId, title: title.trim(), targetDate, color: color || "#3b82f6", icon: icon || null }).returning();
+    res.json({ success: true, data: { ...result[0], daysLeft: calcDaysLeft(result[0].targetDate) } });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to create dday" });
   }
 });
 
-router.put("/:id", (req: AuthRequest, res) => {
+router.put("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userId = req.userId!;
@@ -49,21 +49,21 @@ router.put("/:id", (req: AuthRequest, res) => {
     if (req.body.color !== undefined) updates.color = req.body.color;
     if (req.body.icon !== undefined) updates.icon = req.body.icon;
 
-    const result = db.update(ddays).set(updates).where(and(eq(ddays.id, id), eq(ddays.userId, userId))).returning().get();
-    if (!result) { res.status(404).json({ success: false, error: "D-Day not found" }); return; }
-    res.json({ success: true, data: { ...result, daysLeft: calcDaysLeft(result.targetDate) } });
+    const result = await db.update(ddays).set(updates).where(and(eq(ddays.id, id), eq(ddays.userId, userId))).returning();
+    if (!result[0]) { res.status(404).json({ success: false, error: "D-Day not found" }); return; }
+    res.json({ success: true, data: { ...result[0], daysLeft: calcDaysLeft(result[0].targetDate) } });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to update dday" });
   }
 });
 
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     const id = parseInt(req.params.id as string);
     const userId = req.userId!;
-    const result = db.delete(ddays).where(and(eq(ddays.id, id), eq(ddays.userId, userId))).returning().get();
-    if (!result) { res.status(404).json({ success: false, error: "D-Day not found" }); return; }
-    res.json({ success: true, data: result });
+    const result = await db.delete(ddays).where(and(eq(ddays.id, id), eq(ddays.userId, userId))).returning();
+    if (!result[0]) { res.status(404).json({ success: false, error: "D-Day not found" }); return; }
+    res.json({ success: true, data: result[0] });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to delete dday" });
   }

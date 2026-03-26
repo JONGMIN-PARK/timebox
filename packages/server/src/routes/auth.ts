@@ -16,7 +16,8 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    const user = db.select().from(users).where(eq(users.username, username)).get();
+    const rows = await db.select().from(users).where(eq(users.username, username));
+    const user = rows[0];
     if (!user) {
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
@@ -55,34 +56,30 @@ router.post("/request", async (req, res) => {
       return;
     }
 
-    // Check if username already exists
-    const existingUser = db.select().from(users).where(eq(users.username, username.trim())).get();
-    if (existingUser) {
+    const existingUser = await db.select().from(users).where(eq(users.username, username.trim()));
+    if (existingUser[0]) {
       res.status(409).json({ success: false, error: "Username already taken" });
       return;
     }
 
-    // Check if there's already a pending request
-    const existingReq = db.select().from(registrationRequests)
-      .where(eq(registrationRequests.username, username.trim()))
-      .all()
-      .filter((r) => r.status === "pending");
-    if (existingReq.length > 0) {
+    const existingReq = await db.select().from(registrationRequests)
+      .where(eq(registrationRequests.username, username.trim()));
+    if (existingReq.filter((r) => r.status === "pending").length > 0) {
       res.status(409).json({ success: false, error: "A request for this username is already pending" });
       return;
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const result = db.insert(registrationRequests).values({
+    const result = await db.insert(registrationRequests).values({
       username: username.trim(),
       passwordHash,
       displayName: displayName?.trim() || username.trim(),
       message: message?.trim() || null,
-    }).returning().get();
+    }).returning();
 
     res.status(201).json({
       success: true,
-      data: { id: result.id, username: result.username, status: result.status },
+      data: { id: result[0].id, username: result[0].username, status: result[0].status },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: "Request failed" });
@@ -90,9 +87,9 @@ router.post("/request", async (req, res) => {
 });
 
 // GET /api/auth/requests — admin: list registration requests
-router.get("/requests", authMiddleware, adminMiddleware, (req: AuthRequest, res) => {
+router.get("/requests", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const all = db.select().from(registrationRequests).all().map((r) => ({
+    const all = (await db.select().from(registrationRequests)).map((r) => ({
       id: r.id, username: r.username, displayName: r.displayName, message: r.message,
       status: r.status, createdAt: r.createdAt, reviewedAt: r.reviewedAt,
     }));
@@ -108,9 +105,10 @@ router.put("/requests/:id", authMiddleware, adminMiddleware, async (req: AuthReq
   try {
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
-    const { action } = req.body; // "approve" | "reject"
+    const { action } = req.body;
 
-    const request = db.select().from(registrationRequests).where(eq(registrationRequests.id, id)).get();
+    const rows = await db.select().from(registrationRequests).where(eq(registrationRequests.id, id));
+    const request = rows[0];
     if (!request) {
       res.status(404).json({ success: false, error: "Request not found" });
       return;
@@ -121,35 +119,32 @@ router.put("/requests/:id", authMiddleware, adminMiddleware, async (req: AuthReq
     }
 
     if (action === "approve") {
-      // Check username not taken
-      const existing = db.select().from(users).where(eq(users.username, request.username)).get();
-      if (existing) {
+      const existing = await db.select().from(users).where(eq(users.username, request.username));
+      if (existing[0]) {
         res.status(409).json({ success: false, error: "Username already taken" });
         return;
       }
 
-      // Create user
-      db.insert(users).values({
+      await db.insert(users).values({
         username: request.username,
         passwordHash: request.passwordHash,
         displayName: request.displayName || request.username,
         role: "user",
-      }).run();
+      });
 
-      // Update request
-      db.update(registrationRequests).set({
+      await db.update(registrationRequests).set({
         status: "approved",
         reviewedBy: req.userId,
         reviewedAt: new Date().toISOString(),
-      }).where(eq(registrationRequests.id, id)).run();
+      }).where(eq(registrationRequests.id, id));
 
       res.json({ success: true, data: { status: "approved" } });
     } else if (action === "reject") {
-      db.update(registrationRequests).set({
+      await db.update(registrationRequests).set({
         status: "rejected",
         reviewedBy: req.userId,
         reviewedAt: new Date().toISOString(),
-      }).where(eq(registrationRequests.id, id)).run();
+      }).where(eq(registrationRequests.id, id));
 
       res.json({ success: true, data: { status: "rejected" } });
     } else {
@@ -169,24 +164,23 @@ router.post("/register", authMiddleware, adminMiddleware, async (req: AuthReques
       return;
     }
 
-    // Check if username exists
-    const existing = db.select().from(users).where(eq(users.username, username)).get();
-    if (existing) {
+    const existing = await db.select().from(users).where(eq(users.username, username));
+    if (existing[0]) {
       res.status(409).json({ success: false, error: "Username already exists" });
       return;
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const result = db.insert(users).values({
+    const result = await db.insert(users).values({
       username,
       passwordHash,
       displayName: displayName || username,
       role: role || "user",
-    }).returning().get();
+    }).returning();
 
     res.status(201).json({
       success: true,
-      data: { id: result.id, username: result.username, displayName: result.displayName, role: result.role },
+      data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: "Registration failed" });
@@ -194,9 +188,10 @@ router.post("/register", authMiddleware, adminMiddleware, async (req: AuthReques
 });
 
 // GET /api/auth/me
-router.get("/me", authMiddleware, (req: AuthRequest, res) => {
+router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+    const rows = await db.select().from(users).where(eq(users.id, req.userId!));
+    const user = rows[0];
     if (!user) {
       res.status(404).json({ success: false, error: "User not found" });
       return;
@@ -211,9 +206,9 @@ router.get("/me", authMiddleware, (req: AuthRequest, res) => {
 });
 
 // GET /api/auth/users (admin only)
-router.get("/users", authMiddleware, adminMiddleware, (req: AuthRequest, res) => {
+router.get("/users", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const allUsers = db.select().from(users).all().map((u) => ({
+    const allUsers = (await db.select().from(users)).map((u) => ({
       id: u.id, username: u.username, displayName: u.displayName, role: u.role, active: u.active, createdAt: u.createdAt,
     }));
 
@@ -237,15 +232,15 @@ router.put("/users/:id", authMiddleware, adminMiddleware, async (req: AuthReques
       updates.passwordHash = await bcrypt.hash(req.body.password, 10);
     }
 
-    const result = db.update(users).set(updates).where(eq(users.id, id)).returning().get();
-    if (!result) {
+    const result = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    if (!result[0]) {
       res.status(404).json({ success: false, error: "User not found" });
       return;
     }
 
     res.json({
       success: true,
-      data: { id: result.id, username: result.username, displayName: result.displayName, role: result.role, active: result.active },
+      data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role, active: result[0].active },
     });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to update user" });
@@ -253,7 +248,7 @@ router.put("/users/:id", authMiddleware, adminMiddleware, async (req: AuthReques
 });
 
 // DELETE /api/auth/users/:id (admin only)
-router.delete("/users/:id", authMiddleware, adminMiddleware, (req: AuthRequest, res) => {
+router.delete("/users/:id", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
     const id = safeParseId(req.params.id);
     if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
@@ -262,7 +257,7 @@ router.delete("/users/:id", authMiddleware, adminMiddleware, (req: AuthRequest, 
       return;
     }
 
-    db.delete(users).where(eq(users.id, id)).run();
+    await db.delete(users).where(eq(users.id, id));
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: "Failed to delete user" });
