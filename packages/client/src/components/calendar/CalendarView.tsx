@@ -36,16 +36,30 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
-// Tooltip component for hover
-function HoverTooltip({ items, position }: {
+// Tooltip component for hover - anchored to cell element
+function HoverTooltip({ items, anchorRect }: {
   items: { type: "event" | "todo"; title: string; time?: string; color: string; completed?: boolean }[];
-  position: { x: number; y: number };
+  anchorRect: DOMRect;
 }) {
   if (items.length === 0) return null;
+
+  // Position tooltip just below the cell, centered horizontally
+  const tooltipWidth = 220;
+  let left = anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2;
+  let top = anchorRect.bottom + 4;
+
+  // Keep within viewport
+  if (left < 8) left = 8;
+  if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8;
+  // If below viewport, show above the cell
+  if (top + 150 > window.innerHeight) {
+    top = anchorRect.top - 4;
+  }
+
   return (
     <div
-      className="fixed z-[100] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-2.5 min-w-[180px] max-w-[260px] pointer-events-none"
-      style={{ left: position.x + 12, top: position.y + 12 }}
+      className="fixed z-[100] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-2.5 pointer-events-none"
+      style={{ left, top: top + 150 > window.innerHeight ? undefined : top, bottom: top + 150 > window.innerHeight ? (window.innerHeight - anchorRect.top + 4) : undefined, width: tooltipWidth }}
     >
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-2 py-1">
@@ -77,7 +91,7 @@ export default function CalendarView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [hoverInfo, setHoverInfo] = useState<{ items: any[]; position: { x: number; y: number } } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ items: any[]; anchorRect: DOMRect } | null>(null);
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     if (viewMode === "month") {
@@ -214,7 +228,8 @@ export default function CalendarView() {
   const handleDayHover = (e: React.MouseEvent, dateKey: string) => {
     const items = getHoverItems(dateKey);
     if (items.length > 0) {
-      setHoverInfo({ items, position: { x: e.clientX, y: e.clientY } });
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setHoverInfo({ items, anchorRect: rect });
     }
   };
 
@@ -285,17 +300,16 @@ export default function CalendarView() {
                   onClick={() => setSelectedDate(day)}
                   onDoubleClick={() => { setSelectedDate(day); setViewMode("day"); setCurrentDate(day); }}
                   onMouseEnter={(e) => handleDayHover(e, dateKey)}
-                  onMouseMove={(e) => { if (hoverInfo) setHoverInfo({ ...hoverInfo, position: { x: e.clientX, y: e.clientY } }); }}
                   onMouseLeave={() => setHoverInfo(null)}
                   className={cn(
-                    "relative flex flex-col items-center p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors",
+                    "relative flex flex-col items-start p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors overflow-hidden",
                     !isSameMonth(day, currentDate) && "opacity-30",
                     isSelected && "bg-blue-50 dark:bg-blue-900/20",
                     !isSelected && "hover:bg-slate-50 dark:hover:bg-slate-700/30",
                   )}
                 >
                   <span className={cn(
-                    "w-7 h-7 flex items-center justify-center rounded-full text-sm",
+                    "w-6 h-6 flex items-center justify-center rounded-full text-xs shrink-0",
                     isToday(day) && "bg-blue-600 text-white font-bold",
                     !isToday(day) && dow === 0 && "text-red-500",
                     !isToday(day) && dow === 6 && "text-blue-500",
@@ -303,19 +317,22 @@ export default function CalendarView() {
                   )}>
                     {format(day, "d")}
                   </span>
-                  {/* Dots: events (colored) + todos (amber/green) */}
-                  <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center max-w-[40px]">
+                  {/* Event & todo titles */}
+                  <div className="w-full mt-0.5 space-y-0.5 overflow-hidden flex-1 min-h-0">
                     {dayEvents.slice(0, 2).map((ev) => (
-                      <div key={`e-${ev.id}`} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+                      <div key={`e-${ev.id}`} className="flex items-center gap-0.5 px-0.5">
+                        <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+                        <p className="text-[10px] leading-tight truncate text-slate-700 dark:text-slate-300">{ev.title}</p>
+                      </div>
                     ))}
                     {dayTodos.slice(0, 2).map((t) => (
-                      <div
-                        key={`t-${t.id}`}
-                        className={cn("w-1.5 h-1.5 rounded-sm", t.completed ? "bg-green-400" : "bg-amber-400")}
-                      />
+                      <div key={`t-${t.id}`} className="flex items-center gap-0.5 px-0.5">
+                        <div className={cn("w-1 h-1 rounded-sm shrink-0", t.completed ? "bg-green-400" : "bg-amber-400")} />
+                        <p className={cn("text-[10px] leading-tight truncate", t.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{t.title}</p>
+                      </div>
                     ))}
                     {(dayEvents.length + dayTodos.length) > 4 && (
-                      <span className="text-[8px] text-slate-400 leading-none">+</span>
+                      <span className="text-[9px] text-slate-400 px-0.5">+{dayEvents.length + dayTodos.length - 4} more</span>
                     )}
                   </div>
                 </button>
@@ -546,7 +563,7 @@ export default function CalendarView() {
       )}
 
       {/* Hover tooltip */}
-      {hoverInfo && <HoverTooltip items={hoverInfo.items} position={hoverInfo.position} />}
+      {hoverInfo && <HoverTooltip items={hoverInfo.items} anchorRect={hoverInfo.anchorRect} />}
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
