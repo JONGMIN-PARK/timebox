@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import TodoList from "@/components/todo/TodoList";
 import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
+import ReminderPanel from "@/components/reminders/ReminderPanel";
 import TimeBoxView from "@/components/timebox/TimeBoxView";
 import ElonScheduler from "@/components/scheduler/ElonScheduler";
 import FileVault from "@/components/files/FileVault";
@@ -85,7 +86,8 @@ export default function DashboardPage() {
                   <TodoList />
                 </div>
               )}
-              <div className="p-4">
+              <div className="p-4 space-y-4">
+                <ReminderPanel />
                 <DDayWidget />
               </div>
             </aside>

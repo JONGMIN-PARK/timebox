@@ -48,6 +48,14 @@ export function initDb() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS time_block_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      blocks TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -140,6 +148,7 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS telegram_config (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       chat_id TEXT,
       daily_briefing_time TEXT,
       active INTEGER NOT NULL DEFAULT 0,

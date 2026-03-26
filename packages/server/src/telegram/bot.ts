@@ -1,15 +1,22 @@
 import TelegramBot from "node-telegram-bot-api";
 import { db } from "../db/index.js";
-import { todos, events, ddays, telegramConfig, timeBlocks, users } from "../db/schema.js";
+import { todos, events, ddays, telegramConfig, timeBlocks, users, files } from "../db/schema.js";
 import { eq, gte, lte, and } from "drizzle-orm";
 import cron from "node-cron";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import crypto from "crypto";
+
+const __filename2 = fileURLToPath(import.meta.url);
+const __dirname2 = path.dirname(__filename2);
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname2, "../../uploads");
 
 let bot: TelegramBot | null = null;
 
-// ── Helpers ──
-function getUserIdFromChat(chatId: string): number | null {
+function getUserIdFromChat(chatId: string): number {
   const conf = db.select().from(telegramConfig).all().find((c) => c.chatId === chatId);
-  return conf ? 1 : null; // Default to user 1 for now
+  return conf?.userId || 1;
 }
 
 function parseDateInput(input: string): string {
@@ -40,10 +47,10 @@ export function initTelegramBot() {
   bot = new TelegramBot(token, { polling: true });
   console.log("Telegram bot initialized");
 
-  // Save config
+  // Save config with userId
   const existing = db.select().from(telegramConfig).all();
   if (existing.length === 0) {
-    db.insert(telegramConfig).values({ chatId: process.env.TELEGRAM_CHAT_ID || null, active: true }).run();
+    db.insert(telegramConfig).values({ userId: 1, chatId: process.env.TELEGRAM_CHAT_ID || null, active: true }).run();
   }
 
   // ── /start ──
@@ -365,6 +372,69 @@ export function initTelegramBot() {
     });
 
     bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+  });
+
+  // ── File handler — auto-save to vault ──
+  bot.on("document", async (msg) => {
+    if (!isAuthorized(msg) || !msg.document) return;
+    const userId = getUserIdFromChat(msg.chat.id.toString());
+    const doc = msg.document;
+
+    try {
+      const fileLink = await bot!.getFileLink(doc.file_id);
+      const response = await fetch(fileLink);
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const ext = path.extname(doc.file_name || "");
+      const storedName = `${crypto.randomUUID()}${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, storedName), buffer);
+
+      db.insert(files).values({
+        userId,
+        originalName: doc.file_name || "unnamed",
+        storedName,
+        mimeType: doc.mime_type || "application/octet-stream",
+        size: doc.file_size || buffer.length,
+        tags: JSON.stringify(["Telegram"]),
+        uploadedVia: "telegram",
+      }).run();
+
+      bot!.sendMessage(msg.chat.id, `📁 File saved to Vault: ${doc.file_name}`);
+    } catch (err) {
+      bot!.sendMessage(msg.chat.id, "❌ Failed to save file");
+    }
+  });
+
+  // ── Photo handler ──
+  bot.on("photo", async (msg) => {
+    if (!isAuthorized(msg) || !msg.photo) return;
+    const userId = getUserIdFromChat(msg.chat.id.toString());
+    const photo = msg.photo[msg.photo.length - 1]; // highest res
+
+    try {
+      const fileLink = await bot!.getFileLink(photo.file_id);
+      const response = await fetch(fileLink);
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+      const storedName = `${crypto.randomUUID()}.jpg`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, storedName), buffer);
+
+      db.insert(files).values({
+        userId,
+        originalName: `photo_${new Date().toISOString().slice(0, 10)}.jpg`,
+        storedName,
+        mimeType: "image/jpeg",
+        size: buffer.length,
+        tags: JSON.stringify(["Telegram", "Photo"]),
+        uploadedVia: "telegram",
+      }).run();
+
+      bot!.sendMessage(msg.chat.id, `📸 Photo saved to Vault`);
+    } catch (err) {
+      bot!.sendMessage(msg.chat.id, "❌ Failed to save photo");
+    }
   });
 
   setupDailyBriefing();

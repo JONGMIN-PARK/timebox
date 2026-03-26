@@ -14,6 +14,7 @@ import timeblockRoutes from "./routes/timeblocks.js";
 import telegramRoutes from "./routes/telegram.js";
 import backupRoutes from "./routes/backup.js";
 import fileRoutes from "./routes/files.js";
+import reminderRoutes from "./routes/reminders.js";
 import { initTelegramBot } from "./telegram/bot.js";
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.use("/api/timeblocks", authMiddleware, timeblockRoutes);
 app.use("/api/telegram", authMiddleware, telegramRoutes);
 app.use("/api/backup", authMiddleware, backupRoutes);
 app.use("/api/files", authMiddleware, fileRoutes);
+app.use("/api/reminders", authMiddleware, reminderRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {

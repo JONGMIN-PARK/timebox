@@ -29,6 +29,17 @@ export const registrationRequests = sqliteTable("registration_requests", {
     .default(sql`(datetime('now'))`),
 });
 
+// ── TimeBlock Templates ──
+export const timeBlockTemplates = sqliteTable("time_block_templates", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  name: text("name").notNull(),
+  blocks: text("blocks").notNull(), // JSON array of {startTime, endTime, title, category, color}
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ── Categories ──
 export const categories = sqliteTable("categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -153,6 +164,7 @@ export const files = sqliteTable("files", {
 // ── Telegram Config ──
 export const telegramConfig = sqliteTable("telegram_config", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),
   chatId: text("chat_id"),
   dailyBriefingTime: text("daily_briefing_time"),
   active: integer("active", { mode: "boolean" }).notNull().default(false),
