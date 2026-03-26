@@ -4,6 +4,7 @@ dist/
 .env.local
 *.db
 *.sqlite
+**/data/
 uploads/
 .DS_Store
 Thumbs.db

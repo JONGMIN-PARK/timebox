@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: timebox
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install -g pnpm && pnpm install && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEFAULT_PIN
+        value: "1234"
+      - key: DB_PATH
+        value: /opt/render/project/data/timebox.db
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+    disk:
+      name: timebox-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
