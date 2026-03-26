@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const showRightPanel = activeTab !== "settings" && activeTab !== "scheduler";
 
   return (
-    <div className="h-screen flex bg-slate-50 dark:bg-slate-900">
+    <div className="h-screen flex bg-slate-50 dark:bg-slate-900 pb-[52px] md:pb-0">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex-1 flex flex-col min-w-0">

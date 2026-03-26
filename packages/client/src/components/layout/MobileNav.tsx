@@ -16,8 +16,8 @@ const tabs = [
 
 export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 z-50">
-      <div className="flex justify-around py-2">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 z-50 safe-bottom">
+      <div className="flex justify-around py-1.5">
         {tabs.map((tab) => (
           <button
             key={tab.id}

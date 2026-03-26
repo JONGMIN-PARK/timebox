@@ -6,5 +6,41 @@
   html {
     font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui,
       sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent overscroll bounce on mobile */
+  body {
+    overscroll-behavior: none;
+  }
+
+  /* Smooth scrolling */
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar but keep scroll */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Thin scrollbar for desktop */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.slate.300') transparent;
+  }
+  .dark .scrollbar-thin {
+    scrollbar-color: theme('colors.slate.600') transparent;
+  }
+
+  /* Safe area for mobile notch/bottom bar */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
