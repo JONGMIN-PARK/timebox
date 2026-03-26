@@ -13,13 +13,7 @@ services:
         generateValue: true
       - key: DEFAULT_PIN
         value: "1234"
-      - key: DB_PATH
-        value: /opt/render/project/data/timebox.db
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
-    disk:
-      name: timebox-data
-      mountPath: /opt/render/project/data
-      sizeGB: 1
