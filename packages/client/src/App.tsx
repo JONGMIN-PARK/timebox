@@ -1,27 +1,32 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useAuthStore } from "@/stores/authStore";
+import LoginPage from "@/pages/LoginPage";
+import DashboardPage from "@/pages/DashboardPage";
 
-function Dashboard() {
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <header className="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-6 py-4">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          TimeBox
-        </h1>
-      </header>
-      <main className="p-6">
-        <p className="text-slate-600 dark:text-slate-400">
-          Personal Schedule Manager - Coming Soon
-        </p>
-      </main>
-    </div>
-  );
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { authenticated } = useAuthStore();
+  if (!authenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 export default function App() {
+  const { authenticated } = useAuthStore();
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/*" element={<Dashboard />} />
+        <Route
+          path="/login"
+          element={authenticated ? <Navigate to="/" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
