@@ -38,24 +38,24 @@
 | Color categories | ✅ Done | 6 event categories + 6 todo categories with sub-categories |
 | Dark mode | ✅ Done | Light/Dark/System toggle, localStorage persistence |
 
-### Phase 3: File Vault + Enhancement — 🔲 Not Started
+### Phase 3: File Vault + Enhancement — ✅ Mostly Complete
 
 | PRD Item | Status | Notes |
 |----------|--------|-------|
-| File vault (upload/download/delete/tags) | 🔲 | DB schema exists, UI placeholder |
-| File preview (image/PDF) | 🔲 | |
+| File vault (upload/download/delete/tags) | ✅ Done | Drag & drop, tag presets, search, storage bar |
+| File preview (image/PDF) | ✅ Done | Modal preview, inline images, PDF iframe |
 | Telegram → file auto-save | 🔲 | |
-| Recurring reminders | 🔲 | |
+| Recurring reminders | 🔲 | DB schema exists |
 | Snooze | 🔲 | |
 
-### Phase 4: Quality of Life — ⏳ Partial
+### Phase 4: Quality of Life — ✅ Mostly Complete
 
 | PRD Item | Status | Notes |
 |----------|--------|-------|
-| PWA support | 🔲 | |
+| PWA support | ✅ Done | Manifest, standalone, themed, install-ready |
 | Daily template | 🔲 | |
 | Recurring events | 🔲 | DB field exists (recurrenceRule) |
-| Keyboard shortcuts | ✅ Done | 1-5 tab switch, ? help, Esc close |
+| Keyboard shortcuts | ✅ Done | 1-5 tabs, ? help, / search, Esc close |
 | Data backup/restore | ✅ Done | JSON export/import, merge or replace |
 | Time statistics | ⏳ Partial | Category stats in TimeBox/Scheduler |
 | Actual vs planned time | 🔲 | |
@@ -79,6 +79,13 @@
 | **Animations** | Stagger fade-in, scale-in modals, bounce check, glow pulse, shimmer |
 | **Error Boundary** | Catches React crashes, shows reload button |
 | **Help modal** | Keyboard shortcuts, Telegram commands, todo flags, tips |
+| **File Vault** | Upload/download/delete, drag & drop, tags, search, preview, storage bar |
+| **Global search** | Command palette (/ key), searches todos/events/D-Days, keyboard nav |
+| **PWA** | Web app manifest, standalone mode, themed, install-to-homescreen |
+| **Gradient text** | Rainbow gradient on login title |
+| **Particles** | Floating animated particles on backgrounds |
+| **Rainbow border** | CSS @property animated gradient border |
+| **Ripple/bounce** | Interactive hover effects on icons and buttons |
 | **Telegram shortcuts** | 1-2 char aliases (/s /a /t /l /b /d /h) |
 | **Telegram todo flags** | Priority (!high !low) + Category (@work @study @project @urgent) |
 | **Telegram management** | /check N, /del N, /done, /week, /stats |
@@ -125,23 +132,23 @@ d8bd49c Add animations, ambient backgrounds, data backup/restore
 ## Remaining Work (Backlog)
 
 ### High Priority
-- [ ] File Vault (upload/download/tags/preview)
+- [x] ~~File Vault (upload/download/tags/preview)~~ ✅
 - [ ] Reminder system UI (create/manage/snooze)
 - [ ] Telegram per-user config (userId on telegram_config)
-- [ ] Backup import schema validation
+- [x] ~~Backup import schema validation~~ ✅
 
 ### Medium Priority
-- [ ] PWA support (service worker, offline, install prompt)
+- [x] ~~PWA support~~ ✅
 - [ ] Recurring events/reminders
 - [ ] Daily schedule templates
 - [ ] Password complexity requirements
-- [ ] Error logging with context (not generic messages)
+- [ ] Service worker (offline support)
 
 ### Low Priority
 - [ ] Actual vs planned time comparison
 - [ ] Telegram file → vault auto-save
-- [ ] Swipe gestures (mobile todo complete/delete)
-- [ ] Search across all entities
+- [ ] Swipe gestures (mobile)
+- [x] ~~Search across all entities~~ ✅
 - [ ] Data analytics dashboard
 
 ---
