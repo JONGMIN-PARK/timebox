@@ -1,4 +1,4 @@
-import { Calendar, Clock, CheckSquare, FileBox, Settings } from "lucide-react";
+import { Calendar, Clock, CheckSquare, LayoutGrid, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MobileNavProps {
@@ -10,6 +10,7 @@ const tabs = [
   { id: "calendar", label: "Calendar", icon: Calendar },
   { id: "timebox", label: "TimeBox", icon: Clock },
   { id: "todo", label: "Todos", icon: CheckSquare },
+  { id: "scheduler", label: "Scheduler", icon: LayoutGrid },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 

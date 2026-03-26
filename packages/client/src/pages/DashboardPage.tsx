@@ -7,6 +7,7 @@ import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
 import TimeBoxView from "@/components/timebox/TimeBoxView";
 import SettingsPage from "@/pages/SettingsPage";
+import ElonScheduler from "@/components/scheduler/ElonScheduler";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function DashboardPage() {
@@ -25,6 +26,8 @@ export default function DashboardPage() {
         return <TimeBoxView />;
       case "todo":
         return <TodoList />;
+      case "scheduler":
+        return <ElonScheduler />;
       case "settings":
         return <SettingsPage />;
       case "files":
@@ -38,7 +41,7 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = activeTab !== "settings";
+  const showRightPanel = activeTab !== "settings" && activeTab !== "scheduler";
 
   return (
     <div className="h-screen flex bg-slate-50 dark:bg-slate-900">

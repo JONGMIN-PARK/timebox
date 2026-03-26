@@ -1,4 +1,4 @@
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
@@ -13,6 +13,7 @@ const tabs = [
   { id: "timebox", label: "TimeBox", icon: Clock },
   { id: "todo", label: "Todos", icon: CheckSquare },
   { id: "files", label: "Files", icon: FileBox },
+  { id: "scheduler", label: "Scheduler", icon: LayoutGrid },
 ];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
