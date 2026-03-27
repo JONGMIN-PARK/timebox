@@ -42,7 +42,13 @@ export async function initDb() {
   const isLocal = rawUrl.includes("localhost") || rawUrl.includes("127.0.0.1");
   const resolvedUrl = isLocal ? rawUrl : await resolveToIPv4(rawUrl);
 
-  console.log("DB connecting to:", resolvedUrl.replace(/:[^:@]+@/, ":***@"));
+  // Log connection host only (never log password)
+  try {
+    const parsed = new URL(resolvedUrl);
+    console.log("DB connecting to:", parsed.hostname + ":" + parsed.port + parsed.pathname);
+  } catch {
+    console.log("DB connecting...");
+  }
 
   pool = new pg.Pool({
     connectionString: resolvedUrl,
