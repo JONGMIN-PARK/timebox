@@ -122,6 +122,53 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.reject": "Reject",
     "settings.role": "Role",
     "settings.create": "Create",
+    "settings.deleteUserConfirm": "Are you sure you want to delete this user?",
+    "settings.optional": "Optional",
+    "settings.user": "User",
+    "settings.admin": "Admin",
+
+    // File Vault
+    "files.title": "File Vault",
+    "files.upload": "Upload",
+    "files.searchPlaceholder": "Search files...",
+    "files.dropHere": "Drop files here to upload",
+    "files.noFiles": "No files yet",
+    "files.dragOrUpload": "Drag & drop or click Upload",
+    "files.uploading": "Uploading...",
+    "files.deleteConfirm": "Delete this file?",
+    "files.all": "All",
+
+    // Scheduler
+    "scheduler.brainBox": "Brain Box",
+    "scheduler.priority": "Priority",
+    "scheduler.timeGrid": "Time Grid",
+    "scheduler.dumpPlaceholder": "Dump everything here...",
+    "scheduler.place": "Place",
+    "scheduler.placing": "Placing:",
+    "scheduler.moveToPriority": "Move to Priority",
+    "scheduler.brainBoxEmpty": "Dump all your tasks here first",
+    "scheduler.priorityEmpty": "Move items from Brain Box...",
+    "scheduler.planned": "planned",
+    "scheduler.done": "done",
+
+    // Search
+    "search.placeholder": "Search todos, events, D-Days...",
+    "search.goCalendar": "Go to Calendar",
+    "search.goTimebox": "Go to TimeBox",
+    "search.goTodos": "Go to Todos",
+    "search.noResults": "No results for",
+
+    // Help
+    "help.title": "Keyboard Shortcuts & Help",
+    "help.shortcuts": "Keyboard Shortcuts",
+    "help.telegramTitle": "Telegram Commands",
+    "help.tipsTitle": "Tips",
+
+    // Common extras
+    "common.close": "Close",
+    "common.all": "All",
+    "common.done": "Done",
+    "common.active": "Active",
   },
   ko: {
     // Navigation
@@ -244,6 +291,53 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.reject": "\uac70\uc808",
     "settings.role": "\uc5ed\ud560",
     "settings.create": "\uc0dd\uc131",
+    "settings.deleteUserConfirm": "\uc774 \uc0ac\uc6a9\uc790\ub97c \uc0ad\uc81c\ud560\uae4c\uc694?",
+    "settings.optional": "\uc120\ud0dd\uc0ac\ud56d",
+    "settings.user": "\uc0ac\uc6a9\uc790",
+    "settings.admin": "\uad00\ub9ac\uc790",
+
+    // File Vault
+    "files.title": "\ud30c\uc77c \ubcf4\uad00\ud568",
+    "files.upload": "\uc5c5\ub85c\ub4dc",
+    "files.searchPlaceholder": "\ud30c\uc77c \uac80\uc0c9...",
+    "files.dropHere": "\ud30c\uc77c\uc744 \uc5ec\uae30\uc5d0 \ub193\uc73c\uc138\uc694",
+    "files.noFiles": "\ud30c\uc77c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
+    "files.dragOrUpload": "\ub4dc\ub798\uadf8 \uc564 \ub4dc\ub86d \ub610\ub294 \uc5c5\ub85c\ub4dc \ud074\ub9ad",
+    "files.uploading": "\uc5c5\ub85c\ub4dc \uc911...",
+    "files.deleteConfirm": "\uc774 \ud30c\uc77c\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?",
+    "files.all": "\uc804\uccb4",
+
+    // Scheduler
+    "scheduler.brainBox": "\ube0c\ub808\uc778 \ubc15\uc2a4",
+    "scheduler.priority": "\uc6b0\uc120\uc21c\uc704",
+    "scheduler.timeGrid": "\ud0c0\uc784 \uadf8\ub9ac\ub4dc",
+    "scheduler.dumpPlaceholder": "\uc5ec\uae30\uc5d0 \ubaa8\ub4e0 \uac83\uc744 \uc3df\uc544\ub193\uc73c\uc138\uc694...",
+    "scheduler.place": "\ubc30\uce58",
+    "scheduler.placing": "\ubc30\uce58 \uc911:",
+    "scheduler.moveToPriority": "\uc6b0\uc120\uc21c\uc704\ub85c \uc774\ub3d9",
+    "scheduler.brainBoxEmpty": "\uba3c\uc800 \ud560 \uc77c\uc744 \ubaa8\ub450 \uc3df\uc544\ub193\uc73c\uc138\uc694",
+    "scheduler.priorityEmpty": "\ube0c\ub808\uc778 \ubc15\uc2a4\uc5d0\uc11c \ud56d\ubaa9\uc744 \uc62e\uaca8\uc8fc\uc138\uc694...",
+    "scheduler.planned": "\uacc4\ud68d",
+    "scheduler.done": "\uc644\ub8cc",
+
+    // Search
+    "search.placeholder": "\ud560 \uc77c, \uc77c\uc815, \ub514\ub370\uc774 \uac80\uc0c9...",
+    "search.goCalendar": "\uce98\ub9b0\ub354\ub85c \uc774\ub3d9",
+    "search.goTimebox": "\ud0c0\uc784\ubc15\uc2a4\ub85c \uc774\ub3d9",
+    "search.goTodos": "\ud560 \uc77c\ub85c \uc774\ub3d9",
+    "search.noResults": "\uac80\uc0c9 \uacb0\uacfc \uc5c6\uc74c:",
+
+    // Help
+    "help.title": "\ud0a4\ubcf4\ub4dc \ub2e8\ucd95\ud0a4 & \ub3c4\uc6c0\ub9d0",
+    "help.shortcuts": "\ud0a4\ubcf4\ub4dc \ub2e8\ucd95\ud0a4",
+    "help.telegramTitle": "\ud154\ub808\uadf8\ub7a8 \uba85\ub839\uc5b4",
+    "help.tipsTitle": "\ud301",
+
+    // Common extras
+    "common.close": "\ub2eb\uae30",
+    "common.all": "\uc804\uccb4",
+    "common.done": "\uc644\ub8cc",
+    "common.active": "\uc9c4\ud589 \uc911",
   },
 };
 

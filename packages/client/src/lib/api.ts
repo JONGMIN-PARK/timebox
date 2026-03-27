@@ -6,10 +6,22 @@ function getToken(): string | null {
 
 export function setToken(token: string) {
   localStorage.setItem("timebox_token", token);
+  // Sync token to service worker cache for background reminder checks
+  if ("caches" in window) {
+    caches.open("timebox-auth").then(cache => {
+      cache.put("/auth-token", new Response(token));
+    }).catch(() => {});
+  }
 }
 
 export function clearToken() {
   localStorage.removeItem("timebox_token");
+  // Clear token from service worker cache
+  if ("caches" in window) {
+    caches.open("timebox-auth").then(cache => {
+      cache.delete("/auth-token");
+    }).catch(() => {});
+  }
 }
 
 export function isAuthenticated(): boolean {

@@ -1,4 +1,5 @@
 import { X, Keyboard, Command } from "lucide-react";
+import { useI18n } from "@/lib/useI18n";
 
 interface Props { open: boolean; onClose: () => void; }
 
@@ -37,6 +38,7 @@ const todoFlags = [
 ];
 
 export default function HelpModal({ open, onClose }: Props) {
+  const { t } = useI18n();
   if (!open) return null;
 
   return (
@@ -47,7 +49,7 @@ export default function HelpModal({ open, onClose }: Props) {
         <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-slate-200/60 dark:border-slate-700/40 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm rounded-t-2xl">
           <div className="flex items-center gap-2">
             <Keyboard className="w-5 h-5 text-blue-500" />
-            <h2 className="font-semibold text-slate-900 dark:text-white">Help & Shortcuts</h2>
+            <h2 className="font-semibold text-slate-900 dark:text-white">{t("help.title")}</h2>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl btn-ghost flex items-center justify-center">
             <X className="w-4 h-4" />
@@ -57,7 +59,7 @@ export default function HelpModal({ open, onClose }: Props) {
         <div className="p-5 space-y-6">
           {/* Keyboard Shortcuts */}
           <section>
-            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Keyboard Shortcuts</h3>
+            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("help.shortcuts")}</h3>
             <div className="space-y-1">
               {shortcuts.map((s) => (
                 <div key={s.action} className="flex items-center justify-between py-1.5">
@@ -76,7 +78,7 @@ export default function HelpModal({ open, onClose }: Props) {
 
           {/* Telegram Commands */}
           <section>
-            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Telegram Bot Commands</h3>
+            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("help.telegramTitle")}</h3>
             <div className="space-y-1">
               {telegramCmds.map((c) => (
                 <div key={c.cmd} className="flex items-center gap-3 py-1">
@@ -104,7 +106,7 @@ export default function HelpModal({ open, onClose }: Props) {
 
           {/* Tips */}
           <section>
-            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Tips</h3>
+            <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("help.tipsTitle")}</h3>
             <ul className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
               <li>• Double-click a todo title to edit it inline</li>
               <li>• Click a category tag on a todo to change it</li>

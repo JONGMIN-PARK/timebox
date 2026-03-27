@@ -28,6 +28,22 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/reminders/due - get reminders that are due now (for notification polling)
+router.get("/due", async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const now = new Date().toISOString();
+    const all = await db.select().from(reminders)
+      .where(and(eq(reminders.userId, userId), eq(reminders.sent, false)));
+
+    const due = all.filter(r => r.remindAt <= now && (!r.snoozedUntil || r.snoozedUntil <= now));
+    res.json({ success: true, data: due });
+  } catch (error) {
+    console.error("reminders:due", error);
+    res.status(500).json({ success: false, error: "Failed to fetch due reminders" });
+  }
+});
+
 // POST /api/reminders
 router.post("/", validate(schemas.createReminder), async (req: AuthRequest, res) => {
   try {

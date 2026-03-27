@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import cron from "node-cron";
 import { initDb } from "./db/index.js";
 import { authMiddleware } from "./middleware/auth.js";
 import authRoutes from "./routes/auth.js";
@@ -80,4 +81,29 @@ app.listen(PORT, () => {
   } else {
     console.log("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
   }
+
+  // Check for due reminders every minute
+  cron.schedule("* * * * *", async () => {
+    try {
+      const { db } = await import("./db/index.js");
+      const { reminders } = await import("./db/schema.js");
+      const { eq, and, lte } = await import("drizzle-orm");
+
+      const now = new Date().toISOString();
+      const dueReminders = await db.select().from(reminders)
+        .where(and(
+          eq(reminders.sent, false),
+          lte(reminders.remindAt, now)
+        ));
+
+      // Filter out snoozed ones
+      const ready = dueReminders.filter(r => !r.snoozedUntil || r.snoozedUntil <= now);
+
+      if (ready.length > 0) {
+        console.log(`[cron] ${ready.length} due reminder(s) found`);
+      }
+    } catch (err) {
+      console.error("reminder-cron:", err);
+    }
+  });
 });

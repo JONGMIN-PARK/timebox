@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Upload, Download, Trash2, Search, Tag, FileText, Image, File, Film, Music, X, Eye, HardDrive } from "lucide-react";
+import { useI18n } from "@/lib/useI18n";
 
 interface FileItem {
   id: number; originalName: string; storedName: string; mimeType: string;
@@ -27,6 +28,7 @@ function fileIcon(mime: string) {
 }
 
 export default function FileVault() {
+  const { t } = useI18n();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [usage, setUsage] = useState<StorageUsage | null>(null);
   const [search, setSearch] = useState("");
@@ -69,7 +71,7 @@ export default function FileVault() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this file?")) return;
+    if (!confirm(t("files.deleteConfirm"))) return;
     await api.delete(`/files/${id}`);
     fetchFiles();
     fetchUsage();
@@ -111,12 +113,12 @@ export default function FileVault() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white tracking-tight">File Vault</h2>
+          <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white tracking-tight">{t("files.title")}</h2>
           <div className="flex items-center gap-2">
             <button onClick={() => fileInput.current?.click()}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl btn-primary text-xs">
               <Upload className="w-3.5 h-3.5" />
-              Upload
+              {t("files.upload")}
             </button>
             <input ref={fileInput} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
           </div>
@@ -125,7 +127,7 @@ export default function FileVault() {
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search files..."
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("files.searchPlaceholder")}
             className="input-base w-full pl-9" />
         </div>
       </div>
@@ -135,7 +137,7 @@ export default function FileVault() {
         <button onClick={() => setTagFilter("")}
           className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all",
             !tagFilter ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50")}>
-          All
+          {t("files.all")}
         </button>
         {[...TAG_PRESETS, ...allTags.filter((t) => !TAG_PRESETS.includes(t))].map((tag) => (
           <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
@@ -150,14 +152,14 @@ export default function FileVault() {
       <div className="flex-1 overflow-y-auto">
         {dragOver && (
           <div className="m-4 p-8 border-2 border-dashed border-blue-400 rounded-2xl bg-blue-50/50 dark:bg-blue-500/5 flex items-center justify-center animate-in">
-            <p className="text-sm text-blue-500 font-medium">Drop files here to upload</p>
+            <p className="text-sm text-blue-500 font-medium">{t("files.dropHere")}</p>
           </div>
         )}
 
         {uploading && (
           <div className="px-4 py-3 flex items-center gap-2 text-sm text-blue-500">
             <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            Uploading...
+            {t("files.uploading")}
           </div>
         )}
 
@@ -209,8 +211,8 @@ export default function FileVault() {
             <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-3">
               <HardDrive className="w-8 h-8 text-slate-300 dark:text-slate-600" />
             </div>
-            <p className="text-sm font-medium">No files yet</p>
-            <p className="text-xs mt-1">Drag & drop or click Upload</p>
+            <p className="text-sm font-medium">{t("files.noFiles")}</p>
+            <p className="text-xs mt-1">{t("files.dragOrUpload")}</p>
           </div>
         )}
       </div>

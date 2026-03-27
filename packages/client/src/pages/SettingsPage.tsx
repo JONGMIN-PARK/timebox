@@ -99,7 +99,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+    if (!confirm(t("settings.deleteUserConfirm"))) return;
     await api.delete(`/auth/users/${id}`);
     fetchUsers();
   };
@@ -126,7 +126,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <p className="text-[13px] font-medium text-slate-900 dark:text-white">{user?.displayName || user?.username}</p>
-                <p className="text-xs text-slate-400">@{user?.username} · {user?.role === "admin" ? "Admin" : "User"}</p>
+                <p className="text-xs text-slate-400">@{user?.username} · {user?.role === "admin" ? t("settings.admin") : t("settings.user")}</p>
               </div>
             </div>
           </div>
@@ -321,14 +321,14 @@ export default function SettingsPage() {
                   <div>
                     <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">{t("auth.displayName")}</label>
                     <input type="text" value={newUser.displayName} onChange={(e) => setNewUser({ ...newUser, displayName: e.target.value })}
-                      placeholder="Optional" className="input-base w-full" />
+                      placeholder={t("settings.optional")} className="input-base w-full" />
                   </div>
                   <div>
                     <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">{t("settings.role")}</label>
                     <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                       className="input-base w-full">
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
+                      <option value="user">{t("settings.user")}</option>
+                      <option value="admin">{t("settings.admin")}</option>
                     </select>
                   </div>
                 </div>

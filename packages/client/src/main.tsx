@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { registerServiceWorker } from "./registerSW";
+import { registerServiceWorker, syncTokenToSW, registerPeriodicSync } from "./registerSW";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -11,3 +11,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 
 registerServiceWorker();
+syncTokenToSW();
+registerPeriodicSync();

@@ -72,7 +72,7 @@ export default function DashboardPage() {
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Header onAddClick={() => {}} />
+        <Header />
 
         <div className="flex-1 flex overflow-hidden">
           <main className="flex-1 overflow-hidden animate-in">

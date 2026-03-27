@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Calendar, CheckSquare, Flag, Clock, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 import { useTodoStore } from "@/stores/todoStore";
 import { useEventStore } from "@/stores/eventStore";
 import { useDDayStore } from "@/stores/ddayStore";
@@ -21,6 +22,7 @@ interface SearchResult {
 }
 
 export default function SearchModal({ open, onClose, onNavigate }: Props) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,11 +47,11 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
 
   if (q) {
     // Search todos
-    todos.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5).forEach((t) => {
+    todos.filter((td) => td.title.toLowerCase().includes(q)).slice(0, 5).forEach((td) => {
       results.push({
-        type: "todo", icon: CheckSquare, title: t.title,
-        subtitle: `${t.completed ? "Done" : "Active"} · ${t.category}`,
-        color: t.completed ? "#10b981" : "#f59e0b",
+        type: "todo", icon: CheckSquare, title: td.title,
+        subtitle: `${td.completed ? t("common.done") : t("common.active")} · ${td.category}`,
+        color: td.completed ? "#10b981" : "#f59e0b",
         action: () => { onNavigate("todo"); onClose(); },
       });
     });
@@ -77,9 +79,9 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
   // Quick actions (always show)
   if (!q || q.length <= 1) {
     const actions: SearchResult[] = [
-      { type: "action", icon: Calendar, title: "Go to Calendar", color: "#3b82f6", action: () => { onNavigate("calendar"); onClose(); } },
-      { type: "action", icon: Clock, title: "Go to TimeBox", color: "#8b5cf6", action: () => { onNavigate("timebox"); onClose(); } },
-      { type: "action", icon: CheckSquare, title: "Go to Todos", color: "#f59e0b", action: () => { onNavigate("todo"); onClose(); } },
+      { type: "action", icon: Calendar, title: t("search.goCalendar"), color: "#3b82f6", action: () => { onNavigate("calendar"); onClose(); } },
+      { type: "action", icon: Clock, title: t("search.goTimebox"), color: "#8b5cf6", action: () => { onNavigate("timebox"); onClose(); } },
+      { type: "action", icon: CheckSquare, title: t("search.goTodos"), color: "#f59e0b", action: () => { onNavigate("todo"); onClose(); } },
     ];
     if (!q) results.push(...actions);
   }
@@ -101,7 +103,7 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
           <Search className="w-5 h-5 text-slate-400" />
           <input ref={inputRef} type="text" value={query} onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
             onKeyDown={handleKeyDown}
-            placeholder="Search todos, events, D-Days..."
+            placeholder={t("search.placeholder")}
             className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none" />
           <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">ESC</kbd>
         </div>
@@ -128,7 +130,7 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
             </button>
           ))}
           {q && results.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-slate-400">No results for "{query}"</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-400">{t("search.noResults")} "{query}"</p>
           )}
         </div>
       </div>

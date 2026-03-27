@@ -30,35 +30,37 @@ export default function ReminderPanel() {
     }
   }, []);
 
-  // Check for due reminders every 10 seconds
-  const checkDueReminders = useCallback(() => {
-    const now = new Date().toISOString();
-    const due = reminders.filter((r) =>
-      !r.sent &&
-      r.remindAt <= now &&
-      (!r.snoozedUntil || r.snoozedUntil <= now)
-    );
+  // Check for due reminders every 10 seconds (fetch fresh from server)
+  const checkDueReminders = useCallback(async () => {
+    try {
+      const res = await api.get<Reminder[]>("/reminders/due");
+      if (res.success && res.data && res.data.length > 0) {
+        const r = res.data[0];
+        setAlertReminder(r);
 
-    if (due.length > 0) {
-      const r = due[0];
-      // Show in-app alert popup
-      setAlertReminder(r);
+        // Browser notification
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(`⏰ ${r.title}`, {
+            body: r.message || "리마인더 시간입니다!",
+            icon: "/icon-192.png",
+            tag: `reminder-${r.id}`,
+          });
+        }
 
-      // Also try browser notification
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(`⏰ ${r.title}`, {
-          body: r.message || "리마인더 시간입니다!",
-          icon: "/icon-192.png",
-          tag: `reminder-${r.id}`,
-        });
+        // Play sound
+        try {
+          const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczJ1OBmb2xfEEqR3aQrLKHUTZHa42nq5FdPkRngZ+kl2hIQ2N6kJeYdFBCW3OGi4l1WkxaaX2Bfm9gVGBteHd1aWBZZHF0cWxkX2JucHBsZ2Nkam1tamZlZmpsbGlnZmdpa2tpZ2doaWpqaWhnZ2lpaWhoaGhpaWloaGdo");
+          audio.volume = 0.5;
+          audio.play().catch(() => {});
+        } catch {}
       }
-
-      // Play sound
-      try {
-        const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbsGczJ1OBmb2xfEEqR3aQrLKHUTZHa42nq5FdPkRngZ+kl2hIQ2N6kJeYdFBCW3OGi4l1WkxaaX2Bfm9gVGBteHd1aWBZZHF0cWxkX2JucHBsZ2Nkam1tamZlZmpsbGlnZmdpa2tpZ2doaWpqaWhnZ2lpaWhoaGhpaWloaGdo");
-        audio.volume = 0.5;
-        audio.play().catch(() => {});
-      } catch {}
+    } catch {
+      // Fallback: check local state if API fails
+      const now = new Date().toISOString();
+      const due = reminders.filter((r) =>
+        !r.sent && r.remindAt <= now && (!r.snoozedUntil || r.snoozedUntil <= now)
+      );
+      if (due.length > 0) setAlertReminder(due[0]);
     }
   }, [reminders]);
 
@@ -66,6 +68,18 @@ export default function ReminderPanel() {
     checkDueReminders(); // Check immediately
     const interval = setInterval(checkDueReminders, 10000); // Then every 10s
     return () => clearInterval(interval);
+  }, [checkDueReminders]);
+
+  // Re-check when page becomes visible again (handles background tab scenario)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        checkDueReminders();
+        fetchReminders();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [checkDueReminders]);
 
   const handleDismiss = async (id: number) => {

@@ -6,6 +6,7 @@ import {
   Brain, ListOrdered, Clock, GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
@@ -114,6 +115,7 @@ function SortablePriItem({ item, onRemove, onSchedule }: {
 }
 
 export default function ElonScheduler() {
+  const { t } = useI18n();
   const { blocks, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
 
@@ -324,9 +326,9 @@ export default function ElonScheduler() {
 
   // ── Panel tabs (visible on mobile) ──
   const panelTabs: { id: Panel; icon: typeof Brain; label: string; badge?: number }[] = [
-    { id: "brain", icon: Brain, label: "Brain Box", badge: unpromotedBrain.length },
-    { id: "priority", icon: ListOrdered, label: "Priority", badge: unscheduledPriority.length },
-    { id: "grid", icon: Clock, label: "Time Grid" },
+    { id: "brain", icon: Brain, label: t("scheduler.brainBox"), badge: unpromotedBrain.length },
+    { id: "priority", icon: ListOrdered, label: t("scheduler.priority"), badge: unscheduledPriority.length },
+    { id: "grid", icon: Clock, label: t("scheduler.timeGrid") },
   ];
 
   return (
@@ -350,8 +352,8 @@ export default function ElonScheduler() {
           )}
         </div>
         <span className="text-[11px] text-slate-400 hidden sm:block tabular-nums">
-          {Math.floor(stats.totalPlanned / 60)}h{stats.totalPlanned % 60 > 0 ? `${stats.totalPlanned % 60}m` : ""} planned
-          {stats.totalCompleted > 0 && ` · ${Math.floor(stats.totalCompleted / 60)}h${stats.totalCompleted % 60 > 0 ? `${stats.totalCompleted % 60}m` : ""} done`}
+          {Math.floor(stats.totalPlanned / 60)}h{stats.totalPlanned % 60 > 0 ? `${stats.totalPlanned % 60}m` : ""} {t("scheduler.planned")}
+          {stats.totalCompleted > 0 && ` · ${Math.floor(stats.totalCompleted / 60)}h${stats.totalCompleted % 60 > 0 ? `${stats.totalCompleted % 60}m` : ""} ${t("scheduler.done")}`}
         </span>
       </div>
 
@@ -384,14 +386,14 @@ export default function ElonScheduler() {
       {scheduleItem && (
         <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/15 border-b border-green-200 dark:border-green-800">
           <span className="text-xs text-green-700 dark:text-green-400">
-            Placing: <strong>{scheduleItem.text}</strong> ({scheduleItem.duration}m)
+            {t("scheduler.placing")} <strong>{scheduleItem.text}</strong> ({scheduleItem.duration}m)
           </span>
           <div className="flex items-center gap-1 ml-auto">
             <input type="time" step="300" value={scheduleTime}
               onChange={(e) => setScheduleTime(e.target.value)}
               className="text-xs bg-white dark:bg-slate-700 border border-green-300 dark:border-green-700 rounded px-2 py-1 outline-none w-24" />
             <button onClick={handleScheduleConfirm}
-              className="px-3 py-1 rounded bg-green-600 text-white text-xs font-medium hover:bg-green-500">Place</button>
+              className="px-3 py-1 rounded bg-green-600 text-white text-xs font-medium hover:bg-green-500">{t("scheduler.place")}</button>
             <button onClick={() => setScheduleItem(null)} className="p-1 text-slate-400 hover:text-red-500">
               <X className="w-4 h-4" />
             </button>
@@ -413,7 +415,7 @@ export default function ElonScheduler() {
               value={brainInput}
               onChange={(e) => setBrainInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleBrainAdd()}
-              placeholder="Dump everything here..."
+              placeholder={t("scheduler.dumpPlaceholder")}
               className="w-full text-sm bg-slate-50 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-purple-400"
             />
             <div className="flex items-center gap-1.5">
@@ -440,7 +442,7 @@ export default function ElonScheduler() {
                   <span className="flex-1 text-sm text-slate-700 dark:text-slate-300 truncate">{item.text}</span>
                   <span className="text-[11px] text-slate-400 tabular-nums">{item.duration}m</span>
                   <button onClick={() => handlePromote(item)}
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-purple-500 hover:bg-purple-100 dark:hover:bg-purple-900/20 sm:opacity-0 sm:group-hover:opacity-100" title="Move to Priority">
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-purple-500 hover:bg-purple-100 dark:hover:bg-purple-900/20 sm:opacity-0 sm:group-hover:opacity-100" title={t("scheduler.moveToPriority")}>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button onClick={() => handleBrainRemove(item.id)}
@@ -451,7 +453,7 @@ export default function ElonScheduler() {
               );
             })}
             {unpromotedBrain.length === 0 && (
-              <p className="text-sm text-slate-400 text-center py-8">Dump all your tasks here first</p>
+              <p className="text-sm text-slate-400 text-center py-8">{t("scheduler.brainBoxEmpty")}</p>
             )}
           </div>
         </div>
@@ -481,7 +483,7 @@ export default function ElonScheduler() {
             </DndContext>
             {priorityItems.length === 0 && (
               <p className="text-sm text-slate-400 text-center py-8">
-                Move items from Brain Box,<br />then drag to reorder
+                {t("scheduler.priorityEmpty")}
               </p>
             )}
           </div>

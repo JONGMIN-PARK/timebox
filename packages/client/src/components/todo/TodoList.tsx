@@ -24,6 +24,7 @@ const priorityDot = (p: string) => p === "high" ? "bg-red-500" : p === "medium" 
 
 // ── Category Picker ──
 function CategoryPicker({ value, onChange, compact }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const info = getCategoryInfo(value);
@@ -80,7 +81,7 @@ function CategoryPicker({ value, onChange, compact }: { value: string; onChange:
           </div>
         ))}
         <div className="border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">
-          <button onClick={() => setOpen(false)} className="w-full px-3 py-1.5 text-xs text-slate-400 hover:text-slate-600 text-left">Close</button>
+          <button onClick={() => setOpen(false)} className="w-full px-3 py-1.5 text-xs text-slate-400 hover:text-slate-600 text-left">{t("common.close")}</button>
         </div>
       </div>
       {/* Backdrop */}
