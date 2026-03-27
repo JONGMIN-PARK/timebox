@@ -184,6 +184,7 @@ export const projects = pgTable("projects", {
   visibility: text("visibility").notNull().default("team"),
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
+  teamGroupId: integer("team_group_id"),
 });
 
 // ── Project Members ──
@@ -293,4 +294,23 @@ export const messages = pgTable("messages", {
   type: text("type").notNull().default("text"),
   replyTo: integer("reply_to"),
   createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
+// ── Team Groups ──
+export const teamGroups = pgTable("team_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: text("color").notNull().default("#3b82f6"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
+// ── Team Group Members ──
+export const teamGroupMembers = pgTable("team_group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull(),
+  userId: integer("user_id").notNull(),
+  joinedAt: text("joined_at").notNull().default(sql`now()`),
 });

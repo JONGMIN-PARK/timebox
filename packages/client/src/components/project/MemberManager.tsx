@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { UserPlus, X, Shield, Eye, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 
 interface Member {
   userId: number;
@@ -9,16 +10,24 @@ interface Member {
   role: "owner" | "admin" | "member" | "viewer";
 }
 
-const ROLE_CONFIG: Record<string, { label: string; color: string; icon: typeof Shield }> = {
-  owner: { label: "소유자", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300", icon: Shield },
-  admin: { label: "관리자", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300", icon: Shield },
-  member: { label: "멤버", color: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300", icon: Users },
-  viewer: { label: "뷰어", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300", icon: Eye },
+const ROLE_CONFIG: Record<string, { color: string; icon: typeof Shield }> = {
+  owner: { color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300", icon: Shield },
+  admin: { color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300", icon: Shield },
+  member: { color: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300", icon: Users },
+  viewer: { color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300", icon: Eye },
+};
+
+const ROLE_I18N: Record<string, string> = {
+  owner: "member.owner",
+  admin: "member.admin",
+  member: "member.member",
+  viewer: "member.viewer",
 };
 
 const ASSIGNABLE_ROLES = ["admin", "member", "viewer"] as const;
 
 export default function MemberManager({ projectId, myRole }: { projectId: number; myRole: string }) {
+  const { t } = useI18n();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
@@ -56,13 +65,13 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
       setShowInvite(false);
       fetchMembers();
     } else {
-      setError(res.error || "초대에 실패했습니다");
+      setError(res.error || t("member.inviteFailed"));
     }
     setInviting(false);
   };
 
   const handleRemove = async (userId: number) => {
-    if (!confirm("이 멤버를 프로젝트에서 제거하시겠습니까?")) return;
+    if (!confirm(t("member.removeConfirm"))) return;
     const res = await api.delete(`/projects/${projectId}/members/${userId}`);
     if (res.success) {
       setMembers((prev) => prev.filter((m) => m.userId !== userId));
@@ -85,7 +94,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-blue-500" />
             <h3 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">
-              프로젝트 멤버 ({members.length})
+              {t("member.title")} ({members.length})
             </h3>
           </div>
           {canManage && (
@@ -94,7 +103,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 btn-primary rounded-lg"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              초대
+              {t("member.invite")}
             </button>
           )}
         </div>
@@ -106,7 +115,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
               type="text"
               value={inviteUsername}
               onChange={(e) => setInviteUsername(e.target.value)}
-              placeholder="사용자 이름 입력"
+              placeholder={t("member.usernamePlaceholder")}
               className="input-base w-full"
               autoFocus
             />
@@ -117,7 +126,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
             >
               {ASSIGNABLE_ROLES.map((r) => (
                 <option key={r} value={r}>
-                  {ROLE_CONFIG[r].label}
+                  {t(ROLE_I18N[r])}
                 </option>
               ))}
             </select>
@@ -130,14 +139,14 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
                 disabled={inviting}
                 className="flex-1 text-xs py-2 btn-primary rounded-lg disabled:opacity-50"
               >
-                {inviting ? "초대 중..." : "초대하기"}
+                {inviting ? t("member.inviting") : t("member.inviteAction")}
               </button>
               <button
                 type="button"
                 onClick={() => { setShowInvite(false); setError(""); }}
                 className="flex-1 text-xs py-2 btn-ghost rounded-lg bg-slate-100 dark:bg-slate-700"
               >
-                취소
+                {t("member.cancel")}
               </button>
             </div>
           </form>
@@ -171,7 +180,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
                     )}
                   >
                     <RoleIcon className="w-3 h-3" />
-                    {config.label}
+                    {t(ROLE_I18N[m.role])}
                   </span>
                   {canManage && m.role !== "owner" && (
                     <button

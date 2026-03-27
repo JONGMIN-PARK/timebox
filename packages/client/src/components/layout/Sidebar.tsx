@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
@@ -30,10 +30,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { theme, setTheme } = useThemeStore();
   const { projects, activeProjectId, setActiveProject, fetchProjects } = useProjectStore();
   const { t } = useI18n();
+  const hasTeamAccess = user?.role === 'admin' || (user?.teamGroups?.length ?? 0) > 0;
+  const [openGroups, setOpenGroups] = useState<Set<number>>(new Set());
+
+  const toggleGroup = (groupId: number) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  };
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    if (hasTeamAccess) fetchProjects();
+  }, [fetchProjects, hasTeamAccess]);
 
   const cycleTheme = () => {
     const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
@@ -105,46 +115,77 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           ))
         )}
 
-        {/* Projects section */}
-        <div className="pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/40">
-          <div className="hidden lg:flex items-center justify-between px-3 pb-1.5">
-            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              {t("project.title")}
-            </span>
-          </div>
-          {projects.map((project) => (
-            <button
-              key={project.id}
-              onClick={() => {
-                setActiveProject(project.id);
-                onTabChange("project-dashboard");
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
-                activeProjectId === project.id
-                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
-              )}
-            >
-              <span
-                className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center"
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: project.color || "#3b82f6" }}
-                />
+        {hasTeamAccess && (
+          <div className="pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/40">
+            <div className="hidden lg:flex items-center justify-between px-3 pb-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                {t("project.title")}
               </span>
-              <span className="hidden lg:block truncate">{project.name}</span>
+            </div>
+            {user?.teamGroups && user.teamGroups.length > 0 ? (
+              user.teamGroups.map((group) => {
+                const groupProjects = projects.filter(p => p.teamGroupId === group.id);
+                const isOpen = openGroups.has(group.id);
+                return (
+                  <div key={group.id}>
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 rounded-lg transition-all"
+                    >
+                      <ChevronRight className={cn("w-3 h-3 transition-transform", isOpen && "rotate-90")} />
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: group.color }} />
+                      <span className="hidden lg:block truncate">{group.name}</span>
+                      <span className="hidden lg:block text-[10px] text-slate-400 ml-auto">{groupProjects.length}</span>
+                    </button>
+                    {isOpen && groupProjects.map((project) => (
+                      <button
+                        key={project.id}
+                        onClick={() => { setActiveProject(project.id); onTabChange("project-dashboard"); }}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-1.5 pl-8 rounded-xl text-[13px] font-medium transition-all duration-200",
+                          activeProjectId === project.id
+                            ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                        )}
+                      >
+                        <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: project.color || "#3b82f6" }} />
+                        </span>
+                        <span className="hidden lg:block truncate">{project.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })
+            ) : (
+              // Admin with no groups yet — show flat project list
+              projects.map((project) => (
+                <button
+                  key={project.id}
+                  onClick={() => { setActiveProject(project.id); onTabChange("project-dashboard"); }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                    activeProjectId === project.id
+                      ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                      : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                  )}
+                >
+                  <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: project.color || "#3b82f6" }} />
+                  </span>
+                  <span className="hidden lg:block truncate">{project.name}</span>
+                </button>
+              ))
+            )}
+            <button
+              onClick={() => onTabChange("project-new")}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
+            >
+              <Plus className="w-[18px] h-[18px] flex-shrink-0" />
+              <span className="hidden lg:block">{t("project.new")}</span>
             </button>
-          ))}
-          <button
-            onClick={() => onTabChange("project-new")}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
-          >
-            <Plus className="w-[18px] h-[18px] flex-shrink-0" />
-            <span className="hidden lg:block">{t("project.new")}</span>
-          </button>
-        </div>
+          </div>
+        )}
       </nav>
 
       {/* Bottom */}

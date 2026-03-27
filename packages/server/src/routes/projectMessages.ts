@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { messages, users } from "../db/schema.js";
-import { eq, and, desc, lt } from "drizzle-orm";
+import { eq, and, desc, lt, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
 const router = Router();
@@ -31,8 +31,11 @@ router.get("/:projectId/messages", async (req: ProjectRequest, res) => {
       .limit(limit);
 
     // Attach sender names
-    const allUsers = await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users);
-    const userMap = new Map(allUsers.map(u => [u.id, u.displayName || u.username]));
+    const senderIds = [...new Set(result.map(m => m.senderId))];
+    const senderUsers = senderIds.length > 0
+      ? await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users).where(inArray(users.id, senderIds))
+      : [];
+    const userMap = new Map(senderUsers.map(u => [u.id, u.displayName || u.username]));
 
     const data = result.map(m => ({
       ...m,

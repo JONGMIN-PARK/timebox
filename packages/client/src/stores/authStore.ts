@@ -1,11 +1,18 @@
 import { create } from "zustand";
 import { api, setToken, clearToken, isAuthenticated } from "@/lib/api";
 
+interface TeamGroupInfo {
+  id: number;
+  name: string;
+  color: string;
+}
+
 interface User {
   id: number;
   username: string;
   displayName: string | null;
   role: string;
+  teamGroups?: TeamGroupInfo[];
 }
 
 interface AuthState {

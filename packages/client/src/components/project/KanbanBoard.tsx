@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Plus, GripVertical, CalendarDays, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -39,7 +39,7 @@ function getInitials(name: string): string {
 }
 
 // ── Draggable task card ──
-function TaskCard({
+const TaskCard = React.memo(function TaskCard({
   task,
   members,
   onClick,
@@ -81,6 +81,7 @@ function TaskCard({
           {...listeners}
           className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none mt-0.5 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
+          aria-label="Drag to reorder task"
         >
           <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600" />
         </button>
@@ -143,7 +144,7 @@ function TaskCard({
       </div>
     </div>
   );
-}
+});
 
 // ── Droppable column ──
 function KanbanColumn({
@@ -230,6 +231,7 @@ function KanbanColumn({
           <button
             onClick={() => setAdding(true)}
             className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+            aria-label={`Add task to ${column.label}`}
           >
             <Plus className="w-3.5 h-3.5" />
             Add task
@@ -281,11 +283,11 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
     return grouped;
   }, [tasks]);
 
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setDragActiveId(event.active.id as number);
-  };
+  }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     setDragActiveId(null);
     const { active, over } = event;
     if (!over) return;
@@ -315,9 +317,9 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
       status: targetStatus,
     }));
     reorderTasks(projectId, reorderItems);
-  };
+  }, [tasks, projectId, updateTask, reorderTasks]);
 
-  const handleAddTask = async (status: TaskStatus, title: string) => {
+  const handleAddTask = useCallback(async (status: TaskStatus, title: string) => {
     const maxSort = tasksByStatus[status].reduce(
       (max, t) => Math.max(max, t.sortOrder),
       -1,
@@ -328,15 +330,15 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
       priority: "medium",
       sortOrder: maxSort + 1,
     });
-  };
+  }, [projectId, addTask, tasksByStatus]);
 
-  const handleUpdateTask = async (taskId: number, data: Partial<ProjectTask>) => {
+  const handleUpdateTask = useCallback(async (taskId: number, data: Partial<ProjectTask>) => {
     await updateTask(projectId, taskId, data);
-  };
+  }, [projectId, updateTask]);
 
-  const handleDeleteTask = async (taskId: number) => {
+  const handleDeleteTask = useCallback(async (taskId: number) => {
     await deleteTask(projectId, taskId);
-  };
+  }, [projectId, deleteTask]);
 
   const draggedTask = dragActiveId ? tasks.find((t) => t.id === dragActiveId) : null;
 

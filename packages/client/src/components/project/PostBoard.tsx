@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "@/lib/useI18n";
@@ -217,14 +217,16 @@ export default function PostBoard({ projectId }: PostBoardProps) {
 
   // ── Filtered & sorted posts ──
 
-  const filteredPosts = posts.filter(
-    (p) => filterCategory === "all" || p.category === filterCategory,
-  );
-  const sortedPosts = [...filteredPosts].sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  const sortedPosts = useMemo(() => {
+    const filtered = posts.filter(
+      (p) => filterCategory === "all" || p.category === filterCategory,
+    );
+    return [...filtered].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [posts, filterCategory]);
 
   const isAuthor = (authorId: number) => user?.id === authorId;
 
@@ -344,6 +346,7 @@ export default function PostBoard({ projectId }: PostBoardProps) {
         <button
           onClick={goBack}
           className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          aria-label="Go back"
         >
           <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
         </button>
@@ -418,6 +421,7 @@ export default function PostBoard({ projectId }: PostBoardProps) {
           <button
             onClick={goBack}
             className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            aria-label="Go back"
           >
             <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>

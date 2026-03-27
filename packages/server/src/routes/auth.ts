@@ -1,9 +1,20 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import { db } from "../db/index.js";
-import { users, registrationRequests } from "../db/schema.js";
+import { users, registrationRequests, teamGroups, teamGroupMembers } from "../db/schema.js";
 import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";
 import { eq } from "drizzle-orm";
+
+async function getUserTeamGroups(userId: number) {
+  const memberships = await db.select({
+    id: teamGroups.id,
+    name: teamGroups.name,
+    color: teamGroups.color,
+  }).from(teamGroupMembers)
+    .innerJoin(teamGroups, eq(teamGroupMembers.groupId, teamGroups.id))
+    .where(eq(teamGroupMembers.userId, userId));
+  return memberships;
+}
 
 const router = Router();
 
@@ -35,11 +46,12 @@ router.post("/login", async (req, res) => {
     }
 
     const token = signToken(user.id);
+    const teamGroupsList = await getUserTeamGroups(user.id);
     res.json({
       success: true,
       data: {
         token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role },
+        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, teamGroups: teamGroupsList },
       },
     });
   } catch (error) {
@@ -201,9 +213,10 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       res.status(404).json({ success: false, error: "User not found" });
       return;
     }
+    const teamGroupsList = await getUserTeamGroups(user.id);
     res.json({
       success: true,
-      data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role },
+      data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, teamGroups: teamGroupsList },
     });
   } catch (error) {
     console.error("auth:me", error);

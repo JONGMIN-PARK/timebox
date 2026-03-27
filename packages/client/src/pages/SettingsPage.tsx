@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
+import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import type { Locale } from "@/lib/i18n";
 
 interface UserInfo {
@@ -37,6 +38,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState("");
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [teamGroups, setTeamGroups] = useState<{id: number; name: string; color: string; memberCount: number; members?: {userId: number}[]}[]>([]);
 
   const isAdmin = user?.role === "admin";
   const pendingRequests = requests.filter((r) => r.status === "pending");
@@ -45,6 +47,7 @@ export default function SettingsPage() {
     if (isAdmin) {
       fetchUsers();
       fetchRequests();
+      fetchTeamGroupsWithMembers();
     }
   }, [isAdmin]);
 
@@ -56,6 +59,20 @@ export default function SettingsPage() {
   const fetchRequests = async () => {
     const res = await api.get<RegRequest[]>("/auth/requests");
     if (res.success && res.data) setRequests(res.data);
+  };
+
+  const fetchTeamGroupsWithMembers = async () => {
+    const res = await api.get<any[]>("/admin/groups");
+    if (res.success && res.data) {
+      // Fetch members for each group
+      const groupsWithMembers = await Promise.all(
+        res.data.map(async (g: any) => {
+          const membersRes = await api.get<any[]>(`/admin/groups/${g.id}/members`);
+          return { ...g, members: membersRes.data || [] };
+        })
+      );
+      setTeamGroups(groupsWithMembers);
+    }
   };
 
   const showMsg = (text: string) => {
@@ -356,6 +373,11 @@ export default function SettingsPage() {
                       {u.role === "admin" && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wide">Admin</span>
                       )}
+                      {teamGroups.filter(g => g.members?.some((m: any) => m.userId === u.id)).map(g => (
+                        <span key={g.id} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: g.color + '20', color: g.color }}>
+                          {g.name}
+                        </span>
+                      ))}
                     </div>
                     <p className="text-[11px] text-slate-400">@{u.username}</p>
                   </div>
@@ -406,6 +428,15 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+          </section>
+        )}
+
+        {isAdmin && (
+          <section className="card p-4">
+            <h2 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">
+              {t("group.title")}
+            </h2>
+            <TeamGroupManager />
           </section>
         )}
       </div>

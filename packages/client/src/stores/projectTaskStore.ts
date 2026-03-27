@@ -88,7 +88,7 @@ export const useProjectTaskStore = create<ProjectTaskState>((set, get) => ({
     try {
       await api.put(`/projects/${projectId}/tasks/reorder`, { items });
     } catch {
-      // silent fail for reorder
+      console.warn("Failed to persist task reorder");
     }
   },
 }));

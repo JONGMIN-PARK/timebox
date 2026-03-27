@@ -1,11 +1,12 @@
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import cron from "node-cron";
 import { initDb } from "./db/index.js";
-import { authMiddleware } from "./middleware/auth.js";
+import { authMiddleware, adminMiddleware } from "./middleware/auth.js";
 import authRoutes from "./routes/auth.js";
 import todoRoutes from "./routes/todos.js";
 import eventRoutes from "./routes/events.js";
@@ -21,6 +22,7 @@ import projectTaskRoutes from "./routes/projectTasks.js";
 import projectPostRoutes from "./routes/projectPosts.js";
 import projectFileRoutes from "./routes/projectFiles.js";
 import projectMessageRoutes from "./routes/projectMessages.js";
+import teamGroupRoutes from "./routes/teamGroups.js";
 import { initTelegramBot } from "./telegram/bot.js";
 
 dotenv.config();
@@ -35,8 +37,28 @@ const PORT = process.env.PORT || 3001;
 await initDb();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
+  : undefined;
+app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : undefined));
 app.use(express.json());
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: "Too many requests, please try again later" },
+});
+app.use("/api/", apiLimiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, error: "Too many login attempts, please try again later" },
+});
+app.use("/api/auth/login", authLimiter);
 
 // Health check
 app.get("/api/health", async (_req, res) => {
@@ -68,6 +90,7 @@ app.use("/api/projects", authMiddleware, projectTaskRoutes);
 app.use("/api/projects", authMiddleware, projectPostRoutes);
 app.use("/api/projects", authMiddleware, projectFileRoutes);
 app.use("/api/projects", authMiddleware, projectMessageRoutes);
+app.use("/api/admin/groups", authMiddleware, adminMiddleware, teamGroupRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {

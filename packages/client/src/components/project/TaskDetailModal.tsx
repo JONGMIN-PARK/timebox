@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Trash2, CalendarDays, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -104,8 +104,17 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   // Members eligible for transfer (exclude current assignee)
   const transferableMembers = members.filter((m) => m.userId !== task.assigneeId);
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Task details">
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg mx-4 bg-white dark:bg-slate-800 rounded-xl shadow-xl max-h-[85vh] flex flex-col"
@@ -113,7 +122,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
           <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Task #{task.id}</span>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <X className="w-4 h-4 text-slate-500" />
           </button>
         </div>

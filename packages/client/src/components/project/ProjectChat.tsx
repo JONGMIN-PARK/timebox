@@ -131,7 +131,7 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
                   {/* Sender name */}
                   <div className={cn("flex items-center gap-2 mb-0.5", isOwn ? "justify-end" : "justify-start")}>
                     <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      {isOwn ? "나" : msg.senderName}
+                      {isOwn ? t("chat.me") : msg.senderName}
                     </span>
                     <span className="text-[10px] text-slate-400 tabular-nums">
                       {formatTime(msg.createdAt)}

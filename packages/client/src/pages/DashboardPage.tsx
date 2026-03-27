@@ -23,6 +23,8 @@ export default function DashboardPage() {
   const [showSearch, setShowSearch] = useState(false);
   const { fetchMe } = useAuthStore();
   const { activeProjectId } = useProjectStore();
+  const user = useAuthStore(s => s.user);
+  const hasTeamAccess = user?.role === 'admin' || (user?.teamGroups?.length ?? 0) > 0;
 
   useEffect(() => {
     fetchMe();
@@ -79,7 +81,7 @@ export default function DashboardPage() {
         <Header />
 
         <div className="flex-1 flex overflow-hidden">
-          {activeProjectId ? (
+          {activeProjectId && hasTeamAccess ? (
             <main className="flex-1 overflow-hidden animate-in">
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
                 <ProjectView projectId={activeProjectId} />

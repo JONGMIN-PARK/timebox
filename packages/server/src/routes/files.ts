@@ -1,46 +1,11 @@
 import { Router } from "express";
-import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { db } from "../db/index.js";
 import { files } from "../db/schema.js";
-import { eq, and, sql, ilike } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
-import crypto from "crypto";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "../../uploads");
-const MAX_STORAGE = 500 * 1024 * 1024; // 500MB
-
-// Ensure upload dir
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-// Fix Korean/CJK filename encoding (multer decodes as latin1)
-function fixFilename(name: string): string {
-  try {
-    return Buffer.from(name, "latin1").toString("utf8");
-  } catch {
-    return name;
-  }
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    file.originalname = fixFilename(file.originalname);
-    const ext = path.extname(file.originalname);
-    cb(null, `${crypto.randomUUID()}${ext}`);
-  },
-});
-const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB per file
-
-const ALLOWED_EXTENSIONS = new Set([
-  ".jpg", ".jpeg", ".png", ".gif", ".webp",
-  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-  ".txt", ".csv", ".zip", ".mp3", ".mp4", ".mov",
-]);
+import { upload, UPLOAD_DIR, MAX_STORAGE, safeUnlink, safeJsonParse } from "../lib/upload.js";
 
 const router = Router();
 
@@ -56,7 +21,9 @@ router.get("/", async (req: AuthRequest, res) => {
     let result = await db.select().from(files).where(and(...conditions));
 
     // Tags are stored as JSON text, so filter in JS
-    if (tag) result = result.filter((f) => JSON.parse(f.tags).includes(tag));
+    if (tag) {
+      result = result.filter((f) => safeJsonParse<string[]>(f.tags, []).includes(tag as string));
+    }
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -85,24 +52,16 @@ router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
     const file = req.file;
     if (!file) { res.status(400).json({ success: false, error: "No file uploaded" }); return; }
 
-    // Validate file extension
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
-      fs.unlinkSync(file.path);
-      res.status(400).json({ success: false, error: `File type '${ext}' is not allowed` });
-      return;
-    }
-
     // Check storage limit
     const currentFiles = await db.select().from(files).where(eq(files.userId, userId));
     const currentUsage = currentFiles.reduce((s, f) => s + f.size, 0);
     if (currentUsage + file.size > MAX_STORAGE) {
-      fs.unlinkSync(file.path);
+      await safeUnlink(file.path);
       res.status(413).json({ success: false, error: "Storage limit exceeded (500MB)" });
       return;
     }
 
-    const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
+    const tags = safeJsonParse<string[]>(req.body.tags || "[]", []);
     const result = await db.insert(files).values({
       userId,
       originalName: file.originalname,
@@ -197,9 +156,9 @@ router.delete("/:id", async (req: AuthRequest, res) => {
     const file = rows[0];
     if (!file) { res.status(404).json({ success: false, error: "File not found" }); return; }
 
-    // Delete physical file
+    // Delete physical file (async)
     const filePath = path.join(UPLOAD_DIR, file.storedName);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await safeUnlink(filePath);
 
     await db.delete(files).where(eq(files.id, id));
     res.json({ success: true });

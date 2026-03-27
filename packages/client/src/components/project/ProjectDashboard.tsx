@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { BarChart3, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 
 interface ProjectStats {
   total: number;
@@ -30,17 +31,17 @@ interface ActivityItem {
   createdAt: string;
 }
 
-function relativeTime(dateStr: string): string {
+function relativeTime(dateStr: string, t: (key: string) => string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diffMs = now - then;
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "방금 전";
-  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffMin < 1) return t("dashboard.justNow");
+  if (diffMin < 60) return t("dashboard.minutesAgo").replace("{n}", String(diffMin));
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffHour < 24) return t("dashboard.hoursAgo").replace("{n}", String(diffHour));
   const diffDay = Math.floor(diffHour / 24);
-  return `${diffDay}일 전`;
+  return t("dashboard.daysAgo").replace("{n}", String(diffDay));
 }
 
 function actionIcon(action: string) {
@@ -56,20 +57,21 @@ function actionIcon(action: string) {
   }
 }
 
-function actionLabel(action: string, targetTitle: string): string {
+function actionLabel(action: string, targetTitle: string, t: (key: string) => string): string {
   switch (action) {
     case "completed":
-      return `"${targetTitle}" 완료`;
+      return t("dashboard.actionCompleted").replace("{title}", targetTitle);
     case "created":
-      return `"${targetTitle}" 생성`;
+      return t("dashboard.actionCreated").replace("{title}", targetTitle);
     case "commented":
-      return `"${targetTitle}"에 댓글`;
+      return t("dashboard.actionCommented").replace("{title}", targetTitle);
     default:
       return targetTitle;
   }
 }
 
 export default function ProjectDashboard({ projectId }: { projectId: number }) {
+  const { t } = useI18n();
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [members, setMembers] = useState<MemberStats[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -113,7 +115,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
           <div className="flex-1">
             <h4 className="text-[13px] font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-blue-500" />
-              진행률
+              {t("dashboard.progress")}
             </h4>
             <div className="relative w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
@@ -126,7 +128,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
                 {stats?.progressPercent ?? 0}%
               </span>
               <span className="ml-2 text-xs text-slate-400">
-                전체: {stats?.total ?? 0} | 완료: {stats?.completed ?? 0}
+                {t("dashboard.total")}: {stats?.total ?? 0} | {t("dashboard.completed")}: {stats?.completed ?? 0}
               </span>
             </p>
           </div>
@@ -134,22 +136,22 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
           {/* Weekly Stats */}
           <div className="sm:border-l sm:border-slate-200 sm:dark:border-slate-700 sm:pl-6 min-w-[140px]">
             <h4 className="text-[13px] font-semibold text-slate-900 dark:text-white mb-3">
-              이번주 통계
+              {t("dashboard.weeklyStats")}
             </h4>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-sm">
                 <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                <span className="text-slate-600 dark:text-slate-300">완료:</span>
+                <span className="text-slate-600 dark:text-slate-300">{t("dashboard.completed")}:</span>
                 <span className="font-semibold text-slate-900 dark:text-white">{stats?.weekCompleted ?? 0}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="w-3.5 h-3.5 text-blue-500" />
-                <span className="text-slate-600 dark:text-slate-300">진행:</span>
+                <span className="text-slate-600 dark:text-slate-300">{t("dashboard.inProgress")}:</span>
                 <span className="font-semibold text-slate-900 dark:text-white">{stats?.weekInProgress ?? 0}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-slate-600 dark:text-slate-300">마감임박:</span>
+                <span className="text-slate-600 dark:text-slate-300">{t("dashboard.dueSoon")}:</span>
                 <span className="font-semibold text-slate-900 dark:text-white">{stats?.weekDueSoon ?? 0}</span>
               </div>
             </div>
@@ -160,10 +162,10 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
       {/* Member Stats */}
       <div className="card p-4">
         <h4 className="text-[13px] font-semibold text-slate-900 dark:text-white mb-3">
-          멤버별 현황
+          {t("dashboard.memberStats")}
         </h4>
         {members.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-4">멤버 정보가 없습니다</p>
+          <p className="text-xs text-slate-400 text-center py-4">{t("dashboard.noMembers")}</p>
         ) : (
           <div className="space-y-2.5">
             {members.map((m) => (
@@ -186,7 +188,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
                   </span>
                 </div>
                 <span className="text-[11px] text-slate-400 shrink-0">
-                  ({m.completedTasks} 완료)
+                  ({m.completedTasks} {t("dashboard.completed")})
                 </span>
               </div>
             ))}
@@ -198,11 +200,11 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
       <div className="card overflow-hidden">
         <div className="px-4 py-3">
           <h4 className="text-[13px] font-semibold text-slate-900 dark:text-white">
-            최근 활동
+            {t("dashboard.recentActivity")}
           </h4>
         </div>
         {activity.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-6">아직 활동이 없습니다</p>
+          <p className="text-xs text-slate-400 text-center py-6">{t("dashboard.noActivity")}</p>
         ) : (
           <div>
             {activity.map((a) => (
@@ -214,11 +216,11 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-slate-700 dark:text-slate-200 truncate">
                     <span className="font-medium">{a.username}</span>{" "}
-                    {actionLabel(a.action, a.targetTitle)}
+                    {actionLabel(a.action, a.targetTitle, t)}
                   </p>
                 </div>
                 <span className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap">
-                  {relativeTime(a.createdAt)}
+                  {relativeTime(a.createdAt, t)}
                 </span>
               </div>
             ))}

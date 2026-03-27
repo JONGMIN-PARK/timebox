@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers } from "../db/schema.js";
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
 const router = Router();
@@ -118,13 +118,15 @@ router.put("/:projectId/tasks/reorder", async (req: ProjectRequest, res) => {
       return;
     }
 
-    for (const item of items) {
-      const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-      if (item.sortOrder !== undefined) updates.sortOrder = item.sortOrder;
-      if (item.status !== undefined) updates.status = item.status;
-      await db.update(projectTasks).set(updates)
-        .where(and(eq(projectTasks.id, item.id), eq(projectTasks.projectId, req.projectId!)));
-    }
+    await db.transaction(async (tx) => {
+      for (const item of items) {
+        const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+        if (item.sortOrder !== undefined) updates.sortOrder = item.sortOrder;
+        if (item.status !== undefined) updates.status = item.status;
+        await tx.update(projectTasks).set(updates)
+          .where(and(eq(projectTasks.id, item.id), eq(projectTasks.projectId, req.projectId!)));
+      }
+    });
 
     res.json({ success: true });
   } catch (error) {
@@ -207,14 +209,24 @@ router.get("/:projectId/transfers", async (req: ProjectRequest, res) => {
       ));
 
     // Enrich with task and sender info
-    const allTasks = await db.select().from(projectTasks).where(eq(projectTasks.projectId, req.projectId!));
-    const allUsers = await db.select().from(users);
+    const taskIds = [...new Set(transfers.map(t => t.taskId))];
+    const fromUserIds = [...new Set(transfers.map(t => t.fromUserId))];
+
+    const transferTasks = taskIds.length > 0
+      ? await db.select().from(projectTasks).where(inArray(projectTasks.id, taskIds))
+      : [];
+    const transferUsers = fromUserIds.length > 0
+      ? await db.select().from(users).where(inArray(users.id, fromUserIds))
+      : [];
+
+    const taskMap = new Map(transferTasks.map(t => [t.id, t]));
+    const userMap = new Map(transferUsers.map(u => [u.id, u]));
 
     const enriched = transfers.map(t => ({
       ...t,
-      task: allTasks.find(task => task.id === t.taskId),
+      task: taskMap.get(t.taskId),
       fromUser: (() => {
-        const u = allUsers.find(u => u.id === t.fromUserId);
+        const u = userMap.get(t.fromUserId);
         return u ? { id: u.id, username: u.username, displayName: u.displayName } : null;
       })(),
     }));
@@ -302,10 +314,14 @@ router.get("/:projectId/tasks/:taskId/comments", async (req: ProjectRequest, res
       .where(eq(taskComments.taskId, taskId))
       .orderBy(asc(taskComments.createdAt));
 
-    const allUsers = await db.select().from(users);
+    const commentAuthorIds = [...new Set(comments.map(c => c.authorId))];
+    const commentUsers = commentAuthorIds.length > 0
+      ? await db.select().from(users).where(inArray(users.id, commentAuthorIds))
+      : [];
+    const userMap = new Map(commentUsers.map(u => [u.id, u]));
     const result = comments.map(c => ({
       ...c,
-      authorName: allUsers.find(u => u.id === c.authorId)?.displayName || "Unknown",
+      authorName: userMap.get(c.authorId)?.displayName || "Unknown",
     }));
 
     res.json({ success: true, data: result });
@@ -354,10 +370,14 @@ router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
       .orderBy(desc(activityLog.createdAt))
       .limit(50);
 
-    const allUsers = await db.select().from(users);
+    const logUserIds = [...new Set(logs.map(l => l.userId))];
+    const logUsers = logUserIds.length > 0
+      ? await db.select().from(users).where(inArray(users.id, logUserIds))
+      : [];
+    const activityUserMap = new Map(logUsers.map(u => [u.id, u]));
     const result = logs.map(l => ({
       ...l,
-      userName: allUsers.find(u => u.id === l.userId)?.displayName || "Unknown",
+      userName: activityUserMap.get(l.userId)?.displayName || "Unknown",
       metadata: JSON.parse(l.metadata),
     }));
 

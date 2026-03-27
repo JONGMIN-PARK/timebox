@@ -320,10 +320,35 @@ export async function initDb() {
       );
 
       CREATE INDEX IF NOT EXISTS idx_posts_project ON posts(project_id);
+      CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(project_id, author_id);
       CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id);
       CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
       CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project_id);
-      CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel);
+      CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(project_id, channel);
+      CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_id);
+
+      CREATE TABLE IF NOT EXISTS team_groups (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        created_by INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS team_group_members (
+        id SERIAL PRIMARY KEY,
+        group_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        joined_at TEXT NOT NULL DEFAULT now(),
+        UNIQUE(group_id, user_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tgm_group ON team_group_members(group_id);
+      CREATE INDEX IF NOT EXISTS idx_tgm_user ON team_group_members(user_id);
+
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS team_group_id INTEGER;
     `);
 
     // Seed default categories if empty
@@ -343,12 +368,14 @@ export async function initDb() {
     // Create default admin if no users exist
     const userResult = await client.query("SELECT COUNT(*) as cnt FROM users");
     if (parseInt(userResult.rows[0].cnt) === 0) {
-      const hash = bcrypt.hashSync("admin123", 10);
+      const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || "admin123";
+      const adminUsername = process.env.DEFAULT_ADMIN_USERNAME || "admin";
+      const hash = bcrypt.hashSync(adminPassword, 10);
       await client.query(
         "INSERT INTO users (username, password_hash, display_name, role) VALUES ($1, $2, $3, $4)",
-        ["admin", hash, "Admin", "admin"]
+        [adminUsername, hash, "Admin", "admin"]
       );
-      console.log("Default admin user created: admin / admin123");
+      console.log("Default admin user created. Change password immediately after first login.");
     }
 
     console.log("Database initialized successfully");

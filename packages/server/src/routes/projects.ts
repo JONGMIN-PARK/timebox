@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projects, projectMembers, users } from "../db/schema.js";
-import { eq, and, desc } from "drizzle-orm";
+import { projects, projectMembers, users, teamGroupMembers } from "../db/schema.js";
+import { eq, and, desc, inArray, sql, count } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { projectMemberMiddleware, projectAdminMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
@@ -11,6 +11,18 @@ const router = Router();
 router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
+    // Check if user has team access (is admin or in a team group)
+    const userRow = await db.select().from(users).where(eq(users.id, userId));
+    const isAdmin = userRow[0]?.role === "admin";
+
+    if (!isAdmin) {
+      const teamMemberships = await db.select().from(teamGroupMembers).where(eq(teamGroupMembers.userId, userId));
+      if (teamMemberships.length === 0) {
+        res.json({ success: true, data: [] });
+        return;
+      }
+    }
+
     const memberships = await db.select().from(projectMembers).where(eq(projectMembers.userId, userId));
     const projectIds = memberships.map(m => m.projectId);
 
@@ -19,14 +31,23 @@ router.get("/", async (req: AuthRequest, res) => {
       return;
     }
 
-    const allProjects = await db.select().from(projects);
-    const myProjects = allProjects.filter(p => projectIds.includes(p.id));
+    const myProjects = await db.select().from(projects).where(inArray(projects.id, projectIds));
 
-    // Attach member count and user's role
-    const result = await Promise.all(myProjects.map(async (p) => {
-      const members = await db.select().from(projectMembers).where(eq(projectMembers.projectId, p.id));
-      const myMembership = memberships.find(m => m.projectId === p.id);
-      return { ...p, memberCount: members.length, myRole: myMembership?.role };
+    // Single query to get member counts grouped by projectId
+    const memberCounts = await db.select({
+      projectId: projectMembers.projectId,
+      memberCount: count(),
+    }).from(projectMembers)
+      .where(inArray(projectMembers.projectId, projectIds))
+      .groupBy(projectMembers.projectId);
+
+    const memberCountMap = new Map(memberCounts.map(mc => [mc.projectId, mc.memberCount]));
+    const membershipMap = new Map(memberships.map(m => [m.projectId, m.role]));
+
+    const result = myProjects.map(p => ({
+      ...p,
+      memberCount: memberCountMap.get(p.id) || 0,
+      myRole: membershipMap.get(p.id),
     }));
 
     res.json({ success: true, data: result });
@@ -40,7 +61,18 @@ router.get("/", async (req: AuthRequest, res) => {
 router.post("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    const { name, description, color, icon } = req.body;
+    const { name, description, color, icon, teamGroupId } = req.body;
+    // Verify user has team access
+    const userRow = await db.select().from(users).where(eq(users.id, userId));
+    const isAdmin = userRow[0]?.role === "admin";
+    if (!isAdmin) {
+      const teamMemberships = await db.select().from(teamGroupMembers).where(eq(teamGroupMembers.userId, userId));
+      if (teamMemberships.length === 0) {
+        res.status(403).json({ success: false, error: "Team group membership required to create projects" });
+        return;
+      }
+    }
+
     if (!name?.trim()) {
       res.status(400).json({ success: false, error: "Name is required" });
       return;
@@ -51,6 +83,7 @@ router.post("/", async (req: AuthRequest, res) => {
       description: description?.trim() || null,
       color: color || "#3b82f6",
       icon: icon || null,
+      teamGroupId: teamGroupId || null,
       ownerId: userId,
     }).returning();
 
@@ -105,10 +138,14 @@ router.delete("/:projectId", projectMemberMiddleware, async (req: ProjectRequest
 router.get("/:projectId/members", projectMemberMiddleware, async (req: ProjectRequest, res) => {
   try {
     const members = await db.select().from(projectMembers).where(eq(projectMembers.projectId, req.projectId!));
-    const allUsers = await db.select().from(users);
+    const memberUserIds = members.map(m => m.userId);
+    const memberUsers = memberUserIds.length > 0
+      ? await db.select().from(users).where(inArray(users.id, memberUserIds))
+      : [];
+    const userMap = new Map(memberUsers.map(u => [u.id, u]));
 
     const result = members.map(m => {
-      const user = allUsers.find(u => u.id === m.userId);
+      const user = userMap.get(m.userId);
       return {
         ...m,
         username: user?.username,

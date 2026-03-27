@@ -11,8 +11,10 @@ services:
         value: production
       - key: JWT_SECRET
         generateValue: true
-      - key: DEFAULT_PIN
-        value: "1234"
+      - key: CORS_ORIGIN
+        sync: false
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: TELEGRAM_BOT_TOKEN

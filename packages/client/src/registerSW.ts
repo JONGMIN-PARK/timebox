@@ -8,15 +8,9 @@ export function registerServiceWorker() {
   }
 }
 
-// Store auth token for service worker background checks
+// Token is no longer stored in cache storage for security
 export async function syncTokenToSW() {
-  try {
-    const token = localStorage.getItem("timebox_token");
-    if (token && "caches" in window) {
-      const cache = await caches.open("timebox-auth");
-      await cache.put("/auth-token", new Response(token));
-    }
-  } catch {}
+  // no-op
 }
 
 // Register periodic background sync for reminder checking

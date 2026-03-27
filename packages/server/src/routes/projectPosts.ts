@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { posts, postComments, activityLog, users } from "../db/schema.js";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
 const router = Router();
@@ -26,9 +26,12 @@ router.get("/:projectId/posts", async (req: ProjectRequest, res) => {
     const allUsers = await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users);
     const userMap = new Map(allUsers.map(u => [u.id, u.displayName || u.username]));
 
-    const allComments = await db.select().from(postComments);
+    const postIds = allPosts.map(p => p.id);
+    const projectComments = postIds.length > 0
+      ? await db.select().from(postComments).where(inArray(postComments.postId, postIds))
+      : [];
     const commentCountMap = new Map<number, number>();
-    for (const c of allComments) {
+    for (const c of projectComments) {
       commentCountMap.set(c.postId, (commentCountMap.get(c.postId) || 0) + 1);
     }
 
@@ -103,7 +106,7 @@ router.put("/:projectId/posts/:postId", async (req: ProjectRequest, res) => {
     }
 
     const { title, content, category, pinned } = req.body;
-    const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (title !== undefined) updates.title = title.trim();
     if (content !== undefined) updates.content = content.trim();
     if (category !== undefined) updates.category = category;
