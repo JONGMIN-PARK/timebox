@@ -249,6 +249,20 @@ export interface ActivityLogEntry {
   createdAt: string;
 }
 
+export interface TaskTransfer {
+  id: number;
+  taskId: number;
+  projectId: number;
+  fromUserId: number;
+  toUserId: number;
+  message: string | null;
+  status: "pending" | "accepted" | "rejected";
+  createdAt: string;
+  respondedAt: string | null;
+  task?: ProjectTask;
+  fromUser?: { id: number; username: string; displayName: string | null };
+}
+
 export interface ProjectStats {
   total: number;
   done: number;

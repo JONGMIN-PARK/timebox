@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { X, Trash2, CalendarDays } from "lucide-react";
+import { X, Trash2, CalendarDays, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { t } from "@/lib/i18n";
 import type { ProjectTask, TaskStatus } from "@/stores/projectTaskStore";
 import type { ProjectMember } from "@/stores/projectStore";
 
@@ -37,6 +39,13 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  // Transfer state
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferToUserId, setTransferToUserId] = useState<number | "">("");
+  const [transferMessage, setTransferMessage] = useState("");
+  const [transferSending, setTransferSending] = useState(false);
+  const [transferResult, setTransferResult] = useState<"sent" | "error" | null>(null);
+
   const hasChanges =
     title !== task.title ||
     description !== (task.description || "") ||
@@ -68,6 +77,32 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
     await onDelete(task.id);
     onClose();
   };
+
+  const handleTransfer = async () => {
+    if (!transferToUserId) return;
+    setTransferSending(true);
+    setTransferResult(null);
+    try {
+      const res = await api.post(`/projects/${projectId}/tasks/${task.id}/transfer`, {
+        toUserId: transferToUserId,
+        message: transferMessage.trim() || undefined,
+      });
+      if (res.success) {
+        setTransferResult("sent");
+        setTransferToUserId("");
+        setTransferMessage("");
+        setTimeout(() => setShowTransfer(false), 1500);
+      } else {
+        setTransferResult("error");
+      }
+    } catch {
+      setTransferResult("error");
+    }
+    setTransferSending(false);
+  };
+
+  // Members eligible for transfer (exclude current assignee)
+  const transferableMembers = members.filter((m) => m.userId !== task.assigneeId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
@@ -171,6 +206,70 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
               rows={4}
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
             />
+          </div>
+
+          {/* Transfer section */}
+          <div>
+            {!showTransfer ? (
+              <button
+                onClick={() => setShowTransfer(true)}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                {t("transfer.request")}
+              </button>
+            ) : (
+              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                    {t("transfer.title")}
+                  </span>
+                  <button
+                    onClick={() => { setShowTransfer(false); setTransferResult(null); }}
+                    className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                  >
+                    <X className="w-3 h-3 text-slate-400" />
+                  </button>
+                </div>
+
+                <select
+                  value={transferToUserId}
+                  onChange={(e) => setTransferToUserId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full text-sm bg-white dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 border border-slate-200 dark:border-slate-600"
+                >
+                  <option value="">{t("transfer.selectMember")}</option>
+                  {transferableMembers.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.displayName || m.username || `User #${m.userId}`}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  value={transferMessage}
+                  onChange={(e) => setTransferMessage(e.target.value)}
+                  placeholder={t("transfer.message")}
+                  className="w-full text-sm bg-white dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 border border-slate-200 dark:border-slate-600"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleTransfer(); }}
+                />
+
+                {transferResult === "sent" && (
+                  <p className="text-xs text-green-600 dark:text-green-400">{t("transfer.sent")}</p>
+                )}
+                {transferResult === "error" && (
+                  <p className="text-xs text-red-500">Failed to send transfer request</p>
+                )}
+
+                <button
+                  onClick={handleTransfer}
+                  disabled={!transferToUserId || transferSending}
+                  className="w-full text-xs font-medium py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {transferSending ? "..." : t("transfer.request")}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Meta info */}

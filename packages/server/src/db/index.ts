@@ -261,6 +261,19 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_project_tasks_assignee ON project_tasks(assignee_id);
       CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
       CREATE INDEX IF NOT EXISTS idx_activity_log_project ON activity_log(project_id);
+
+      CREATE TABLE IF NOT EXISTS task_transfers (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL,
+        project_id INTEGER NOT NULL,
+        from_user_id INTEGER NOT NULL,
+        to_user_id INTEGER NOT NULL,
+        message TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT now(),
+        responded_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_transfers_to_user ON task_transfers(to_user_id);
     `);
 
     // Seed default categories if empty

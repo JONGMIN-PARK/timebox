@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import ProjectDashboard from "./ProjectDashboard";
 import MemberManager from "./MemberManager";
+import TransferPanel from "./TransferPanel";
 
 type Tab = "dashboard" | "tasks" | "members";
 
@@ -88,6 +89,9 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           ))}
         </div>
       </div>
+
+      {/* Transfer requests panel */}
+      <TransferPanel projectId={projectId} />
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projectTasks, projectMembers, taskComments, activityLog, users } from "../db/schema.js";
+import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers } from "../db/schema.js";
 import { eq, and, asc, desc } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
@@ -8,6 +8,7 @@ const router = Router();
 
 // All routes require project membership
 router.use("/:projectId/tasks", projectMemberMiddleware);
+router.use("/:projectId/transfers", projectMemberMiddleware);
 
 // GET /api/projects/:projectId/tasks
 router.get("/:projectId/tasks", async (req: ProjectRequest, res) => {
@@ -148,6 +149,148 @@ router.delete("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
   } catch (error) {
     console.error("projectTasks:delete", error);
     res.status(500).json({ success: false, error: "Failed to delete task" });
+  }
+});
+
+// POST /api/projects/:projectId/tasks/:taskId/transfer - request transfer
+router.post("/:projectId/tasks/:taskId/transfer", async (req: ProjectRequest, res) => {
+  try {
+    const taskId = parseInt(req.params.taskId as string);
+    const { toUserId, message } = req.body;
+    if (!toUserId) {
+      res.status(400).json({ success: false, error: "Target user is required" });
+      return;
+    }
+
+    // Verify target user is project member
+    const targetMember = await db.select().from(projectMembers)
+      .where(and(eq(projectMembers.projectId, req.projectId!), eq(projectMembers.userId, toUserId)));
+    if (!targetMember[0]) {
+      res.status(400).json({ success: false, error: "Target user is not a project member" });
+      return;
+    }
+
+    const result = await db.insert(taskTransfers).values({
+      taskId,
+      projectId: req.projectId!,
+      fromUserId: req.userId!,
+      toUserId,
+      message: message?.trim() || null,
+    }).returning();
+
+    // Log activity
+    await db.insert(activityLog).values({
+      projectId: req.projectId!,
+      userId: req.userId!,
+      action: "task_transfer_requested",
+      targetType: "task",
+      targetId: taskId,
+      metadata: JSON.stringify({ toUserId }),
+    });
+
+    res.status(201).json({ success: true, data: result[0] });
+  } catch (error) {
+    console.error("projectTasks:transfer", error);
+    res.status(500).json({ success: false, error: "Failed to create transfer" });
+  }
+});
+
+// GET /api/projects/:projectId/transfers - list pending transfers for me
+router.get("/:projectId/transfers", async (req: ProjectRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const transfers = await db.select().from(taskTransfers)
+      .where(and(
+        eq(taskTransfers.projectId, req.projectId!),
+        eq(taskTransfers.toUserId, userId),
+        eq(taskTransfers.status, "pending")
+      ));
+
+    // Enrich with task and sender info
+    const allTasks = await db.select().from(projectTasks).where(eq(projectTasks.projectId, req.projectId!));
+    const allUsers = await db.select().from(users);
+
+    const enriched = transfers.map(t => ({
+      ...t,
+      task: allTasks.find(task => task.id === t.taskId),
+      fromUser: (() => {
+        const u = allUsers.find(u => u.id === t.fromUserId);
+        return u ? { id: u.id, username: u.username, displayName: u.displayName } : null;
+      })(),
+    }));
+
+    res.json({ success: true, data: enriched });
+  } catch (error) {
+    console.error("projectTasks:listTransfers", error);
+    res.status(500).json({ success: false, error: "Failed to fetch transfers" });
+  }
+});
+
+// PUT /api/projects/:projectId/transfers/:transferId/accept
+router.put("/:projectId/transfers/:transferId/accept", async (req: ProjectRequest, res) => {
+  try {
+    const transferId = parseInt(req.params.transferId as string);
+    const transfer = await db.select().from(taskTransfers).where(eq(taskTransfers.id, transferId));
+    if (!transfer[0] || transfer[0].toUserId !== req.userId!) {
+      res.status(404).json({ success: false, error: "Transfer not found" });
+      return;
+    }
+
+    // Update transfer status
+    await db.update(taskTransfers).set({
+      status: "accepted",
+      respondedAt: new Date().toISOString(),
+    }).where(eq(taskTransfers.id, transferId));
+
+    // Update task assignee
+    await db.update(projectTasks).set({
+      assigneeId: req.userId!,
+      updatedAt: new Date().toISOString(),
+    }).where(eq(projectTasks.id, transfer[0].taskId));
+
+    // Log activity
+    await db.insert(activityLog).values({
+      projectId: req.projectId!,
+      userId: req.userId!,
+      action: "task_transfer_accepted",
+      targetType: "task",
+      targetId: transfer[0].taskId,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("projectTasks:acceptTransfer", error);
+    res.status(500).json({ success: false, error: "Failed to accept transfer" });
+  }
+});
+
+// PUT /api/projects/:projectId/transfers/:transferId/reject
+router.put("/:projectId/transfers/:transferId/reject", async (req: ProjectRequest, res) => {
+  try {
+    const transferId = parseInt(req.params.transferId as string);
+    const transfer = await db.select().from(taskTransfers).where(eq(taskTransfers.id, transferId));
+    if (!transfer[0] || transfer[0].toUserId !== req.userId!) {
+      res.status(404).json({ success: false, error: "Transfer not found" });
+      return;
+    }
+
+    await db.update(taskTransfers).set({
+      status: "rejected",
+      respondedAt: new Date().toISOString(),
+    }).where(eq(taskTransfers.id, transferId));
+
+    await db.insert(activityLog).values({
+      projectId: req.projectId!,
+      userId: req.userId!,
+      action: "task_transfer_rejected",
+      targetType: "task",
+      targetId: transfer[0].taskId,
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("projectTasks:rejectTransfer", error);
+    res.status(500).json({ success: false, error: "Failed to reject transfer" });
   }
 });
 

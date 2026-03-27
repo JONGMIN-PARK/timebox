@@ -233,3 +233,16 @@ export const activityLog = pgTable("activity_log", {
   metadata: text("metadata").notNull().default("{}"),
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
+
+// ── Task Transfers ──
+export const taskTransfers = pgTable("task_transfers", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull(),
+  projectId: integer("project_id").notNull(),
+  fromUserId: integer("from_user_id").notNull(),
+  toUserId: integer("to_user_id").notNull(),
+  message: text("message"),
+  status: text("status").notNull().default("pending"), // pending | accepted | rejected
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  respondedAt: text("responded_at"),
+});

@@ -176,6 +176,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "project.noProjects": "No projects yet",
     "project.backToPersonal": "Personal",
 
+    // Transfers
+    "transfer.title": "Task Transfers",
+    "transfer.request": "Transfer",
+    "transfer.accept": "Accept",
+    "transfer.reject": "Reject",
+    "transfer.pending": "Pending transfers",
+    "transfer.message": "Message (optional)",
+    "transfer.from": "From",
+    "transfer.sent": "Transfer requested",
+    "transfer.accepted": "Transfer accepted",
+    "transfer.rejected": "Transfer rejected",
+    "transfer.noTransfers": "No pending transfers",
+    "transfer.selectMember": "Select member",
+
     // Common extras
     "common.close": "Close",
     "common.all": "All",
@@ -356,6 +370,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "project.invite": "\ucd08\ub300",
     "project.noProjects": "\ud504\ub85c\uc81d\ud2b8\uac00 \uc5c6\uc2b5\ub2c8\ub2e4",
     "project.backToPersonal": "\uac1c\uc778",
+
+    // Transfers
+    "transfer.title": "\uc5c5\ubb34 \uc804\ub2ec",
+    "transfer.request": "\uc804\ub2ec",
+    "transfer.accept": "\uc218\ub77d",
+    "transfer.reject": "\uac70\uc808",
+    "transfer.pending": "\ub300\uae30 \uc911\uc778 \uc804\ub2ec",
+    "transfer.message": "\uba54\uc2dc\uc9c0 (\uc120\ud0dd)",
+    "transfer.from": "\ubcf4\ub0b8 \uc0ac\ub78c",
+    "transfer.sent": "\uc804\ub2ec \uc694\uccad\ub428",
+    "transfer.accepted": "\uc804\ub2ec \uc218\ub77d\ub428",
+    "transfer.rejected": "\uc804\ub2ec \uac70\uc808\ub428",
+    "transfer.noTransfers": "\ub300\uae30 \uc911\uc778 \uc804\ub2ec \uc5c6\uc74c",
+    "transfer.selectMember": "\uba64\ubc84 \uc120\ud0dd",
 
     // Common extras
     "common.close": "\ub2eb\uae30",
