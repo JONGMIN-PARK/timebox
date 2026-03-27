@@ -4,29 +4,27 @@ import type { HoverTooltipItem } from "./calendarTypes";
 
 interface HoverTooltipProps {
   items: HoverTooltipItem[];
-  anchorRect: DOMRect;
+  position: { x: number; y: number };
 }
 
-export default function HoverTooltip({ items, anchorRect }: HoverTooltipProps) {
+export default function HoverTooltip({ items, position }: HoverTooltipProps) {
   if (items.length === 0) return null;
 
-  // Position tooltip just below the cell, centered horizontally
   const tooltipWidth = 220;
-  let left = anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2;
-  let top = anchorRect.bottom + 4;
+  const offset = 8;
+  let left = position.x + offset;
+  let top = position.y + offset;
 
   // Keep within viewport
-  if (left < 8) left = 8;
-  if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8;
-  // If below viewport, show above the cell
-  if (top + 150 > window.innerHeight) {
-    top = anchorRect.top - 4;
-  }
+  if (left + tooltipWidth > window.innerWidth - 8) left = position.x - tooltipWidth - offset;
+  if (top + 150 > window.innerHeight) top = position.y - 150 - offset;
+  if (left < 4) left = 4;
+  if (top < 4) top = 4;
 
   return (
     <div
       className="fixed z-[100] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-2.5 pointer-events-none"
-      style={{ left, top: top + 150 > window.innerHeight ? undefined : top, bottom: top + 150 > window.innerHeight ? (window.innerHeight - anchorRect.top + 4) : undefined, width: tooltipWidth }}
+      style={{ left, top, width: tooltipWidth }}
     >
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-2 py-1">

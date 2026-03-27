@@ -37,7 +37,7 @@ export default function CalendarView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [hoverInfo, setHoverInfo] = useState<{ items: HoverTooltipItem[]; anchorRect: DOMRect } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ items: HoverTooltipItem[]; position: { x: number; y: number } } | null>(null);
   const { t } = useI18n();
 
   const { rangeStart, rangeEnd } = useMemo(() => {
@@ -173,8 +173,13 @@ export default function CalendarView() {
   const handleDayHover = (e: React.MouseEvent, dateKey: string) => {
     const items = getHoverItems(dateKey);
     if (items.length > 0) {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setHoverInfo({ items, anchorRect: rect });
+      setHoverInfo({ items, position: { x: e.clientX, y: e.clientY } });
+    }
+  };
+
+  const handleDayMouseMove = (e: React.MouseEvent) => {
+    if (hoverInfo) {
+      setHoverInfo({ ...hoverInfo, position: { x: e.clientX, y: e.clientY } });
     }
   };
 
@@ -234,6 +239,7 @@ export default function CalendarView() {
           onSelectDate={setSelectedDate}
           onDoubleClickDate={(day) => { setSelectedDate(day); setViewMode("day"); setCurrentDate(day); }}
           onDayHover={handleDayHover}
+          onDayMouseMove={handleDayMouseMove}
           onDayLeave={() => setHoverInfo(null)}
           onShowAddModal={() => setShowAddModal(true)}
           onDeleteEvent={deleteEvent}
@@ -271,7 +277,7 @@ export default function CalendarView() {
       )}
 
       {/* Hover tooltip */}
-      {hoverInfo && <HoverTooltip items={hoverInfo.items} anchorRect={hoverInfo.anchorRect} />}
+      {hoverInfo && <HoverTooltip items={hoverInfo.items} position={hoverInfo.position} />}
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (

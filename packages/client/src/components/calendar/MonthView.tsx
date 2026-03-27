@@ -15,6 +15,7 @@ interface MonthViewProps {
   onSelectDate: (date: Date) => void;
   onDoubleClickDate: (date: Date) => void;
   onDayHover: (e: React.MouseEvent, dateKey: string) => void;
+  onDayMouseMove: (e: React.MouseEvent) => void;
   onDayLeave: () => void;
   onShowAddModal: () => void;
   onDeleteEvent: (id: number) => void;
@@ -31,6 +32,7 @@ export default function MonthView({
   onSelectDate,
   onDoubleClickDate,
   onDayHover,
+  onDayMouseMove,
   onDayLeave,
   onShowAddModal,
   onDeleteEvent,
@@ -57,6 +59,7 @@ export default function MonthView({
               onClick={() => onSelectDate(day)}
               onDoubleClick={() => onDoubleClickDate(day)}
               onMouseEnter={(e) => onDayHover(e, dateKey)}
+              onMouseMove={onDayMouseMove}
               onMouseLeave={onDayLeave}
               className={cn(
                 "relative flex flex-col items-start p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors overflow-hidden",
