@@ -16,6 +16,8 @@ import telegramRoutes from "./routes/telegram.js";
 import backupRoutes from "./routes/backup.js";
 import fileRoutes from "./routes/files.js";
 import reminderRoutes from "./routes/reminders.js";
+import projectRoutes from "./routes/projects.js";
+import projectTaskRoutes from "./routes/projectTasks.js";
 import { initTelegramBot } from "./telegram/bot.js";
 
 dotenv.config();
@@ -58,6 +60,8 @@ app.use("/api/telegram", authMiddleware, telegramRoutes);
 app.use("/api/backup", authMiddleware, backupRoutes);
 app.use("/api/files", authMiddleware, fileRoutes);
 app.use("/api/reminders", authMiddleware, reminderRoutes);
+app.use("/api/projects", authMiddleware, projectRoutes);
+app.use("/api/projects", authMiddleware, projectTaskRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {

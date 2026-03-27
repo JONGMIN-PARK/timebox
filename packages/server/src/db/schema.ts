@@ -172,3 +172,64 @@ export const telegramConfig = pgTable("telegram_config", {
     .notNull()
     .default(sql`now()`),
 });
+
+// ── Projects ──
+export const projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: text("color").notNull().default("#3b82f6"),
+  icon: text("icon"),
+  ownerId: integer("owner_id").notNull(),
+  visibility: text("visibility").notNull().default("team"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
+// ── Project Members ──
+export const projectMembers = pgTable("project_members", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull().default("member"),
+  joinedAt: text("joined_at").notNull().default(sql`now()`),
+});
+
+// ── Project Tasks (Kanban) ──
+export const projectTasks = pgTable("project_tasks", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("todo"),
+  priority: text("priority").notNull().default("medium"),
+  assigneeId: integer("assignee_id"),
+  reporterId: integer("reporter_id").notNull(),
+  dueDate: text("due_date"),
+  tags: text("tags").notNull().default("[]"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  parentId: integer("parent_id"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
+// ── Task Comments ──
+export const taskComments = pgTable("task_comments", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull(),
+  authorId: integer("author_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
+// ── Activity Log ──
+export const activityLog = pgTable("activity_log", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  userId: integer("user_id").notNull(),
+  action: text("action").notNull(),
+  targetType: text("target_type"),
+  targetId: integer("target_id"),
+  metadata: text("metadata").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});

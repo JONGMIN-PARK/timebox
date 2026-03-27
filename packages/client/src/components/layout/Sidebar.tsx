@@ -1,7 +1,9 @@
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid } from "lucide-react";
+import { useEffect } from "react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/lib/useI18n";
 
 interface SidebarProps {
@@ -17,10 +19,21 @@ const tabs = [
   { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
 ];
 
+const projectTabs = [
+  { id: "project-dashboard", labelKey: "project.dashboard", icon: LayoutDashboard },
+  { id: "project-tasks", labelKey: "project.tasks", icon: ListTodo },
+  { id: "project-members", labelKey: "project.members", icon: Users },
+];
+
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { logout, user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
+  const { projects, activeProjectId, setActiveProject, fetchProjects } = useProjectStore();
   const { t } = useI18n();
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
   const cycleTheme = () => {
     const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
@@ -42,22 +55,96 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-3 space-y-0.5 px-2">
-        {tabs.map((tab) => (
+      <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
+        {/* Personal nav items or project nav items */}
+        {activeProjectId ? (
+          <>
+            <button
+              onClick={() => setActiveProject(null)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 transition-all duration-200"
+            >
+              <User className="w-[18px] h-[18px] flex-shrink-0" />
+              <span className="hidden lg:block">{t("project.backToPersonal")}</span>
+            </button>
+            <div className="hidden lg:block px-3 py-1.5">
+              <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
+                {projects.find(p => p.id === activeProjectId)?.name}
+              </p>
+            </div>
+            {projectTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => onTabChange(tab.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                  activeTab === tab.id
+                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                )}
+              >
+                <tab.icon className={cn("w-[18px] h-[18px] flex-shrink-0", activeTab === tab.id && "stroke-[2.5]")} />
+                <span className="hidden lg:block">{t(tab.labelKey)}</span>
+              </button>
+            ))}
+          </>
+        ) : (
+          tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                activeTab === tab.id
+                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+              )}
+            >
+              <tab.icon className={cn("w-[18px] h-[18px] flex-shrink-0", activeTab === tab.id && "stroke-[2.5]")} />
+              <span className="hidden lg:block">{t(tab.labelKey)}</span>
+            </button>
+          ))
+        )}
+
+        {/* Projects section */}
+        <div className="pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/40">
+          <div className="hidden lg:flex items-center justify-between px-3 pb-1.5">
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              {t("project.title")}
+            </span>
+          </div>
+          {projects.map((project) => (
+            <button
+              key={project.id}
+              onClick={() => {
+                setActiveProject(project.id);
+                onTabChange("project-dashboard");
+              }}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                activeProjectId === project.id
+                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+              )}
+            >
+              <span
+                className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: project.color || "#3b82f6" }}
+                />
+              </span>
+              <span className="hidden lg:block truncate">{project.name}</span>
+            </button>
+          ))}
           <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
-              activeTab === tab.id
-                ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
-                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
-            )}
+            onClick={() => onTabChange("project-new")}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
           >
-            <tab.icon className={cn("w-[18px] h-[18px] flex-shrink-0", activeTab === tab.id && "stroke-[2.5]")} />
-            <span className="hidden lg:block">{t(tab.labelKey)}</span>
+            <Plus className="w-[18px] h-[18px] flex-shrink-0" />
+            <span className="hidden lg:block">{t("project.new")}</span>
           </button>
-        ))}
+        </div>
       </nav>
 
       {/* Bottom */}

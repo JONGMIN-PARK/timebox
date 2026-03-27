@@ -190,6 +190,62 @@ export async function initDb() {
         updated_at TEXT NOT NULL DEFAULT now()
       );
 
+      CREATE TABLE IF NOT EXISTS projects (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        icon TEXT,
+        owner_id INTEGER NOT NULL,
+        visibility TEXT NOT NULL DEFAULT 'team',
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS project_members (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        joined_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS project_tasks (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'todo',
+        priority TEXT NOT NULL DEFAULT 'medium',
+        assignee_id INTEGER,
+        reporter_id INTEGER NOT NULL,
+        due_date TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        parent_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS task_comments (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL,
+        author_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS activity_log (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id INTEGER,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+
       -- Indexes for common queries
       CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);
       CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
@@ -199,6 +255,12 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
       CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
       CREATE INDEX IF NOT EXISTS idx_time_blocks_date ON time_blocks(date);
+      CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
+      CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id);
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_assignee ON project_tasks(assignee_id);
+      CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+      CREATE INDEX IF NOT EXISTS idx_activity_log_project ON activity_log(project_id);
     `);
 
     // Seed default categories if empty

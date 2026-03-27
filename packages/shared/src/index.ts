@@ -192,3 +192,68 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
+
+// ── Project (Team) ──
+export interface Project {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string | null;
+  ownerId: number;
+  visibility: string;
+  memberCount?: number;
+  myRole?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectRole = "owner" | "admin" | "member" | "viewer";
+export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+
+export interface ProjectTask {
+  id: number;
+  projectId: number;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: string;
+  assigneeId: number | null;
+  reporterId: number;
+  dueDate: string | null;
+  tags: string;
+  sortOrder: number;
+  parentId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskComment {
+  id: number;
+  taskId: number;
+  authorId: number;
+  authorName?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface ActivityLogEntry {
+  id: number;
+  projectId: number;
+  userId: number;
+  userName?: string;
+  action: string;
+  targetType: string | null;
+  targetId: number | null;
+  metadata: any;
+  createdAt: string;
+}
+
+export interface ProjectStats {
+  total: number;
+  done: number;
+  inProgress: number;
+  overdue: number;
+  progress: number;
+  memberStats: { userId: number; role: string; total: number; done: number; inProgress: number }[];
+}

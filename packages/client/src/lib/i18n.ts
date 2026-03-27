@@ -164,6 +164,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "help.telegramTitle": "Telegram Commands",
     "help.tipsTitle": "Tips",
 
+    // Projects
+    "project.title": "Projects",
+    "project.new": "New Project",
+    "project.name": "Project Name",
+    "project.description": "Description",
+    "project.dashboard": "Dashboard",
+    "project.tasks": "Tasks",
+    "project.members": "Members",
+    "project.invite": "Invite",
+    "project.noProjects": "No projects yet",
+    "project.backToPersonal": "Personal",
+
     // Common extras
     "common.close": "Close",
     "common.all": "All",
@@ -332,6 +344,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "help.shortcuts": "\ud0a4\ubcf4\ub4dc \ub2e8\ucd95\ud0a4",
     "help.telegramTitle": "\ud154\ub808\uadf8\ub7a8 \uba85\ub839\uc5b4",
     "help.tipsTitle": "\ud301",
+
+    // Projects
+    "project.title": "\ud504\ub85c\uc81d\ud2b8",
+    "project.new": "\uc0c8 \ud504\ub85c\uc81d\ud2b8",
+    "project.name": "\ud504\ub85c\uc81d\ud2b8 \uc774\ub984",
+    "project.description": "\uc124\uba85",
+    "project.dashboard": "\ud604\ud669\ud310",
+    "project.tasks": "\ud0dc\uc2a4\ud06c",
+    "project.members": "\uba64\ubc84",
+    "project.invite": "\ucd08\ub300",
+    "project.noProjects": "\ud504\ub85c\uc81d\ud2b8\uac00 \uc5c6\uc2b5\ub2c8\ub2e4",
+    "project.backToPersonal": "\uac1c\uc778",
 
     // Common extras
     "common.close": "\ub2eb\uae30",

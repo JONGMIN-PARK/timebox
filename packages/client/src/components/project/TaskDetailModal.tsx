@@ -1,0 +1,216 @@
+import { useState } from "react";
+import { X, Trash2, CalendarDays } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { ProjectTask, TaskStatus } from "@/stores/projectTaskStore";
+import type { ProjectMember } from "@/stores/projectStore";
+
+const STATUS_OPTIONS: { key: TaskStatus; label: string }[] = [
+  { key: "backlog", label: "Backlog" },
+  { key: "todo", label: "To Do" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "review", label: "Review" },
+  { key: "done", label: "Done" },
+];
+
+const PRIORITY_OPTIONS = [
+  { key: "high", label: "High", color: "#ef4444" },
+  { key: "medium", label: "Medium", color: "#f59e0b" },
+  { key: "low", label: "Low", color: "#94a3b8" },
+];
+
+interface TaskDetailModalProps {
+  projectId: number;
+  task: ProjectTask;
+  members: ProjectMember[];
+  onClose: () => void;
+  onUpdate: (taskId: number, data: Partial<ProjectTask>) => Promise<void>;
+  onDelete: (taskId: number) => Promise<void>;
+}
+
+export default function TaskDetailModal({ projectId, task, members, onClose, onUpdate, onDelete }: TaskDetailModalProps) {
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description || "");
+  const [status, setStatus] = useState<TaskStatus>(task.status);
+  const [priority, setPriority] = useState(task.priority);
+  const [assigneeId, setAssigneeId] = useState<number | null>(task.assigneeId);
+  const [dueDate, setDueDate] = useState(task.dueDate || "");
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const hasChanges =
+    title !== task.title ||
+    description !== (task.description || "") ||
+    status !== task.status ||
+    priority !== task.priority ||
+    assigneeId !== task.assigneeId ||
+    dueDate !== (task.dueDate || "");
+
+  const handleSave = async () => {
+    if (!title.trim() || !hasChanges) return;
+    setSaving(true);
+    await onUpdate(task.id, {
+      title: title.trim(),
+      description: description || null,
+      status,
+      priority,
+      assigneeId,
+      dueDate: dueDate || null,
+    });
+    setSaving(false);
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    await onDelete(task.id);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg mx-4 bg-white dark:bg-slate-800 rounded-xl shadow-xl max-h-[85vh] flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Task #{task.id}</span>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <X className="w-4 h-4 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Title */}
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full text-lg font-semibold bg-transparent text-slate-900 dark:text-white outline-none placeholder-slate-400 focus:ring-2 focus:ring-blue-500/30 rounded-lg px-2 py-1 -mx-2"
+            placeholder="Task title"
+          />
+
+          {/* Status + Priority row */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Priority</label>
+              <div className="flex gap-1.5">
+                {PRIORITY_OPTIONS.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setPriority(p.key)}
+                    className={cn(
+                      "flex-1 text-xs py-2 rounded-lg border-2 transition-colors text-center font-medium",
+                      priority === p.key
+                        ? "border-current"
+                        : "border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700",
+                    )}
+                    style={priority === p.key ? { color: p.color, borderColor: p.color, backgroundColor: p.color + "18" } : undefined}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Assignee + Due date row */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Assignee</label>
+              <select
+                value={assigneeId ?? ""}
+                onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+              >
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.displayName || m.username || `User #${m.userId}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
+                <CalendarDays className="w-3 h-3" /> Due date
+              </label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+              />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Add a description..."
+              rows={4}
+              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+            />
+          </div>
+
+          {/* Meta info */}
+          <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
+            <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
+            <span>Updated: {new Date(task.updatedAt).toLocaleDateString()}</span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-200 dark:border-slate-700">
+          <button
+            onClick={handleDelete}
+            className={cn(
+              "flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors",
+              confirmDelete
+                ? "bg-red-500 text-white hover:bg-red-600"
+                : "text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10",
+            )}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {confirmDelete ? "Confirm Delete" : "Delete"}
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || !title.trim() || saving}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

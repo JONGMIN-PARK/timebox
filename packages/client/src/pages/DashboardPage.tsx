@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import Header from "@/components/layout/Header";
@@ -11,14 +11,18 @@ import ElonScheduler from "@/components/scheduler/ElonScheduler";
 import FileVault from "@/components/files/FileVault";
 import SettingsPage from "@/pages/SettingsPage";
 import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
+
+const ProjectView = lazy(() => import("@/components/project/ProjectView"));
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const { fetchMe } = useAuthStore();
+  const { activeProjectId } = useProjectStore();
 
   useEffect(() => {
     fetchMe();
@@ -75,22 +79,32 @@ export default function DashboardPage() {
         <Header />
 
         <div className="flex-1 flex overflow-hidden">
-          <main className="flex-1 overflow-hidden animate-in">
-            {renderMainContent()}
-          </main>
+          {activeProjectId ? (
+            <main className="flex-1 overflow-hidden animate-in">
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
+                <ProjectView projectId={activeProjectId} />
+              </Suspense>
+            </main>
+          ) : (
+            <>
+              <main className="flex-1 overflow-hidden animate-in">
+                {renderMainContent()}
+              </main>
 
-          {showRightPanel && (
-            <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
-              {activeTab !== "todo" && (
-                <div className="flex-1 border-b border-slate-200/60 dark:border-slate-700/40">
-                  <TodoList />
-                </div>
+              {showRightPanel && (
+                <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
+                  {activeTab !== "todo" && (
+                    <div className="flex-1 border-b border-slate-200/60 dark:border-slate-700/40">
+                      <TodoList />
+                    </div>
+                  )}
+                  <div className="p-4 space-y-4">
+                    <ReminderPanel />
+                    <DDayWidget />
+                  </div>
+                </aside>
               )}
-              <div className="p-4 space-y-4">
-                <ReminderPanel />
-                <DDayWidget />
-              </div>
-            </aside>
+            </>
           )}
         </div>
       </div>
