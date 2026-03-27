@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
+import { CalendarDays, Users, Target } from "lucide-react";
 import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
 import MemberManager from "./MemberManager";
@@ -19,6 +20,9 @@ interface ProjectInfo {
   name: string;
   color: string;
   myRole: string;
+  startDate?: string | null;
+  targetDate?: string | null;
+  memberCount?: number;
 }
 
 interface ProjectViewProps {
@@ -86,19 +90,60 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2 gap-2 border-b border-slate-200/60 dark:border-slate-700/40">
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            className="w-3 h-3 rounded-full shrink-0"
-            style={{ backgroundColor: project.color || "#3b82f6" }}
-          />
-          <h2 className="text-base font-semibold text-slate-900 dark:text-white truncate">
-            {project.name}
-          </h2>
-          {transferCount > 0 && (
-            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
-              {transferCount}
-            </span>
-          )}
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          {/* Project name */}
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: project.color || "#3b82f6" }}
+            />
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+              {project.name}
+            </h2>
+          </div>
+
+          {/* Info badges */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* D-Day */}
+            {project.targetDate && (() => {
+              const target = new Date(project.targetDate);
+              const today = new Date(); today.setHours(0,0,0,0); target.setHours(0,0,0,0);
+              const dDay = Math.ceil((target.getTime() - today.getTime()) / (1000*60*60*24));
+              return (
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                  dDay < 0 ? "bg-red-100 dark:bg-red-500/15 text-red-600"
+                    : dDay <= 7 ? "bg-orange-100 dark:bg-orange-500/15 text-orange-600"
+                    : "bg-blue-100 dark:bg-blue-500/15 text-blue-600"
+                )}>
+                  {dDay === 0 ? "D-Day!" : dDay > 0 ? `D-${dDay}` : `D+${Math.abs(dDay)}`}
+                </span>
+              );
+            })()}
+
+            {/* Date range */}
+            {(project.startDate || project.targetDate) && (
+              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                <CalendarDays className="w-3 h-3" />
+                {project.startDate?.slice(5) || "?"} ~ {project.targetDate?.slice(5) || "?"}
+              </span>
+            )}
+
+            {/* Member count */}
+            {project.memberCount != null && (
+              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+                <Users className="w-3 h-3" />
+                {project.memberCount}
+              </span>
+            )}
+
+            {/* Transfer badge */}
+            {transferCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                {transferCount}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Tab Bar — scrollable on small screens */}
