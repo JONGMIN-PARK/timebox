@@ -9,6 +9,7 @@ interface ProjectStats {
   completed: number;
   inProgress: number;
   dueSoon: number;
+  unassigned: number;
   progressPercent: number;
   weekCompleted: number;
   weekInProgress: number;
@@ -147,7 +148,8 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
                 {stats?.progressPercent ?? 0}%
               </span>
               <span className="ml-2 text-xs text-slate-400">
-                {t("dashboard.total")}: {stats?.total ?? 0} | {t("dashboard.completed")}: {stats?.completed ?? 0}
+                {t("dashboard.total")}: {stats?.total ?? 0} | {t("dashboard.completed")}: {stats?.completed ?? 0} | {t("dashboard.inProgress")}: {stats?.inProgress ?? 0}
+                {(stats?.unassigned ?? 0) > 0 && <span className="text-orange-400"> | 미배정: {stats?.unassigned}</span>}
               </span>
             </p>
           </div>

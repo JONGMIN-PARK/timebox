@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/core";
 import { useProjectTaskStore, type ProjectTask, type TaskStatus } from "@/stores/projectTaskStore";
 import { useProjectStore, type ProjectMember } from "@/stores/projectStore";
+import { useAuthStore } from "@/stores/authStore";
 import TaskDetailModal from "./TaskDetailModal";
 
 // ── Column config ──
@@ -319,6 +320,8 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
     reorderTasks(projectId, reorderItems);
   }, [tasks, projectId, updateTask, reorderTasks]);
 
+  const currentUserId = useAuthStore(s => s.user?.id);
+
   const handleAddTask = useCallback(async (status: TaskStatus, title: string) => {
     const maxSort = tasksByStatus[status].reduce(
       (max, t) => Math.max(max, t.sortOrder),
@@ -329,8 +332,9 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
       status,
       priority: "medium",
       sortOrder: maxSort + 1,
+      assigneeId: currentUserId || undefined,
     });
-  }, [projectId, addTask, tasksByStatus]);
+  }, [projectId, addTask, tasksByStatus, currentUserId]);
 
   const handleUpdateTask = useCallback(async (taskId: number, data: Partial<ProjectTask>) => {
     await updateTask(projectId, taskId, data);

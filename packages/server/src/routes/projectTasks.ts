@@ -443,9 +443,11 @@ router.get("/:projectId/stats", async (req: ProjectRequest, res) => {
       };
     });
 
+    const unassigned = tasks.filter(t => !t.assigneeId).length;
+
     res.json({
       success: true,
-      data: { total, completed, inProgress, dueSoon, progressPercent: total > 0 ? Math.round((completed / total) * 100) : 0, weekCompleted, weekInProgress, weekDueSoon, memberStats },
+      data: { total, completed, inProgress, dueSoon, unassigned, progressPercent: total > 0 ? Math.round((completed / total) * 100) : 0, weekCompleted, weekInProgress, weekDueSoon, memberStats },
     });
   } catch (error) {
     console.error("projectStats:get", error);
