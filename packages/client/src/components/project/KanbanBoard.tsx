@@ -124,6 +124,15 @@ const TaskCard = React.memo(function TaskCard({
             {/* Spacer */}
             <div className="flex-1" />
 
+            {/* Reactions summary */}
+            {task.reactions && Object.keys(task.reactions).length > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px]">
+                {Object.entries(task.reactions).slice(0, 3).map(([emoji, count]) => (
+                  <span key={emoji} title={`${emoji} ${count}`}>{emoji}{count > 1 ? count : ""}</span>
+                ))}
+              </span>
+            )}
+
             {/* Assignee name */}
             {assignee && (
               <span className={cn(

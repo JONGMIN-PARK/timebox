@@ -19,6 +19,7 @@ export interface ProjectTask {
   parentId: number | null;
   createdAt: string;
   updatedAt: string;
+  reactions?: Record<string, number>;
 }
 
 interface ProjectTaskState {

@@ -40,7 +40,25 @@ router.get("/:projectId/tasks", async (req: ProjectRequest, res) => {
       .where(and(...conditions))
       .orderBy(asc(projectTasks.sortOrder));
 
-    res.json({ success: true, data: tasks });
+    // Attach reaction summaries per task
+    const taskIds = tasks.map(t => t.id);
+    const allReactions = taskIds.length > 0
+      ? await db.select().from(taskReactions).where(inArray(taskReactions.taskId, taskIds))
+      : [];
+
+    const reactionMap = new Map<number, Record<string, number>>();
+    for (const r of allReactions) {
+      if (!reactionMap.has(r.taskId)) reactionMap.set(r.taskId, {});
+      const map = reactionMap.get(r.taskId)!;
+      map[r.emoji] = (map[r.emoji] || 0) + 1;
+    }
+
+    const data = tasks.map(t => ({
+      ...t,
+      reactions: reactionMap.get(t.id) || {},
+    }));
+
+    res.json({ success: true, data });
   } catch (error) {
     console.error("projectTasks:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch tasks" });
