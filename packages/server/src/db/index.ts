@@ -1,16 +1,36 @@
 import pg from "pg";
 import dns from "dns";
+import net from "net";
 import { drizzle } from "drizzle-orm/node-postgres";
 import bcrypt from "bcrypt";
 import * as schema from "./schema.js";
 
-// Force IPv4 to avoid ENETUNREACH on platforms without IPv6 support
+// Force IPv4 globally to avoid ENETUNREACH on platforms without IPv6
 dns.setDefaultResultOrder("ipv4first");
 
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes("localhost") ? false : { rejectUnauthorized: false },
-});
+// Parse DATABASE_URL to extract host for IPv4 lookup override
+function createPool() {
+  const dbUrl = process.env.DATABASE_URL || "";
+  const isLocal = dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
+
+  return new pg.Pool({
+    connectionString: dbUrl,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+    // Force IPv4 TCP connections
+    ...(isLocal ? {} : {
+      lookup: (hostname: string, options: any, callback: any) => {
+        // If options is callback (2-arg form)
+        if (typeof options === "function") {
+          callback = options;
+          options = {};
+        }
+        dns.lookup(hostname, { ...options, family: 4 }, callback);
+      },
+    }),
+  });
+}
+
+const pool = createPool();
 
 export const db = drizzle(pool, { schema });
 
