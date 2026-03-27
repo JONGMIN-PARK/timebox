@@ -4,7 +4,13 @@ services:
     runtime: node
     region: singapore
     plan: free
-    buildCommand: npm install -g pnpm && pnpm install && pnpm build
+    buildCommand: |
+      export PNPM_HOME="/opt/render/.cache/pnpm"
+      export PATH="$PNPM_HOME:$PATH"
+      npm install -g pnpm &&
+      pnpm config set store-dir /opt/render/.cache/pnpm-store &&
+      pnpm install --frozen-lockfile &&
+      pnpm build
     startCommand: pnpm start
     envVars:
       - key: NODE_ENV

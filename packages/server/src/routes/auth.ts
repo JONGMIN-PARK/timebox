@@ -1,5 +1,5 @@
 import { Router } from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
 import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers } from "../db/schema.js";
 import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";

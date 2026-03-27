@@ -1,7 +1,7 @@
 import pg from "pg";
 import { lookup } from "dns/promises";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import * as schema from "./schema.js";
 
 // Resolve hostname to IPv4 address to avoid IPv6 ENETUNREACH on Render

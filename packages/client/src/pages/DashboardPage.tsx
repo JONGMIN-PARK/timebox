@@ -64,7 +64,17 @@ export default function DashboardPage() {
       case "timebox":
         return <TimeBoxView />;
       case "todo":
-        return <TodoList />;
+        return (
+          <div className="flex flex-col h-full overflow-y-auto">
+            <div className="flex-1 min-h-0">
+              <TodoList />
+            </div>
+            <div className="lg:hidden p-4 space-y-4 border-t border-slate-200/60 dark:border-slate-700/40">
+              <ReminderPanel />
+              <DDayWidget />
+            </div>
+          </div>
+        );
       case "scheduler":
         return <ElonScheduler />;
       case "settings":

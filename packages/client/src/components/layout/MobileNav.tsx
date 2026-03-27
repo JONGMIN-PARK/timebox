@@ -21,6 +21,7 @@ const personalTabsWithTeam = [
   { id: "calendar", labelKey: "nav.calendar", icon: Calendar },
   { id: "timebox", labelKey: "nav.timebox", icon: Clock },
   { id: "todo", labelKey: "nav.todos", icon: CheckSquare },
+  { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
   { id: "team", labelKey: "project.title", icon: Users },
   { id: "settings", labelKey: "nav.settings", icon: Settings },
 ];
@@ -66,7 +67,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[52px] transition-all duration-200",
+                "flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl min-w-0 flex-1 transition-all duration-200",
                 isActive
                   ? "text-blue-600 dark:text-blue-400"
                   : "text-slate-400 dark:text-slate-500 active:scale-95",

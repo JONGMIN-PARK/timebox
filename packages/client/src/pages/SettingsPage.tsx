@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import TelegramSection from "@/components/settings/TelegramSection";
@@ -41,7 +41,7 @@ interface TeamGroupMember {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const { t, setLocale, locale } = useI18n();
   const [users, setUsers] = useState<UserInfo[]>([]);
@@ -455,6 +455,17 @@ export default function SettingsPage() {
             <TeamGroupManager />
           </section>
         )}
+
+        {/* Logout */}
+        <section className="pb-6">
+          <button
+            onClick={logout}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-red-500 bg-red-50/80 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            {t("auth.signOut")}
+          </button>
+        </section>
       </div>
     </div>
   );
