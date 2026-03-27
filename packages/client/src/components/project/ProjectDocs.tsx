@@ -75,7 +75,7 @@ export default function ProjectDocs({ projectId, myRole }: ProjectDocsProps) {
             onChange={(e) => setEditText(e.target.value)}
             rows={20}
             className="w-full px-4 py-3 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y font-mono"
-            placeholder="프로젝트 개요, 요구사양, 참고 문서 등을 기록하세요..."
+            placeholder={t("project.overviewPlaceholder")}
             autoFocus
           />
           <div className="flex gap-2 justify-end">
@@ -106,14 +106,14 @@ export default function ProjectDocs({ projectId, myRole }: ProjectDocsProps) {
         <div className="card p-8 text-center">
           <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
           <p className="text-sm text-slate-400">
-            {canEdit ? "프로젝트 문서를 작성해주세요" : "등록된 문서가 없습니다"}
+            {canEdit ? t("project.overviewPlaceholder") : t("project.noDoc")}
           </p>
           {canEdit && (
             <button
               onClick={startEdit}
               className="mt-3 text-xs text-blue-500 hover:text-blue-600 transition-colors"
             >
-              작성하기
+              {t("project.writeDoc")}
             </button>
           )}
         </div>

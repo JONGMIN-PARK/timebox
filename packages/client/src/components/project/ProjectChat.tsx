@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Send, MessageCircle } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 
 interface ChatMessage {
   id: number;
@@ -28,6 +29,7 @@ function formatDate(dateStr: string): string {
 
 export default function ProjectChat({ projectId }: ProjectChatProps) {
   const { t } = useI18n();
+  const pageVisible = usePageVisible();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -66,10 +68,11 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
 
   // Initial fetch + polling
   useEffect(() => {
+    if (!pageVisible) return;
     fetchMessages();
     const interval = setInterval(fetchMessages, 5000);
     return () => clearInterval(interval);
-  }, [fetchMessages]);
+  }, [fetchMessages, pageVisible]);
 
   const handleSend = async () => {
     const content = input.trim();

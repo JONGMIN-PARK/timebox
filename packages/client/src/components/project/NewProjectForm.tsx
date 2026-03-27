@@ -94,12 +94,12 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
         {/* Project Docs */}
         <div>
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
-            프로젝트 개요 / 사양 / 문서
+            {t("project.overview")}
           </label>
           <textarea
             value={docs}
             onChange={(e) => setDocs(e.target.value)}
-            placeholder="프로젝트 개요, 요구사양, 참고 문서 등을 기록하세요..."
+            placeholder={t("project.overviewPlaceholder")}
             rows={6}
             className="w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
           />
@@ -109,7 +109,7 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
-              시작일
+              {t("project.startDateLabel")}
             </label>
             <input
               type="date"
@@ -120,7 +120,7 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
           </div>
           <div>
             <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
-              목표일
+              {t("project.targetDateLabel")}
             </label>
             <input
               type="date"

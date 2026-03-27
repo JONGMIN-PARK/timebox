@@ -30,12 +30,15 @@ router.use("/:projectId/activity", projectMemberMiddleware);
 router.get("/:projectId/tasks", async (req: ProjectRequest, res) => {
   try {
     const { status, assignee } = req.query;
-    let tasks = await db.select().from(projectTasks)
-      .where(eq(projectTasks.projectId, req.projectId!))
+    const conditions = [eq(projectTasks.projectId, req.projectId!)];
+    if (status) conditions.push(eq(projectTasks.status, status as string));
+    if (assignee) {
+      const assigneeId = parseInt(assignee as string);
+      if (!isNaN(assigneeId)) conditions.push(eq(projectTasks.assigneeId, assigneeId));
+    }
+    const tasks = await db.select().from(projectTasks)
+      .where(and(...conditions))
       .orderBy(asc(projectTasks.sortOrder));
-
-    if (status) tasks = tasks.filter(t => t.status === status);
-    if (assignee) tasks = tasks.filter(t => t.assigneeId === parseInt(assignee as string));
 
     res.json({ success: true, data: tasks });
   } catch (error) {
@@ -90,7 +93,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
-      notifyTaskViaTelegram(result[0].assigneeId, projectName, result[0].title, result[0].dueDate);
+      notifyTaskViaTelegram(result[0].assigneeId, projectName, result[0].title, result[0].dueDate).catch(() => {});
     }
 
     res.status(201).json({ success: true, data: result[0] });
@@ -149,7 +152,7 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
-      notifyTaskViaTelegram(req.body.assigneeId, projectName, result[0].title, result[0].dueDate);
+      notifyTaskViaTelegram(req.body.assigneeId, projectName, result[0].title, result[0].dueDate).catch(() => {});
     }
 
     res.json({ success: true, data: result[0] });
@@ -385,6 +388,13 @@ router.get("/:projectId/tasks/:taskId/comments", async (req: ProjectRequest, res
 router.post("/:projectId/tasks/:taskId/comments", async (req: ProjectRequest, res) => {
   try {
     const taskId = parseInt(req.params.taskId as string);
+    const taskExists = await db.select({ id: projectTasks.id }).from(projectTasks)
+      .where(and(eq(projectTasks.id, taskId), eq(projectTasks.projectId, req.projectId!)));
+    if (!taskExists[0]) {
+      res.status(404).json({ success: false, error: "Task not found" });
+      return;
+    }
+
     const { content } = req.body;
     if (!content?.trim()) {
       res.status(400).json({ success: false, error: "Content is required" });
@@ -473,20 +483,23 @@ router.get("/:projectId/stats", async (req: ProjectRequest, res) => {
       dDay = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     }
 
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.status === "done").length;
-    const inProgress = tasks.filter(t => t.status === "in_progress").length;
-
+    let completed = 0, inProgress = 0, dueSoon = 0, unassigned = 0;
+    let weekCompleted = 0, weekInProgress = 0, weekDueSoon = 0;
     const now = new Date();
     const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const todayStr = now.toISOString().slice(0, 10);
-    const dueSoon = tasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done").length;
-
-    // Weekly stats: tasks updated within the last 7 days
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const weekCompleted = tasks.filter(t => t.status === "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
-    const weekInProgress = tasks.filter(t => t.status === "in_progress" && t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
-    const weekDueSoon = tasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
+
+    for (const t of tasks) {
+      if (t.status === "done") completed++;
+      if (t.status === "in_progress") inProgress++;
+      if (!t.assigneeId) unassigned++;
+      if (t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done") dueSoon++;
+      if (t.status === "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekCompleted++;
+      if (t.status === "in_progress" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekInProgress++;
+      if (t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekDueSoon++;
+    }
+    const total = tasks.length;
 
     // Per-member stats with username
     const memberUserIds = members.map(m => m.userId);
@@ -504,8 +517,6 @@ router.get("/:projectId/stats", async (req: ProjectRequest, res) => {
         completedTasks: assigned.filter(t => t.status === "done").length,
       };
     });
-
-    const unassigned = tasks.filter(t => !t.assigneeId).length;
 
     res.json({
       success: true,

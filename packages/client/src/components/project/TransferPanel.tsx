@@ -3,6 +3,7 @@ import { ArrowRight, Check, X, MessageSquare, Inbox } from "lucide-react";
 import { api } from "@/lib/api";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { usePageVisible } from "@/lib/useVisibility";
 
 interface TransferTask {
   id: number;
@@ -35,6 +36,7 @@ interface TransferPanelProps {
 }
 
 export default function TransferPanel({ projectId }: TransferPanelProps) {
+  const pageVisible = usePageVisible();
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [responding, setResponding] = useState<number | null>(null);
   const [fadeOut, setFadeOut] = useState<number | null>(null);
@@ -51,10 +53,11 @@ export default function TransferPanel({ projectId }: TransferPanelProps) {
   }, [projectId]);
 
   useEffect(() => {
+    if (!pageVisible) return;
     fetchTransfers();
     const interval = setInterval(fetchTransfers, 30000);
     return () => clearInterval(interval);
-  }, [fetchTransfers]);
+  }, [fetchTransfers, pageVisible]);
 
   const handleAccept = async (transferId: number) => {
     setResponding(transferId);

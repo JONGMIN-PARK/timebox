@@ -10,11 +10,15 @@ const router = Router();
 router.get("/", async (req: AuthRequest, res) => {
   try {
     const groups = await db.select().from(teamGroups);
-    const members = await db.select().from(teamGroupMembers);
+    const memberCounts = await db.select({
+      groupId: teamGroupMembers.groupId,
+      count: sql<number>`count(*)::int`,
+    }).from(teamGroupMembers).groupBy(teamGroupMembers.groupId);
 
+    const countMap = new Map(memberCounts.map(mc => [mc.groupId, mc.count]));
     const data = groups.map(g => ({
       ...g,
-      memberCount: members.filter(m => m.groupId === g.id).length,
+      memberCount: countMap.get(g.id) || 0,
     }));
 
     res.json({ success: true, data });

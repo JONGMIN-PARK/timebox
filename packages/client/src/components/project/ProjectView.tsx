@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
 import MemberManager from "./MemberManager";
@@ -37,20 +38,22 @@ const TAB_KEYS: { key: Tab; labelKey: string }[] = [
 
 export default function ProjectView({ projectId, initialTab = "dashboard" }: ProjectViewProps) {
   const { t } = useI18n();
+  const pageVisible = usePageVisible();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [transferCount, setTransferCount] = useState(0);
 
   useEffect(() => {
+    if (!pageVisible) return;
     const fetchTransferCount = async () => {
-      const res = await api.get<any[]>(`/projects/${projectId}/transfers`);
+      const res = await api.get<{ id: number }[]>(`/projects/${projectId}/transfers`);
       if (res.success && res.data) setTransferCount(res.data.length);
     };
     fetchTransferCount();
     const interval = setInterval(fetchTransferCount, 30000);
     return () => clearInterval(interval);
-  }, [projectId]);
+  }, [projectId, pageVisible]);
 
   useEffect(() => {
     let cancelled = false;

@@ -43,7 +43,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
   : undefined;
 app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : undefined));
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -61,6 +61,14 @@ const authLimiter = rateLimit({
   message: { success: false, error: "Too many login attempts, please try again later" },
 });
 app.use("/api/auth/login", authLimiter);
+
+// Request logging
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, _res, next) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // Health check
 app.get("/api/health", async (_req, res) => {
@@ -99,7 +107,10 @@ app.use("/api/inbox", authMiddleware, inboxRoutes);
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
   const clientDist = path.join(__dirname, "../../client/dist");
-  app.use(express.static(clientDist));
+  app.use(express.static(clientDist, {
+    maxAge: "7d",
+    etag: true,
+  }));
   app.get("*", (_req, res) => {
     res.sendFile(path.join(clientDist, "index.html"));
   });
@@ -160,4 +171,10 @@ app.listen(PORT, () => {
       console.error("reminder-cron:", err);
     }
   });
+});
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down...");
+  process.exit(0);
 });

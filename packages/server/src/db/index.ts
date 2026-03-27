@@ -53,6 +53,9 @@ export async function initDb() {
   pool = new pg.Pool({
     connectionString: resolvedUrl,
     ssl: isLocal ? false : { rejectUnauthorized: false },
+    max: 20,               // max connections
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   });
 
   _db = drizzle(pool, { schema });
@@ -369,6 +372,14 @@ export async function initDb() {
 
       CREATE INDEX IF NOT EXISTS idx_inbox_to_user ON inbox_messages(to_user_id);
       CREATE INDEX IF NOT EXISTS idx_inbox_from_user ON inbox_messages(from_user_id);
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_status ON project_tasks(project_id, status);
+      CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(project_id, category);
+      CREATE INDEX IF NOT EXISTS idx_inbox_to_read ON inbox_messages(to_user_id, read);
+      CREATE INDEX IF NOT EXISTS idx_inbox_created ON inbox_messages(to_user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_telegram_config_user ON telegram_config(user_id);
+      CREATE INDEX IF NOT EXISTS idx_telegram_config_chat ON telegram_config(chat_id);
+      CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(project_id, created_at DESC);
     `);
 
     // Seed default categories if empty

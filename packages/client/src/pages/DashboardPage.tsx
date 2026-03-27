@@ -2,15 +2,17 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import Header from "@/components/layout/Header";
-import TodoList from "@/components/todo/TodoList";
-import CalendarView from "@/components/calendar/CalendarView";
 import DDayWidget from "@/components/dday/DDayWidget";
 import ReminderPanel from "@/components/reminders/ReminderPanel";
-import TimeBoxView from "@/components/timebox/TimeBoxView";
-import ElonScheduler from "@/components/scheduler/ElonScheduler";
-import FileVault from "@/components/files/FileVault";
-import InboxPanel from "@/components/inbox/InboxPanel";
-import SettingsPage from "@/pages/SettingsPage";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+
+const TodoList = lazy(() => import("@/components/todo/TodoList"));
+const CalendarView = lazy(() => import("@/components/calendar/CalendarView"));
+const TimeBoxView = lazy(() => import("@/components/timebox/TimeBoxView"));
+const ElonScheduler = lazy(() => import("@/components/scheduler/ElonScheduler"));
+const FileVault = lazy(() => import("@/components/files/FileVault"));
+const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const InboxPanel = lazy(() => import("@/components/inbox/InboxPanel"));
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import HelpModal from "@/components/HelpModal";
@@ -107,14 +109,18 @@ export default function DashboardPage() {
           ) : (
             <>
               <main className="flex-1 overflow-hidden animate-in">
-                {renderMainContent()}
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center"><LoadingSpinner /></div>}>
+                  {renderMainContent()}
+                </Suspense>
               </main>
 
               {showRightPanel && (
                 <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
                   {activeTab !== "todo" && (
                     <div className="flex-1 border-b border-slate-200/60 dark:border-slate-700/40">
-                      <TodoList />
+                      <Suspense fallback={<div className="p-4"><LoadingSpinner size="sm" /></div>}>
+                        <TodoList />
+                      </Suspense>
                     </div>
                   )}
                   <div className="p-4 space-y-4">

@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { BarChart3, CheckCircle2, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 
 interface ProjectStats {
   total: number;
@@ -77,6 +78,7 @@ function actionLabel(action: string, targetTitle: string, t: (key: string) => st
 
 export default function ProjectDashboard({ projectId }: { projectId: number }) {
   const { t } = useI18n();
+  const pageVisible = usePageVisible();
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [members, setMembers] = useState<MemberStats[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -101,9 +103,10 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
+    if (!pageVisible) return;
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, pageVisible]);
 
   if (loading) {
     return (
@@ -141,7 +144,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
               </span>
             )}
             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              목표: {stats.targetDate}
+              {t("project.target")}: {stats.targetDate}
             </span>
           </div>
           <div className={cn(
@@ -184,7 +187,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
               </span>
               <span className="ml-2 text-xs text-slate-400">
                 {t("dashboard.total")}: {stats?.total ?? 0} | {t("dashboard.completed")}: {stats?.completed ?? 0} | {t("dashboard.inProgress")}: {stats?.inProgress ?? 0}
-                {(stats?.unassigned ?? 0) > 0 && <span className="text-orange-400"> | 미배정: {stats?.unassigned}</span>}
+                {(stats?.unassigned ?? 0) > 0 && <span className="text-orange-400"> | {t("dashboard.unassigned")}: {stats?.unassigned}</span>}
               </span>
             </p>
           </div>

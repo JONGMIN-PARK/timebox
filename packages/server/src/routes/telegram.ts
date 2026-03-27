@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getTelegramBot } from "../telegram/bot.js";
 import { type AuthRequest } from "../middleware/auth.js";
 import crypto from "crypto";
+import { linkCodes } from "../lib/telegramLink.js";
 
 const router = Router();
 
@@ -66,8 +67,5 @@ router.post("/test", async (req: AuthRequest, res) => {
     res.status(500).json({ success: false, error: "Failed to send test message" });
   }
 });
-
-// In-memory link codes map (code -> { userId, createdAt })
-export const linkCodes = new Map<string, { userId: number; createdAt: number }>();
 
 export default router;

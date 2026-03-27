@@ -209,7 +209,7 @@ export default function InboxPanel() {
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            <span>{tab === "inbox" ? `\ubcf4\ub0b8 \uc0ac\ub78c: ${selectedMsg.fromName}` : `\ubc1b\ub294 \uc0ac\ub78c: ${selectedMsg.toName}`}</span>
+            <span>{tab === "inbox" ? `${t("inbox.from")}: ${selectedMsg.fromName}` : `${t("inbox.to")}: ${selectedMsg.toName}`}</span>
             <span>&middot;</span>
             <span>{new Date(selectedMsg.createdAt).toLocaleString("ko-KR")}</span>
           </div>

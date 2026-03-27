@@ -27,6 +27,18 @@ interface RegRequest {
   reviewedAt: string | null;
 }
 
+interface TeamGroup {
+  id: number;
+  name: string;
+  color: string;
+  memberCount: number;
+  members?: TeamGroupMember[];
+}
+
+interface TeamGroupMember {
+  userId: number;
+}
+
 export default function SettingsPage() {
   const { user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
@@ -38,7 +50,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState("");
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [teamGroups, setTeamGroups] = useState<{id: number; name: string; color: string; memberCount: number; members?: {userId: number}[]}[]>([]);
+  const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
 
   const isAdmin = user?.role === "admin";
   const pendingRequests = requests.filter((r) => r.status === "pending");
@@ -62,12 +74,12 @@ export default function SettingsPage() {
   };
 
   const fetchTeamGroupsWithMembers = async () => {
-    const res = await api.get<any[]>("/admin/groups");
+    const res = await api.get<TeamGroup[]>("/admin/groups");
     if (res.success && res.data) {
       // Fetch members for each group
       const groupsWithMembers = await Promise.all(
-        res.data.map(async (g: any) => {
-          const membersRes = await api.get<any[]>(`/admin/groups/${g.id}/members`);
+        res.data.map(async (g: TeamGroup) => {
+          const membersRes = await api.get<TeamGroupMember[]>(`/admin/groups/${g.id}/members`);
           return { ...g, members: membersRes.data || [] };
         })
       );
@@ -201,7 +213,7 @@ export default function SettingsPage() {
                 onClick={async () => {
                   setExporting(true);
                   try {
-                    const res = await api.get<any>("/backup/export");
+                    const res = await api.get<Record<string, unknown>>("/backup/export");
                     if (res.success && res.data) {
                       const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
                       const url = URL.createObjectURL(blob);
@@ -373,7 +385,7 @@ export default function SettingsPage() {
                       {u.role === "admin" && (
                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wide">Admin</span>
                       )}
-                      {teamGroups.filter(g => g.members?.some((m: any) => m.userId === u.id)).map(g => (
+                      {teamGroups.filter(g => g.members?.some((m) => m.userId === u.id)).map(g => (
                         <span key={g.id} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: g.color + '20', color: g.color }}>
                           {g.name}
                         </span>

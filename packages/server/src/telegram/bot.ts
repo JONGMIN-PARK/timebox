@@ -90,8 +90,8 @@ export async function initTelegramBot() {
       return;
     }
 
-    // Import linkCodes from telegram routes
-    const { linkCodes } = await import("../routes/telegram.js");
+    // Import linkCodes from shared location
+    const { linkCodes } = await import("../lib/telegramLink.js");
     const linkData = linkCodes.get(code);
     if (!linkData) {
       bot!.sendMessage(msg.chat.id, "❌ 유효하지 않거나 만료된 코드입니다. 설정에서 새 코드를 생성해주세요.");

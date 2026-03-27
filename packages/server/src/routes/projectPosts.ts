@@ -23,8 +23,12 @@ router.get("/:projectId/posts", async (req: ProjectRequest, res) => {
     }
 
     // Attach author names and comment counts
-    const allUsers = await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users);
-    const userMap = new Map(allUsers.map(u => [u.id, u.displayName || u.username]));
+    const authorIds = [...new Set(allPosts.map(p => p.authorId))];
+    const authors = authorIds.length > 0
+      ? await db.select({ id: users.id, displayName: users.displayName, username: users.username })
+          .from(users).where(inArray(users.id, authorIds))
+      : [];
+    const userMap = new Map(authors.map(u => [u.id, u.displayName || u.username]));
 
     const postIds = allPosts.map(p => p.id);
     const projectComments = postIds.length > 0
@@ -168,8 +172,12 @@ router.get("/:projectId/posts/:postId/comments", async (req: ProjectRequest, res
       .orderBy(asc(postComments.createdAt));
 
     // Attach author names
-    const allUsers = await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users);
-    const userMap = new Map(allUsers.map(u => [u.id, u.displayName || u.username]));
+    const commentAuthorIds = [...new Set(comments.map(c => c.authorId))];
+    const commentAuthors = commentAuthorIds.length > 0
+      ? await db.select({ id: users.id, displayName: users.displayName, username: users.username })
+          .from(users).where(inArray(users.id, commentAuthorIds))
+      : [];
+    const userMap = new Map(commentAuthors.map(u => [u.id, u.displayName || u.username]));
 
     const data = comments.map(c => ({
       ...c,

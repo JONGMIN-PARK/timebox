@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 
 interface SidebarProps {
   activeTab: string;
@@ -32,24 +33,25 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { theme, setTheme } = useThemeStore();
   const { projects, activeProjectId, setActiveProject, fetchProjects } = useProjectStore();
   const { t } = useI18n();
+  const pageVisible = usePageVisible();
   const hasTeamAccess = user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
   const [openGroups, setOpenGroups] = useState<Set<number>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<{userId: number; displayName: string; username: string}[]>([]);
 
   // Send heartbeat every 60 seconds
   useEffect(() => {
-    if (!user) return;
+    if (!user || !pageVisible) return;
     const sendHeartbeat = () => {
       api.post("/presence/heartbeat", { displayName: user.displayName, username: user.username });
     };
     sendHeartbeat(); // Initial
     const interval = setInterval(sendHeartbeat, 60000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, pageVisible]);
 
   // Fetch online users every 30 seconds
   useEffect(() => {
-    if (!hasTeamAccess) return;
+    if (!hasTeamAccess || !pageVisible) return;
     const fetchOnline = async () => {
       const res = await api.get<{userId: number; displayName: string; username: string}[]>("/presence/online");
       if (res.success && res.data) setOnlineUsers(res.data);
@@ -57,7 +59,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     fetchOnline();
     const interval = setInterval(fetchOnline, 30000);
     return () => clearInterval(interval);
-  }, [hasTeamAccess]);
+  }, [hasTeamAccess, pageVisible]);
 
   const toggleGroup = (groupId: number) => {
     setOpenGroups(prev => {

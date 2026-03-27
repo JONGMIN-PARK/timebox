@@ -257,12 +257,12 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
               {addedToTodo ? (
                 <>
                   <CheckCircle className="w-3.5 h-3.5" />
-                  할 일에 추가됨
+                  {t("task.addedToTodo")}
                 </>
               ) : (
                 <>
                   <ListTodo className="w-3.5 h-3.5" />
-                  내 할 일에 추가
+                  {t("task.addToTodo")}
                 </>
               )}
             </button>

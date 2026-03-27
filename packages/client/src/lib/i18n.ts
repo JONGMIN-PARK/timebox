@@ -289,6 +289,24 @@ const translations: Record<Locale, Record<string, string>> = {
     "inbox.selectRecipient": "Select recipient...",
     "inbox.subjectPlaceholder": "Subject",
     "inbox.contentPlaceholder": "Write your message...",
+    "inbox.from": "From",
+    "inbox.to": "To",
+
+    // Project extras
+    "project.overview": "Overview / Specs / Documents",
+    "project.overviewPlaceholder": "Project overview, specs, reference docs...",
+    "project.writeDoc": "Write document",
+    "project.noDoc": "No documents registered",
+    "project.target": "Target",
+    "project.startDateLabel": "Start Date",
+    "project.targetDateLabel": "Target Date",
+
+    // Dashboard extras
+    "dashboard.unassigned": "Unassigned",
+
+    // Task extras
+    "task.addToTodo": "Add to My Todo",
+    "task.addedToTodo": "Added to todo",
   },
   ko: {
     // Navigation
@@ -578,6 +596,24 @@ const translations: Record<Locale, Record<string, string>> = {
     "inbox.selectRecipient": "\ubc1b\ub294 \uc0ac\ub78c \uc120\ud0dd...",
     "inbox.subjectPlaceholder": "\uc81c\ubaa9",
     "inbox.contentPlaceholder": "\ub0b4\uc6a9\uc744 \uc785\ub825\ud558\uc138\uc694...",
+    "inbox.from": "\ubcf4\ub0b8 \uc0ac\ub78c",
+    "inbox.to": "\ubc1b\ub294 \uc0ac\ub78c",
+
+    // Project extras
+    "project.overview": "\ud504\ub85c\uc81d\ud2b8 \uac1c\uc694 / \uc0ac\uc591 / \ubb38\uc11c",
+    "project.overviewPlaceholder": "\ud504\ub85c\uc81d\ud2b8 \uac1c\uc694, \uc694\uad6c\uc0ac\uc591, \ucc38\uace0 \ubb38\uc11c \ub4f1\uc744 \uae30\ub85d\ud558\uc138\uc694...",
+    "project.writeDoc": "\uc791\uc131\ud558\uae30",
+    "project.noDoc": "\ub4f1\ub85d\ub41c \ubb38\uc11c\uac00 \uc5c6\uc2b5\ub2c8\ub2e4",
+    "project.target": "\ubaa9\ud45c",
+    "project.startDateLabel": "\uc2dc\uc791\uc77c",
+    "project.targetDateLabel": "\ubaa9\ud45c\uc77c",
+
+    // Dashboard extras
+    "dashboard.unassigned": "\ubbf8\ubc30\uc815",
+
+    // Task extras
+    "task.addToTodo": "\ub0b4 \ud560 \uc77c\uc5d0 \ucd94\uac00",
+    "task.addedToTodo": "\ud560 \uc77c\uc5d0 \ucd94\uac00\ub428",
   },
 };
 

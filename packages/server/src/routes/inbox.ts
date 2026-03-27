@@ -118,7 +118,7 @@ router.post("/", async (req: AuthRequest, res) => {
     }).returning();
 
     // Send Telegram notification (async, non-blocking)
-    notifyViaTelegram(toUserId, fromName, subject.trim(), content.trim());
+    notifyViaTelegram(toUserId, fromName, subject.trim(), content.trim()).catch(() => {});
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
