@@ -351,6 +351,7 @@ export async function initDb() {
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS team_group_id INTEGER;
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date TEXT;
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_date TEXT;
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS docs TEXT;
       ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TEXT;
     `);
 

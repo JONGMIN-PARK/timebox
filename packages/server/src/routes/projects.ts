@@ -66,7 +66,7 @@ router.get("/", async (req: AuthRequest, res) => {
 router.post("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    const { name, description, color, icon, teamGroupId, startDate, targetDate } = req.body;
+    const { name, description, color, icon, teamGroupId, startDate, targetDate, docs } = req.body;
     // Verify user has team access
     const userRow = await db.select().from(users).where(eq(users.id, userId));
     const isAdmin = userRow[0]?.role === "admin";
@@ -90,6 +90,7 @@ router.post("/", async (req: AuthRequest, res) => {
       icon: icon || null,
       startDate: startDate || null,
       targetDate: targetDate || null,
+      docs: docs || null,
       teamGroupId: teamGroupId || null,
       ownerId: userId,
     }).returning();
@@ -137,6 +138,7 @@ router.put("/:projectId", projectMemberMiddleware, projectAdminMiddleware, async
     if (req.body.icon !== undefined) updates.icon = req.body.icon;
     if (req.body.startDate !== undefined) updates.startDate = req.body.startDate;
     if (req.body.targetDate !== undefined) updates.targetDate = req.body.targetDate;
+    if (req.body.docs !== undefined) updates.docs = req.body.docs;
 
     const result = await db.update(projects).set(updates).where(eq(projects.id, req.projectId!)).returning();
     res.json({ success: true, data: result[0] });

@@ -184,6 +184,7 @@ export const projects = pgTable("projects", {
   visibility: text("visibility").notNull().default("team"),
   startDate: text("start_date"),
   targetDate: text("target_date"),
+  docs: text("docs"),  // Markdown/text for project overview, specs, notes
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
   teamGroupId: integer("team_group_id"),

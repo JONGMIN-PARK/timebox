@@ -9,8 +9,9 @@ import TransferPanel from "./TransferPanel";
 import PostBoard from "./PostBoard";
 import ProjectFileManager from "./ProjectFileManager";
 import ProjectChat from "./ProjectChat";
+import ProjectDocs from "./ProjectDocs";
 
-type Tab = "dashboard" | "tasks" | "members" | "board" | "files" | "chat";
+type Tab = "dashboard" | "tasks" | "members" | "board" | "files" | "chat" | "docs";
 
 interface ProjectInfo {
   id: number;
@@ -30,6 +31,7 @@ const TAB_KEYS: { key: Tab; labelKey: string }[] = [
   { key: "board", labelKey: "post.title" },
   { key: "files", labelKey: "files.shared" },
   { key: "chat", labelKey: "chat.title" },
+  { key: "docs", labelKey: "project.docs" },
   { key: "members", labelKey: "project.members" },
 ];
 
@@ -136,6 +138,9 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           <div className="flex-1 flex flex-col h-full">
             <ProjectChat projectId={projectId} />
           </div>
+        </div>
+        <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "docs" ? "block" : "hidden")}>
+          <ProjectDocs projectId={projectId} myRole={project.myRole} />
         </div>
         <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "members" ? "block" : "hidden")}>
           <MemberManager projectId={projectId} myRole={project.myRole} />

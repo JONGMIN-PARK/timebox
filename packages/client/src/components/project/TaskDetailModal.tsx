@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Trash2, CalendarDays, ArrowRightLeft } from "lucide-react";
+import { X, Trash2, CalendarDays, ArrowRightLeft, CheckCircle, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { t } from "@/lib/i18n";
@@ -39,6 +39,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   const [startDate, setStartDate] = useState(task.startDate || "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [addedToTodo, setAddedToTodo] = useState(false);
 
   // Transfer state
   const [showTransfer, setShowTransfer] = useState(false);
@@ -102,6 +103,19 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
       setTransferResult("error");
     }
     setTransferSending(false);
+  };
+
+  const handleAddToTodo = async () => {
+    const res = await api.post("/todos", {
+      title: `[${task.status}] ${task.title}`,
+      priority: task.priority || "medium",
+      category: "work",
+      dueDate: task.dueDate || null,
+    });
+    if (res.success) {
+      setAddedToTodo(true);
+      setTimeout(() => setAddedToTodo(false), 2000);
+    }
   };
 
   // Members eligible for transfer (exclude current assignee)
@@ -231,6 +245,27 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
               rows={4}
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
             />
+          </div>
+
+          {/* Add to personal todo */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleAddToTodo}
+              disabled={addedToTodo}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-green-600 dark:hover:text-green-400 transition-colors disabled:text-green-500"
+            >
+              {addedToTodo ? (
+                <>
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  할 일에 추가됨
+                </>
+              ) : (
+                <>
+                  <ListTodo className="w-3.5 h-3.5" />
+                  내 할 일에 추가
+                </>
+              )}
+            </button>
           </div>
 
           {/* Transfer section */}
