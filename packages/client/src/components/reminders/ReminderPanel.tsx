@@ -38,14 +38,29 @@ export default function ReminderPanel() {
         const r = res.data[0];
         setAlertReminder(r);
 
-        // Browser notification
+        // Browser notification (works even when tab is not focused)
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification(`⏰ ${r.title}`, {
             body: r.message || "리마인더 시간입니다!",
             icon: "/icon-192.png",
             tag: `reminder-${r.id}`,
+            requireInteraction: true,
           });
         }
+
+        // Open a small popup window for attention (desktop)
+        try {
+          const popupContent = encodeURIComponent(
+            `<html><head><title>⏰ 리마인더</title><style>body{font-family:system-ui;margin:0;padding:20px;background:#fef3c7;text-align:center}h2{color:#92400e;margin:0 0 8px}p{color:#78350f;margin:4px 0}button{margin:8px 4px;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px}button.ok{background:#f59e0b;color:white}button.snooze{background:white;color:#92400e;border:1px solid #fbbf24}</style></head><body><h2>⏰ ${r.title}</h2>${r.message ? `<p>${r.message}</p>` : ""}<p style="font-size:12px;color:#a16207">${new Date(r.remindAt).toLocaleString("ko-KR")}</p><br><button class="ok" onclick="window.close()">확인</button><button class="snooze" onclick="window.opener?.postMessage({type:'snooze-reminder',id:${r.id},mins:15},'*');window.close()">15분 후</button></body></html>`
+          );
+          const popup = window.open(
+            `data:text/html,${popupContent}`,
+            `reminder-${r.id}`,
+            "width=340,height=220,top=100,left=100,toolbar=no,menubar=no,scrollbars=no,resizable=no"
+          );
+          // Auto-close popup after 60 seconds
+          if (popup) setTimeout(() => { try { popup.close(); } catch {} }, 60000);
+        } catch {}
 
         // Play sound
         try {
@@ -69,6 +84,17 @@ export default function ReminderPanel() {
     const interval = setInterval(checkDueReminders, 10000); // Then every 10s
     return () => clearInterval(interval);
   }, [checkDueReminders]);
+
+  // Listen for snooze messages from popup window
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "snooze-reminder" && e.data.id && e.data.mins) {
+        handleSnooze(e.data.id, e.data.mins);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
   // Re-check when page becomes visible again (handles background tab scenario)
   useEffect(() => {

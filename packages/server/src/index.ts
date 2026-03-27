@@ -82,12 +82,13 @@ app.listen(PORT, () => {
     console.log("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
   }
 
-  // Check for due reminders every minute
+  // Check for due reminders every minute and send Telegram notifications
   cron.schedule("* * * * *", async () => {
     try {
       const { db } = await import("./db/index.js");
-      const { reminders } = await import("./db/schema.js");
+      const { reminders, telegramConfig } = await import("./db/schema.js");
       const { eq, and, lte } = await import("drizzle-orm");
+      const { getTelegramBot } = await import("./telegram/bot.js");
 
       const now = new Date().toISOString();
       const dueReminders = await db.select().from(reminders)
@@ -96,11 +97,27 @@ app.listen(PORT, () => {
           lte(reminders.remindAt, now)
         ));
 
-      // Filter out snoozed ones
       const ready = dueReminders.filter(r => !r.snoozedUntil || r.snoozedUntil <= now);
 
       if (ready.length > 0) {
         console.log(`[cron] ${ready.length} due reminder(s) found`);
+
+        // Send Telegram notification
+        const bot = getTelegramBot();
+        if (bot) {
+          const conf = await db.select().from(telegramConfig).limit(1);
+          const chatId = conf[0]?.chatId;
+          if (chatId) {
+            for (const r of ready) {
+              const msg = `🔔 *리마인더*\n\n⏰ *${r.title}*${r.message ? `\n${r.message}` : ""}\n\n_${new Date(r.remindAt).toLocaleString("ko-KR")}_`;
+              try {
+                await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+              } catch (e) {
+                console.error("telegram-reminder:", e);
+              }
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("reminder-cron:", err);
