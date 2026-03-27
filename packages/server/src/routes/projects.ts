@@ -12,23 +12,38 @@ router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
 
-    // Return projects the user is a member of (project_members is the access gate)
+    // 1. Projects where user is a direct member
     const memberships = await db.select().from(projectMembers).where(eq(projectMembers.userId, userId));
-    const projectIds = memberships.map(m => m.projectId);
+    const directProjectIds = memberships.map(m => m.projectId);
 
-    if (projectIds.length === 0) {
+    // 2. Projects in user's team groups
+    const userGroups = await db.select({ groupId: teamGroupMembers.groupId })
+      .from(teamGroupMembers).where(eq(teamGroupMembers.userId, userId));
+    const groupIds = userGroups.map(g => g.groupId);
+
+    let groupProjectIds: number[] = [];
+    if (groupIds.length > 0) {
+      const groupProjects = await db.select({ id: projects.id })
+        .from(projects).where(inArray(projects.teamGroupId, groupIds));
+      groupProjectIds = groupProjects.map(p => p.id);
+    }
+
+    // Combine unique project IDs
+    const allProjectIds = [...new Set([...directProjectIds, ...groupProjectIds])];
+
+    if (allProjectIds.length === 0) {
       res.json({ success: true, data: [] });
       return;
     }
 
-    const myProjects = await db.select().from(projects).where(inArray(projects.id, projectIds));
+    const myProjects = await db.select().from(projects).where(inArray(projects.id, allProjectIds));
 
     // Single query to get member counts grouped by projectId
     const memberCounts = await db.select({
       projectId: projectMembers.projectId,
       memberCount: count(),
     }).from(projectMembers)
-      .where(inArray(projectMembers.projectId, projectIds))
+      .where(inArray(projectMembers.projectId, allProjectIds))
       .groupBy(projectMembers.projectId);
 
     const memberCountMap = new Map(memberCounts.map(mc => [mc.projectId, mc.memberCount]));
@@ -37,7 +52,7 @@ router.get("/", async (req: AuthRequest, res) => {
     const result = myProjects.map(p => ({
       ...p,
       memberCount: memberCountMap.get(p.id) || 0,
-      myRole: membershipMap.get(p.id),
+      myRole: membershipMap.get(p.id) || (groupIds.includes(p.teamGroupId!) ? "viewer" : undefined),
     }));
 
     res.json({ success: true, data: result });

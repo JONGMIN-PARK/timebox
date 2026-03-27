@@ -118,38 +118,28 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
       {/* Transfer requests panel */}
       <TransferPanel projectId={projectId} />
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {activeTab === "dashboard" && (
-          <div className="h-full overflow-y-auto">
-            <ProjectDashboard projectId={projectId} />
-          </div>
-        )}
-        {activeTab === "tasks" && (
-          <div className="h-full overflow-hidden">
-            <KanbanBoard projectId={projectId} />
-          </div>
-        )}
-        {activeTab === "board" && (
-          <div className="h-full overflow-y-auto">
-            <PostBoard projectId={projectId} />
-          </div>
-        )}
-        {activeTab === "files" && (
-          <div className="h-full overflow-y-auto">
-            <ProjectFileManager projectId={projectId} />
-          </div>
-        )}
-        {activeTab === "chat" && (
-          <div className="h-full overflow-hidden">
+      {/* Content - all tabs stay mounted, only active is visible */}
+      <div className="flex-1 overflow-hidden relative">
+        <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "dashboard" ? "block" : "hidden")}>
+          <ProjectDashboard projectId={projectId} />
+        </div>
+        <div className={cn("absolute inset-0 overflow-hidden", activeTab === "tasks" ? "block" : "hidden")}>
+          <KanbanBoard projectId={projectId} />
+        </div>
+        <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "board" ? "block" : "hidden")}>
+          <PostBoard projectId={projectId} />
+        </div>
+        <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "files" ? "block" : "hidden")}>
+          <ProjectFileManager projectId={projectId} />
+        </div>
+        <div className={cn("absolute inset-0 overflow-hidden", activeTab === "chat" ? "flex" : "hidden")}>
+          <div className="flex-1 flex flex-col h-full">
             <ProjectChat projectId={projectId} />
           </div>
-        )}
-        {activeTab === "members" && (
-          <div className="h-full overflow-y-auto">
-            <MemberManager projectId={projectId} myRole={project.myRole} />
-          </div>
-        )}
+        </div>
+        <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "members" ? "block" : "hidden")}>
+          <MemberManager projectId={projectId} myRole={project.myRole} />
+        </div>
       </div>
     </div>
   );

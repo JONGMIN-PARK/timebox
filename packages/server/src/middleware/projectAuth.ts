@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { db } from "../db/index.js";
-import { projectMembers } from "../db/schema.js";
+import { projectMembers, teamGroupMembers, projects } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { type AuthRequest } from "./auth.js";
 
@@ -21,6 +21,21 @@ export async function projectMemberMiddleware(req: ProjectRequest, res: Response
     .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, req.userId!)));
 
   if (!members[0]) {
+    // Check if user is in the project's team group
+    const project = await db.select().from(projects).where(eq(projects.id, projectId));
+    if (project[0]?.teamGroupId) {
+      const groupMembership = await db.select().from(teamGroupMembers)
+        .where(and(
+          eq(teamGroupMembers.groupId, project[0].teamGroupId),
+          eq(teamGroupMembers.userId, req.userId!)
+        ));
+      if (groupMembership[0]) {
+        req.projectId = projectId;
+        req.projectRole = "viewer";
+        next();
+        return;
+      }
+    }
     res.status(403).json({ success: false, error: "Not a member of this project" });
     return;
   }

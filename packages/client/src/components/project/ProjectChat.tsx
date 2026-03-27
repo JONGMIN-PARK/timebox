@@ -53,9 +53,12 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
       const latest = res.data[res.data.length - 1];
       if (latest && latest.id !== lastMessageIdRef.current) {
         lastMessageIdRef.current = latest.id;
-        // Auto-scroll on new messages
+        // Auto-scroll on new messages (only if chat container is visible)
         setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          const el = messagesEndRef.current;
+          if (el && el.offsetParent !== null) {
+            el.scrollIntoView({ behavior: "smooth" });
+          }
         }, 50);
       }
     }

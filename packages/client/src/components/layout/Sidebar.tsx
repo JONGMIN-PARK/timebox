@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -32,6 +33,30 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { t } = useI18n();
   const hasTeamAccess = user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
   const [openGroups, setOpenGroups] = useState<Set<number>>(new Set());
+  const [onlineUsers, setOnlineUsers] = useState<{userId: number; displayName: string; username: string}[]>([]);
+
+  // Send heartbeat every 60 seconds
+  useEffect(() => {
+    if (!user) return;
+    const sendHeartbeat = () => {
+      api.post("/presence/heartbeat", { displayName: user.displayName, username: user.username });
+    };
+    sendHeartbeat(); // Initial
+    const interval = setInterval(sendHeartbeat, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Fetch online users every 30 seconds
+  useEffect(() => {
+    if (!hasTeamAccess) return;
+    const fetchOnline = async () => {
+      const res = await api.get<{userId: number; displayName: string; username: string}[]>("/presence/online");
+      if (res.success && res.data) setOnlineUsers(res.data);
+    };
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 30000);
+    return () => clearInterval(interval);
+  }, [hasTeamAccess]);
 
   const toggleGroup = (groupId: number) => {
     setOpenGroups(prev => {
@@ -189,6 +214,27 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </div>
         )}
       </nav>
+
+      {/* Online team members */}
+      {hasTeamAccess && onlineUsers.length > 0 && (
+        <div className="px-2 py-2 border-t border-slate-200/60 dark:border-slate-700/40">
+          <div className="hidden lg:block px-3 pb-1.5">
+            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Online ({onlineUsers.filter(u => u.userId !== user?.id).length})
+            </span>
+          </div>
+          <div className="space-y-0.5 max-h-[120px] overflow-y-auto">
+            {onlineUsers.filter(u => u.userId !== user?.id).map((u) => (
+              <div key={u.userId} className="flex items-center gap-2 px-3 py-1">
+                <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                <span className="hidden lg:block text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                  {u.displayName || u.username}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom */}
       <div className="py-3 px-2 space-y-0.5 border-t border-slate-200/60 dark:border-slate-700/40">

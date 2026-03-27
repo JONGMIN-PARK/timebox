@@ -39,6 +39,9 @@ const TaskCard = React.memo(function TaskCard({
   members: ProjectMember[];
   onClick: () => void;
 }) {
+  const currentUserId = useAuthStore(s => s.user?.id);
+  const isMyTask = task.assigneeId === currentUserId;
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
@@ -69,6 +72,8 @@ const TaskCard = React.memo(function TaskCard({
         "group bg-white dark:bg-slate-800 rounded-lg border p-3 cursor-grab active:cursor-grabbing touch-none hover:shadow-sm transition-colors",
         isDragging
           ? "border-blue-400 dark:border-blue-500 shadow-xl opacity-90"
+          : isMyTask
+          ? "border-l-[3px] border-l-blue-500 border-t-slate-200 border-r-slate-200 border-b-slate-200 dark:border-l-blue-400 dark:border-t-slate-700 dark:border-r-slate-700 dark:border-b-slate-700 hover:border-l-blue-600"
           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600",
       )}
       onClick={isDragging ? undefined : onClick}
@@ -121,8 +126,11 @@ const TaskCard = React.memo(function TaskCard({
 
             {/* Assignee name */}
             {assignee && (
-              <span className="text-[10px] font-medium text-indigo-500 dark:text-indigo-400 truncate max-w-[80px]">
-                {assignee.displayName || assignee.username || "?"}
+              <span className={cn(
+                "text-[10px] font-medium truncate max-w-[80px]",
+                isMyTask ? "text-blue-600 dark:text-blue-400" : "text-indigo-500 dark:text-indigo-400"
+              )}>
+                {isMyTask ? "✓ " : ""}{assignee.displayName || assignee.username || "?"}
               </span>
             )}
           </div>

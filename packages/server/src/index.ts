@@ -23,6 +23,7 @@ import projectPostRoutes from "./routes/projectPosts.js";
 import projectFileRoutes from "./routes/projectFiles.js";
 import projectMessageRoutes from "./routes/projectMessages.js";
 import teamGroupRoutes from "./routes/teamGroups.js";
+import presenceRoutes from "./routes/presence.js";
 import { initTelegramBot } from "./telegram/bot.js";
 
 dotenv.config();
@@ -91,6 +92,7 @@ app.use("/api/projects", authMiddleware, projectPostRoutes);
 app.use("/api/projects", authMiddleware, projectFileRoutes);
 app.use("/api/projects", authMiddleware, projectMessageRoutes);
 app.use("/api/admin/groups", authMiddleware, adminMiddleware, teamGroupRoutes);
+app.use("/api/presence", authMiddleware, presenceRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
