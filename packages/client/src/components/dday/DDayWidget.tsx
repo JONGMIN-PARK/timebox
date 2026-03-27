@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useDDayStore } from "@/stores/ddayStore";
 import { Plus, Trash2, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 
 export default function DDayWidget() {
   const { ddays, loading, fetchDDays, addDDay, deleteDDay } = useDDayStore();
+  const { t } = useI18n();
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
   const [targetDate, setTargetDate] = useState("");
@@ -27,7 +29,7 @@ export default function DDayWidget() {
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <Flag className="w-4 h-4 text-blue-500" />
-          <h3 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">D-Day</h3>
+          <h3 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">{t("dday.title")}</h3>
         </div>
         <button
           onClick={() => setShowAdd(!showAdd)}
@@ -43,7 +45,7 @@ export default function DDayWidget() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Event name"
+            placeholder={t("dday.eventName")}
             className="input-base w-full"
             autoFocus
           />
@@ -54,8 +56,8 @@ export default function DDayWidget() {
             className="input-base w-full"
           />
           <div className="flex gap-2">
-            <button type="submit" className="flex-1 text-xs py-2 btn-primary rounded-lg">Add</button>
-            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-xs py-2 btn-ghost rounded-lg bg-slate-100 dark:bg-slate-700">Cancel</button>
+            <button type="submit" className="flex-1 text-xs py-2 btn-primary rounded-lg">{t("common.add")}</button>
+            <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-xs py-2 btn-ghost rounded-lg bg-slate-100 dark:bg-slate-700">{t("common.cancel")}</button>
           </div>
         </form>
       )}
@@ -87,7 +89,7 @@ export default function DDayWidget() {
         ))}
         {ddays.length === 0 && (
           <div className="px-4 py-6 text-center">
-            <p className="text-xs text-slate-400">Add your first D-Day</p>
+            <p className="text-xs text-slate-400">{t("dday.addFirst")}</p>
           </div>
         )}
       </div>

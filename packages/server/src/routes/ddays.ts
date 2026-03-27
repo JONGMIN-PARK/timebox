@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { ddays } from "../db/schema.js";
 import { eq, and, asc } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
+import { validate, schemas } from "../middleware/validate.js";
 
 const router = Router();
 
@@ -25,14 +26,10 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", async (req: AuthRequest, res) => {
+router.post("/", validate(schemas.createDDay), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, targetDate, color, icon } = req.body;
-    if (!title?.trim() || !targetDate) {
-      res.status(400).json({ success: false, error: "Title and targetDate are required" });
-      return;
-    }
     const result = await db.insert(ddays).values({ userId, title: title.trim(), targetDate, color: color || "#3b82f6", icon: icon || null }).returning();
     res.json({ success: true, data: { ...result[0], daysLeft: calcDaysLeft(result[0].targetDate) } });
   } catch (error) {

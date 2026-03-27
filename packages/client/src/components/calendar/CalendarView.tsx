@@ -19,6 +19,7 @@ import {
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 import type { ViewMode, HoverTooltipItem } from "./calendarTypes";
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
 import HoverTooltip from "./HoverTooltip";
@@ -37,6 +38,7 @@ export default function CalendarView() {
   const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverInfo, setHoverInfo] = useState<{ items: HoverTooltipItem[]; anchorRect: DOMRect } | null>(null);
+  const { t } = useI18n();
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     if (viewMode === "month") {
@@ -198,7 +200,7 @@ export default function CalendarView() {
             onClick={() => setCurrentDate(new Date())}
             className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 ml-1"
           >
-            Today
+            {t("common.today")}
           </button>
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
@@ -213,7 +215,7 @@ export default function CalendarView() {
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
               )}
             >
-              {{ month: "M", week: "W", day: "D" }[mode]}
+              {{ month: t("calendar.month"), week: t("calendar.week"), day: t("calendar.day") }[mode]}
             </button>
           ))}
         </div>
@@ -280,19 +282,19 @@ export default function CalendarView() {
             className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
           >
             <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(selectedDate, "MMM d", { locale: enUS })} Add Event
+              {format(selectedDate, "MMM d", { locale: enUS })} {t("calendar.addEvent")}
             </h3>
             <input
               type="text"
               value={newEvent.title}
               onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-              placeholder="Event title"
+              placeholder={t("calendar.eventTitle")}
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
             {categories.length > 0 && (
               <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">Category</label>
+                <label className="text-xs text-slate-500 mb-1.5 block">{t("calendar.category")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {categories.map((cat) => (
                     <button
@@ -316,17 +318,17 @@ export default function CalendarView() {
             )}
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">Start</label>
+                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
                 <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">End</label>
+                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
                 <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
             </div>
             <div className="flex gap-2">
-              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">Add</button>
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">Cancel</button>
+              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{t("common.add")}</button>
+              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
             </div>
           </form>
         </div>

@@ -3,7 +3,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe } from "lucide-react";
+import { useI18n } from "@/lib/useI18n";
+import type { Locale } from "@/lib/i18n";
 
 interface UserInfo {
   id: number;
@@ -27,6 +29,7 @@ interface RegRequest {
 export default function SettingsPage() {
   const { user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
+  const { t, setLocale, locale } = useI18n();
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [requests, setRequests] = useState<RegRequest[]>([]);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -109,13 +112,13 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="px-6 py-4 border-b border-slate-200/60 dark:border-slate-700/40">
-        <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">Settings</h1>
+        <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">{t("settings.title")}</h1>
       </div>
 
       <div className="flex-1 p-4 sm:p-6 space-y-6 max-w-2xl">
         {/* Profile */}
         <section>
-          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Profile</h2>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.profile")}</h2>
           <div className="card p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-lg font-semibold text-white shadow-sm">
@@ -131,14 +134,14 @@ export default function SettingsPage() {
 
         {/* Theme */}
         <section>
-          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Appearance</h2>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.appearance")}</h2>
           <div className="card p-4">
             <div className="flex gap-2">
               {([
-                { value: "light", label: "Light", Icon: Sun },
-                { value: "dark", label: "Dark", Icon: Moon },
-                { value: "system", label: "System", Icon: Monitor },
-              ] as const).map(({ value, label, Icon }) => (
+                { value: "light", labelKey: "settings.light", Icon: Sun },
+                { value: "dark", labelKey: "settings.dark", Icon: Moon },
+                { value: "system", labelKey: "settings.system", Icon: Monitor },
+              ] as const).map(({ value, labelKey, Icon }) => (
                 <button key={value} onClick={() => setTheme(value)}
                   className={cn(
                     "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium transition-all",
@@ -147,16 +150,34 @@ export default function SettingsPage() {
                       : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60",
                   )}>
                   <Icon className="w-4 h-4" />
-                  {label}
+                  {t(labelKey)}
                 </button>
               ))}
             </div>
           </div>
         </section>
 
+        {/* Language */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.language")}</h2>
+          <div className="card p-4">
+            <div className="flex items-center gap-3">
+              <Globe className="w-4 h-4 text-slate-400" />
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as Locale)}
+                className="flex-1 text-sm bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+              >
+                <option value="en">English</option>
+                <option value="ko">한국어</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
         {/* Data Management */}
         <section className="animate-in">
-          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Data</h2>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.data")}</h2>
           <div className="card p-4 space-y-3">
             <div className="flex flex-col sm:flex-row gap-2">
               <button
@@ -181,11 +202,11 @@ export default function SettingsPage() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl btn-ghost bg-slate-50 dark:bg-slate-700/40 text-sm font-medium"
               >
                 <Download className="w-4 h-4" />
-                {exporting ? "Exporting..." : "Export Data"}
+                {exporting ? t("settings.exporting") : t("settings.export")}
               </button>
               <label className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl btn-ghost bg-slate-50 dark:bg-slate-700/40 text-sm font-medium cursor-pointer">
                 <Upload className="w-4 h-4" />
-                {importing ? "Importing..." : "Import Data"}
+                {importing ? t("settings.importing") : t("settings.import")}
                 <input
                   type="file"
                   accept=".json"
@@ -216,7 +237,7 @@ export default function SettingsPage() {
             <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50/80 dark:bg-amber-500/5 border border-amber-200/50 dark:border-amber-500/10">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
               <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
-                Export downloads all your data as JSON. Import can merge with or replace existing data.
+                {t("settings.dataNote")}
               </p>
             </div>
           </div>
@@ -232,7 +253,7 @@ export default function SettingsPage() {
         {isAdmin && pendingRequests.length > 0 && (
           <section>
             <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-              Access Requests
+              {t("settings.accessRequests")}
               <span className="bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                 {pendingRequests.length}
               </span>
@@ -256,12 +277,12 @@ export default function SettingsPage() {
                     <button onClick={() => handleRequestAction(req.id, "approve")}
                       className="h-8 px-3 rounded-lg bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-100 dark:hover:bg-green-500/20 transition-all flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Approve</span>
+                      <span className="hidden sm:inline">{t("settings.approve")}</span>
                     </button>
                     <button onClick={() => handleRequestAction(req.id, "reject")}
                       className="h-8 px-3 rounded-lg bg-slate-100 dark:bg-slate-700/50 text-slate-500 text-xs font-medium hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 transition-all flex items-center gap-1">
                       <XCircle className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Reject</span>
+                      <span className="hidden sm:inline">{t("settings.reject")}</span>
                     </button>
                   </div>
                 </div>
@@ -274,11 +295,11 @@ export default function SettingsPage() {
         {isAdmin && (
           <section>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User Management</h2>
+              <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{t("settings.userManagement")}</h2>
               <button onClick={() => setShowAddUser(!showAddUser)}
                 className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg btn-primary">
                 <UserPlus className="w-3.5 h-3.5" />
-                Add User
+                {t("settings.addUser")}
               </button>
             </div>
 
@@ -286,24 +307,24 @@ export default function SettingsPage() {
               <form onSubmit={handleAddUser} className="card p-4 mb-3 space-y-3 animate-in">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">Username</label>
+                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">{t("auth.username")}</label>
                     <input type="text" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                       className="input-base w-full" autoFocus />
                   </div>
                   <div>
-                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">Password</label>
+                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">{t("auth.password")}</label>
                     <input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                       className="input-base w-full" />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">Display Name</label>
+                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">{t("auth.displayName")}</label>
                     <input type="text" value={newUser.displayName} onChange={(e) => setNewUser({ ...newUser, displayName: e.target.value })}
                       placeholder="Optional" className="input-base w-full" />
                   </div>
                   <div>
-                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">Role</label>
+                    <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-1 block">{t("settings.role")}</label>
                     <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                       className="input-base w-full">
                       <option value="user">User</option>
@@ -312,8 +333,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" className="flex-1 py-2.5 text-xs btn-primary rounded-xl">Create</button>
-                  <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 py-2.5 text-xs btn-ghost rounded-xl bg-slate-100 dark:bg-slate-700">Cancel</button>
+                  <button type="submit" className="flex-1 py-2.5 text-xs btn-primary rounded-xl">{t("settings.create")}</button>
+                  <button type="button" onClick={() => setShowAddUser(false)} className="flex-1 py-2.5 text-xs btn-ghost rounded-xl bg-slate-100 dark:bg-slate-700">{t("common.cancel")}</button>
                 </div>
               </form>
             )}
@@ -361,7 +382,7 @@ export default function SettingsPage() {
             {/* Past requests */}
             {requests.filter((r) => r.status !== "pending").length > 0 && (
               <div className="mt-4">
-                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Request History</h3>
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.requestHistory")}</h3>
                 <div className="card overflow-hidden">
                   {requests.filter((r) => r.status !== "pending").map((req) => (
                     <div key={req.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100/80 dark:border-slate-700/40 last:border-0">

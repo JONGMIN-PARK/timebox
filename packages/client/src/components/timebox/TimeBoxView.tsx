@@ -3,6 +3,7 @@ import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
@@ -40,6 +41,7 @@ function blockHeight(startTime: string, endTime: string): number {
 export default function TimeBoxView() {
   const { blocks, loading, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
+  const { t } = useI18n();
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newBlock, setNewBlock] = useState({
@@ -120,7 +122,7 @@ export default function TimeBoxView() {
               onClick={goToday}
               className="text-xs px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
             >
-              Today
+              {t("common.today")}
             </button>
           )}
           <button
@@ -156,7 +158,7 @@ export default function TimeBoxView() {
           );
         })}
         {sortedBlocks.length === 0 && (
-          <span className="text-xs text-slate-400">Add time blocks</span>
+          <span className="text-xs text-slate-400">{t("timebox.addTimeBlocks")}</span>
         )}
       </div>
 
@@ -261,19 +263,19 @@ export default function TimeBoxView() {
             className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
           >
             <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(parseISO(selectedDate), "MMM d", { locale: enUS })} — Add Time Block
+              {format(parseISO(selectedDate), "MMM d", { locale: enUS })} — {t("timebox.addBlock")}
             </h3>
             <input
               type="text"
               value={newBlock.title}
               onChange={(e) => setNewBlock({ ...newBlock, title: e.target.value })}
-              placeholder="Block title"
+              placeholder={t("timebox.blockTitle")}
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
             {/* Category selector */}
             <div>
-              <label className="text-xs text-slate-500 mb-1.5 block">Category</label>
+              <label className="text-xs text-slate-500 mb-1.5 block">{t("calendar.category")}</label>
               <div className="grid grid-cols-4 gap-1.5">
                 {(Object.entries(CATEGORY_CONFIG) as [TimeBlockCategory, typeof CATEGORY_CONFIG[TimeBlockCategory]][]).map(
                   ([key, config]) => (
@@ -297,7 +299,7 @@ export default function TimeBoxView() {
             </div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">Start</label>
+                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
                 <input
                   type="time"
                   value={newBlock.startTime}
@@ -306,7 +308,7 @@ export default function TimeBoxView() {
                 />
               </div>
               <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">End</label>
+                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
                 <input
                   type="time"
                   value={newBlock.endTime}
@@ -317,14 +319,14 @@ export default function TimeBoxView() {
             </div>
             <div className="flex gap-2">
               <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">
-                Add
+                {t("common.add")}
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
                 className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           </form>

@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { events } from "../db/schema.js";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
+import { validate, schemas } from "../middleware/validate.js";
 
 const router = Router();
 
@@ -26,14 +27,10 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", async (req: AuthRequest, res) => {
+router.post("/", validate(schemas.createEvent), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, description, startTime, endTime, allDay, categoryId, recurrenceRule, color } = req.body;
-    if (!title?.trim() || !startTime || !endTime) {
-      res.status(400).json({ success: false, error: "Title, startTime, endTime are required" });
-      return;
-    }
 
     const result = await db.insert(events).values({
       userId,

@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { todos } from "../db/schema.js";
 import { eq, and, asc, desc, sql } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
+import { validate, schemas } from "../middleware/validate.js";
 
 const router = Router();
 
@@ -27,14 +28,10 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", async (req: AuthRequest, res) => {
+router.post("/", validate(schemas.createTodo), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, priority, category, dueDate, parentId } = req.body;
-    if (!title?.trim()) {
-      res.status(400).json({ success: false, error: "Title is required" });
-      return;
-    }
 
     const maxOrder = await db
       .select({ max: sql<number>`COALESCE(MAX(sort_order), 0)` })

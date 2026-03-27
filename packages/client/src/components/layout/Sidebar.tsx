@@ -2,6 +2,7 @@ import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Mon
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { useI18n } from "@/lib/useI18n";
 
 interface SidebarProps {
   activeTab: string;
@@ -9,16 +10,17 @@ interface SidebarProps {
 }
 
 const tabs = [
-  { id: "calendar", label: "Calendar", icon: Calendar },
-  { id: "timebox", label: "TimeBox", icon: Clock },
-  { id: "todo", label: "Todos", icon: CheckSquare },
-  { id: "files", label: "Files", icon: FileBox },
-  { id: "scheduler", label: "Scheduler", icon: LayoutGrid },
+  { id: "calendar", labelKey: "nav.calendar", icon: Calendar },
+  { id: "timebox", labelKey: "nav.timebox", icon: Clock },
+  { id: "todo", labelKey: "nav.todos", icon: CheckSquare },
+  { id: "files", labelKey: "nav.files", icon: FileBox },
+  { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
 ];
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { logout, user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
+  const { t } = useI18n();
 
   const cycleTheme = () => {
     const next = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
@@ -53,7 +55,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             )}
           >
             <tab.icon className={cn("w-[18px] h-[18px] flex-shrink-0", activeTab === tab.id && "stroke-[2.5]")} />
-            <span className="hidden lg:block">{tab.label}</span>
+            <span className="hidden lg:block">{t(tab.labelKey)}</span>
           </button>
         ))}
       </nav>
@@ -62,7 +64,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       <div className="py-3 px-2 space-y-0.5 border-t border-slate-200/60 dark:border-slate-700/40">
         <button onClick={cycleTheme} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 transition-all">
           <ThemeIcon className="w-[18px] h-[18px]" />
-          <span className="hidden lg:block">{{ light: "Light", dark: "Dark", system: "System" }[theme]}</span>
+          <span className="hidden lg:block">{{ light: t("settings.light"), dark: t("settings.dark"), system: t("settings.system") }[theme]}</span>
         </button>
         <button
           onClick={() => onTabChange("settings")}
@@ -74,7 +76,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           )}
         >
           <Settings className="w-[18px] h-[18px]" />
-          <span className="hidden lg:block">Settings</span>
+          <span className="hidden lg:block">{t("nav.settings")}</span>
         </button>
 
         {/* User avatar */}
@@ -91,7 +93,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <button onClick={logout}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 hover:text-red-500 hover:bg-red-50/80 dark:hover:bg-red-900/10 transition-all">
           <LogOut className="w-[18px] h-[18px]" />
-          <span className="hidden lg:block">Sign Out</span>
+          <span className="hidden lg:block">{t("auth.signOut")}</span>
         </button>
       </div>
     </aside>

@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { reminders } from "../db/schema.js";
 import { eq, and, gte, lte, asc } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
+import { validate, schemas } from "../middleware/validate.js";
 
 const router = Router();
 
@@ -28,14 +29,10 @@ router.get("/", async (req: AuthRequest, res) => {
 });
 
 // POST /api/reminders
-router.post("/", async (req: AuthRequest, res) => {
+router.post("/", validate(schemas.createReminder), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { title, message, remindAt, repeatRule, sourceType, sourceId, channel } = req.body;
-    if (!title?.trim() || !remindAt) {
-      res.status(400).json({ success: false, error: "Title and remindAt are required" });
-      return;
-    }
 
     const result = await db.insert(reminders).values({
       userId,

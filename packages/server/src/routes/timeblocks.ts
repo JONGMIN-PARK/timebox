@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { timeBlocks, timeBlockTemplates } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
+import { validate, schemas } from "../middleware/validate.js";
 
 const router = Router();
 
@@ -20,14 +21,10 @@ router.get("/", async (req: AuthRequest, res) => {
   }
 });
 
-router.post("/", async (req: AuthRequest, res) => {
+router.post("/", validate(schemas.createTimeBlock), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { date, startTime, endTime, title, category, color } = req.body;
-    if (!date || !startTime || !endTime || !title?.trim()) {
-      res.status(400).json({ success: false, error: "date, startTime, endTime, title are required" });
-      return;
-    }
     const result = await db.insert(timeBlocks).values({ userId, date, startTime, endTime, title: title.trim(), category: category || "other", color: color || null, completed: false }).returning();
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {

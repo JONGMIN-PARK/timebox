@@ -33,8 +33,15 @@ app.use(cors());
 app.use(express.json());
 
 // Health check
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  try {
+    const { db } = await import("./db/index.js");
+    const { categories } = await import("./db/schema.js");
+    await db.select().from(categories).limit(1);
+    res.json({ status: "ok", db: "connected", timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "error", db: "disconnected", timestamp: new Date().toISOString() });
+  }
 });
 
 // Public routes

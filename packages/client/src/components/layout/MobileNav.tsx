@@ -1,5 +1,6 @@
 import { Calendar, Clock, CheckSquare, LayoutGrid, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 
 interface MobileNavProps {
   activeTab: string;
@@ -7,14 +8,15 @@ interface MobileNavProps {
 }
 
 const tabs = [
-  { id: "calendar", label: "Calendar", icon: Calendar },
-  { id: "timebox", label: "TimeBox", icon: Clock },
-  { id: "todo", label: "Todos", icon: CheckSquare },
-  { id: "scheduler", label: "Scheduler", icon: LayoutGrid },
-  { id: "settings", label: "More", icon: Settings },
+  { id: "calendar", labelKey: "nav.calendar", icon: Calendar },
+  { id: "timebox", labelKey: "nav.timebox", icon: Clock },
+  { id: "todo", labelKey: "nav.todos", icon: CheckSquare },
+  { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
+  { id: "settings", labelKey: "nav.settings", icon: Settings },
 ];
 
 export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
+  const { t } = useI18n();
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200/60 dark:border-slate-700/40 z-50 safe-bottom">
       <div className="flex justify-around py-1">
@@ -30,7 +32,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
             )}
           >
             <tab.icon className={cn("w-5 h-5", activeTab === tab.id && "stroke-[2.5]")} />
-            <span className="text-[10px] font-medium">{tab.label}</span>
+            <span className="text-[10px] font-medium">{t(tab.labelKey)}</span>
           </button>
         ))}
       </div>

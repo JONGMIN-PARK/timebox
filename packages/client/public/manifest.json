@@ -1,11 +1,11 @@
 {
   "name": "TimeBox",
   "short_name": "TimeBox",
-  "description": "Personal Schedule Manager",
+  "description": "Personal Schedule & Productivity Manager",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
   "icons": [
     {

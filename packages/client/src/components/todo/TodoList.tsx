@@ -9,6 +9,7 @@ import {
   arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useI18n } from "@/lib/useI18n";
 
 // ── Helpers ──
 function getDaysLeft(d: string | null): number | null {
@@ -169,6 +170,7 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
 // ── Main TodoList ──
 export default function TodoList() {
   const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, reorderTodos } = useTodoStore();
+  const { t } = useI18n();
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [newCategory, setNewCategory] = useState("personal");
@@ -223,7 +225,7 @@ export default function TodoList() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">Todo List</h2>
+          <h2 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">{t("todo.title")}</h2>
           <span className="text-[11px] text-slate-400 tabular-nums">{completedTodos.length}/{filtered.length}</span>
         </div>
         <div className="h-1 bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -234,7 +236,7 @@ export default function TodoList() {
       {/* Add todo */}
       <form onSubmit={handleAdd} className="px-4 py-3 border-b border-slate-100/80 dark:border-slate-700/40 space-y-2">
         <div className="flex gap-2">
-          <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Add a task..."
+          <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t("todo.addPlaceholder")}
             className="input-base flex-1" />
           <button type="submit" disabled={!newTitle.trim()}
             className="w-9 h-9 rounded-xl btn-primary flex items-center justify-center disabled:opacity-30 disabled:shadow-none">
@@ -258,7 +260,7 @@ export default function TodoList() {
           <button onClick={() => setCategoryFilter("")}
             className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap",
               !categoryFilter ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/50")}>
-            All ({todos.length})
+            {t("todo.all")} ({todos.length})
           </button>
           {TODO_CATEGORIES.filter((c) => categoryCounts[c.id]).map((cat) => (
             <button key={cat.id} onClick={() => setCategoryFilter(categoryFilter === cat.id ? "" : cat.id)}
@@ -277,7 +279,7 @@ export default function TodoList() {
             <button key={f} onClick={() => setFilter(f)}
               className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all",
                 filter === f ? "bg-slate-200/80 dark:bg-slate-700 text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}>
-              {f === "all" ? "All" : f === "active" ? "Active" : "Done"}
+              {f === "all" ? t("todo.all") : f === "active" ? t("todo.active") : t("todo.done")}
             </button>
           ))}
         </div>
@@ -316,7 +318,7 @@ export default function TodoList() {
             <button onClick={() => setShowCompleted(!showCompleted)}
               className="flex items-center gap-2 px-4 py-2 text-[11px] font-medium text-slate-400 w-full hover:bg-slate-50/80 dark:hover:bg-slate-700/30">
               {showCompleted ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-              Done ({completedTodos.length})
+              {t("todo.done")} ({completedTodos.length})
             </button>
             {showCompleted && (
               <ul>
@@ -346,7 +348,7 @@ export default function TodoList() {
         {filtered.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <CheckCircle2 className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm">Add your first task</p>
+            <p className="text-sm">{t("todo.addFirstTask")}</p>
           </div>
         )}
       </div>
