@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
+import TelegramSection from "@/components/settings/TelegramSection";
 import type { Locale } from "@/lib/i18n";
 
 interface UserInfo {
@@ -203,6 +204,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
+
+        {/* Telegram Integration */}
+        <TelegramSection />
 
         {/* Data Management */}
         <section className="animate-in">

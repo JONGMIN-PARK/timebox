@@ -126,6 +126,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.optional": "Optional",
     "settings.user": "User",
     "settings.admin": "Admin",
+    "settings.telegram": "Telegram",
+    "settings.telegramLinked": "Connected",
+    "settings.telegramNotLinked": "Not connected",
+    "settings.telegramTest": "Test",
+    "settings.telegramUnlink": "Disconnect",
+    "settings.telegramGenerate": "Generate Link Code",
+    "settings.telegramGuide": "Connect your Telegram account to receive notifications for messages, task assignments, and reminders directly in Telegram.",
+    "settings.telegramStep1": "Send this command to the TimeBox bot in Telegram:",
+    "settings.telegramStep2": "The code expires in 10 minutes. After linking, refresh this page.",
 
     // File Vault
     "files.title": "File Vault",
@@ -433,6 +442,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.optional": "\uc120\ud0dd\uc0ac\ud56d",
     "settings.user": "\uc0ac\uc6a9\uc790",
     "settings.admin": "\uad00\ub9ac\uc790",
+    "settings.telegram": "\ud154\ub808\uadf8\ub7a8",
+    "settings.telegramLinked": "\uc5f0\ub3d9\ub428",
+    "settings.telegramNotLinked": "\uc5f0\ub3d9 \uc548 \ub428",
+    "settings.telegramTest": "\ud14c\uc2a4\ud2b8",
+    "settings.telegramUnlink": "\uc5f0\ub3d9 \ud574\uc81c",
+    "settings.telegramGenerate": "\uc5f0\ub3d9 \ucf54\ub4dc \uc0dd\uc131",
+    "settings.telegramGuide": "\ud154\ub808\uadf8\ub7a8 \uacc4\uc815\uc744 \uc5f0\ub3d9\ud558\uba74 \uba54\uc2dc\uc9c0, \ud0dc\uc2a4\ud06c \ud560\ub2f9, \ub9ac\ub9c8\uc778\ub354 \uc54c\ub9bc\uc744 \ud154\ub808\uadf8\ub7a8\uc73c\ub85c \ubc1b\uc744 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
+    "settings.telegramStep1": "\ud154\ub808\uadf8\ub7a8\uc5d0\uc11c TimeBox \ubd07\uc5d0\uac8c \uc774 \uba85\ub839\uc744 \ubcf4\ub0b4\uc138\uc694:",
+    "settings.telegramStep2": "\ucf54\ub4dc\ub294 10\ubd84 \ud6c4 \ub9cc\ub8cc\ub429\ub2c8\ub2e4. \uc5f0\ub3d9 \ud6c4 \uc774 \ud398\uc774\uc9c0\ub97c \uc0c8\ub85c\uace0\uce68\ud558\uc138\uc694.",
 
     // File Vault
     "files.title": "\ud30c\uc77c \ubcf4\uad00\ud568",
