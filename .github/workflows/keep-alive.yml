@@ -1,0 +1,15 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Every 14 minutes (Render free tier spins down after 15 min)
+    - cron: "*/14 * * * *"
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          curl -sf https://timebox-bk0m.onrender.com/api/health || echo "Server unreachable"
