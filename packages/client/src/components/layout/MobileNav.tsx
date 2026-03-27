@@ -29,7 +29,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
   const { t } = useI18n();
   const user = useAuthStore(s => s.user);
   const { activeProjectId, projects, setActiveProject } = useProjectStore();
-  const hasTeamAccess = user?.role === 'admin' || (user?.teamGroups?.length ?? 0) > 0;
+  const hasTeamAccess = user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
 
   const tabs = hasTeamAccess ? personalTabsWithTeam : personalTabs;
 

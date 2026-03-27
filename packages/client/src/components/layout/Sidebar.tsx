@@ -30,7 +30,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { theme, setTheme } = useThemeStore();
   const { projects, activeProjectId, setActiveProject, fetchProjects } = useProjectStore();
   const { t } = useI18n();
-  const hasTeamAccess = user?.role === 'admin' || (user?.teamGroups?.length ?? 0) > 0;
+  const hasTeamAccess = user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
   const [openGroups, setOpenGroups] = useState<Set<number>>(new Set());
 
   const toggleGroup = (groupId: number) => {

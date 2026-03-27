@@ -13,6 +13,7 @@ interface User {
   displayName: string | null;
   role: string;
   teamGroups?: TeamGroupInfo[];
+  hasProjectAccess?: boolean;
 }
 
 interface AuthState {

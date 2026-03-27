@@ -11,18 +11,8 @@ const router = Router();
 router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
-    // Check if user has team access (is admin or in a team group)
-    const userRow = await db.select().from(users).where(eq(users.id, userId));
-    const isAdmin = userRow[0]?.role === "admin";
 
-    if (!isAdmin) {
-      const teamMemberships = await db.select().from(teamGroupMembers).where(eq(teamGroupMembers.userId, userId));
-      if (teamMemberships.length === 0) {
-        res.json({ success: true, data: [] });
-        return;
-      }
-    }
-
+    // Return projects the user is a member of (project_members is the access gate)
     const memberships = await db.select().from(projectMembers).where(eq(projectMembers.userId, userId));
     const projectIds = memberships.map(m => m.projectId);
 

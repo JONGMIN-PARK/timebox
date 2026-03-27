@@ -25,7 +25,7 @@ export default function DashboardPage() {
   const { fetchMe } = useAuthStore();
   const { activeProjectId } = useProjectStore();
   const user = useAuthStore(s => s.user);
-  const hasTeamAccess = user?.role === 'admin' || (user?.teamGroups?.length ?? 0) > 0;
+  const hasTeamAccess = user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
 
   useEffect(() => {
     fetchMe();
