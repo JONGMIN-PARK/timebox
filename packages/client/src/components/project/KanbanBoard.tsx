@@ -3,7 +3,6 @@ import { Plus, GripVertical, CalendarDays, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -11,7 +10,6 @@ import {
   useDroppable,
   type DragStartEvent,
   type DragEndEvent,
-  type DragOverEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -57,9 +55,9 @@ const TaskCard = React.memo(function TaskCard({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : undefined,
-    position: isDragging ? "relative" as const : undefined,
-    opacity: isDragging ? 0.5 : undefined,
+    zIndex: isDragging ? 999 : undefined,
+    position: "relative",
+    opacity: isDragging ? 0.85 : undefined,
   };
 
   const assignee = task.assigneeId
@@ -442,20 +440,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
             ))}
           </div>
 
-          <DragOverlay dropAnimation={null}>
-            {dragActiveId && (() => {
-              const t = tasks.find(t => t.id === dragActiveId);
-              if (!t) return null;
-              return (
-                <div className="w-[240px] sm:w-[260px] md:w-[280px] bg-white dark:bg-slate-800 rounded-lg border border-blue-400 p-3 shadow-xl cursor-grabbing">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: priorityColor(t.priority) }} />
-                    <span className="text-[13px] text-slate-900 dark:text-white font-medium truncate">{t.title}</span>
-                  </div>
-                </div>
-              );
-            })()}
-          </DragOverlay>
+          {/* Card moves via useSortable transform — no DragOverlay needed */}
         </DndContext>
       </div>
 
