@@ -116,7 +116,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
   const maxTasks = Math.max(...members.map((m) => m.totalTasks), 1);
 
   return (
-    <div className="space-y-4 p-4 overflow-y-auto">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 overflow-y-auto">
       {/* Dashboard header with refresh */}
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -133,7 +133,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
 
       {/* Project D-Day */}
       {stats?.targetDate && (
-        <div className="card p-4 flex items-center justify-between">
+        <div className="card p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             {stats.startDate && (
               <span className="text-xs text-slate-400">

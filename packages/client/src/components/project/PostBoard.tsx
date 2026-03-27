@@ -565,7 +565,7 @@ export default function PostBoard({ projectId }: PostBoardProps) {
   // ── Main render ──
 
   return (
-    <div className="h-full overflow-y-auto p-4">
+    <div className="h-full overflow-y-auto p-3 sm:p-4">
       {mode === "list" && renderList()}
       {mode === "write" && renderWrite()}
       {mode === "detail" && renderDetail()}

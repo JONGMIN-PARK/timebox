@@ -82,8 +82,8 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2 gap-2 border-b border-slate-200/60 dark:border-slate-700/40">
+        <div className="flex items-center gap-3 min-w-0">
           <div
             className="w-3 h-3 rounded-full shrink-0"
             style={{ backgroundColor: project.color || "#3b82f6" }}
@@ -98,14 +98,14 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           )}
         </div>
 
-        {/* Tab Bar */}
-        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+        {/* Tab Bar — scrollable on small screens */}
+        <div className="flex overflow-x-auto bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5 -mx-1 sm:mx-0">
           {TAB_KEYS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                "text-xs px-2.5 py-1 rounded-md transition-colors",
+                "text-xs px-2.5 py-1 rounded-md transition-colors whitespace-nowrap flex-shrink-0",
                 activeTab === tab.key
                   ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",

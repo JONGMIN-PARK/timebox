@@ -175,7 +175,7 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col w-[280px] min-w-[280px] bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/40 transition-colors",
+        "flex flex-col w-[240px] sm:w-[260px] md:w-[280px] min-w-[200px] bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/40 transition-colors",
         isOver && "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-500/5",
       )}
     >
@@ -357,14 +357,14 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
       )}
 
       {/* Board */}
-      <div className={cn("flex-1 px-4 py-4", dragActiveId ? "overflow-visible" : "overflow-x-auto overflow-y-hidden")}>
+      <div className={cn("flex-1 px-2 sm:px-4 py-2 sm:py-4", dragActiveId ? "overflow-visible" : "overflow-x-auto overflow-y-hidden")}>
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={() => setDragActiveId(null)}
         >
-          <div className="flex gap-4 h-full min-w-max">
+          <div className="flex gap-2 sm:gap-3 md:gap-4 h-full min-w-max">
             {COLUMNS.map((col) => (
               <KanbanColumn
                 key={col.key}
