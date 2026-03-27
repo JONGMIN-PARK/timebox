@@ -101,6 +101,25 @@ router.post("/", async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/projects/:projectId - get single project
+router.get("/:projectId", projectMemberMiddleware, async (req: ProjectRequest, res) => {
+  try {
+    const project = await db.select().from(projects).where(eq(projects.id, req.projectId!));
+    if (!project[0]) {
+      res.status(404).json({ success: false, error: "Project not found" });
+      return;
+    }
+    const members = await db.select().from(projectMembers).where(eq(projectMembers.projectId, req.projectId!));
+    res.json({
+      success: true,
+      data: { ...project[0], memberCount: members.length, myRole: req.projectRole },
+    });
+  } catch (error) {
+    console.error("projects:get", error);
+    res.status(500).json({ success: false, error: "Failed to fetch project" });
+  }
+});
+
 // PUT /api/projects/:projectId - update project
 router.put("/:projectId", projectMemberMiddleware, projectAdminMiddleware, async (req: ProjectRequest, res) => {
   try {
