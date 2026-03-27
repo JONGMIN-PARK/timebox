@@ -139,12 +139,14 @@ function KanbanColumn({
   members,
   onClickTask,
   onAddTask,
+  isDraggingAny,
 }: {
   column: (typeof COLUMNS)[number];
   tasks: ProjectTask[];
   members: ProjectMember[];
   onClickTask: (task: ProjectTask) => void;
   onAddTask: (status: TaskStatus, title: string) => void;
+  isDraggingAny: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
   const [adding, setAdding] = useState(false);
@@ -181,7 +183,7 @@ function KanbanColumn({
       </div>
 
       {/* Cards */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2 min-h-[100px]">
+      <div className={cn("flex-1 px-2 py-2 space-y-2 min-h-[100px]", isDraggingAny ? "overflow-visible" : "overflow-y-auto")}>
         {tasks
           .sort((a, b) => a.sortOrder - b.sortOrder)
           .map((task) => (
@@ -347,7 +349,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
       )}
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden px-4 py-4">
+      <div className={cn("flex-1 px-4 py-4", dragActiveId ? "overflow-visible" : "overflow-x-auto overflow-y-hidden")}>
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
@@ -363,6 +365,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
                 members={members}
                 onClickTask={setSelectedTask}
                 onAddTask={handleAddTask}
+                isDraggingAny={dragActiveId !== null}
               />
             ))}
           </div>
