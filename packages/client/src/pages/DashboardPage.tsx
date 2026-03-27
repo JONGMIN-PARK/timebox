@@ -88,7 +88,7 @@ export default function DashboardPage() {
   const showRightPanel = !["settings", "scheduler"].includes(activeTab);
 
   return (
-    <div className="h-screen flex bg-slate-50 dark:bg-slate-900 bg-ambient pb-[48px] md:pb-0">
+    <div className="h-[100dvh] flex bg-slate-50 dark:bg-slate-900 bg-ambient pb-[48px] md:pb-0 safe-top safe-left safe-right">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex-1 flex flex-col min-w-0">

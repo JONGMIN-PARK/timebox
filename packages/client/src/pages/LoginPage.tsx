@@ -45,7 +45,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-950 relative overflow-hidden safe-top safe-bottom">
       <div className="absolute inset-0 particles">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-blue-600/10 blur-[120px] animate-[ambientFloat_20s_ease-in-out_infinite]" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/8 blur-[120px] animate-[ambientFloat_25s_ease-in-out_infinite_reverse]" />
