@@ -3,7 +3,6 @@ import { Plus, GripVertical, CalendarDays, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -40,10 +39,18 @@ const TaskCard = React.memo(function TaskCard({
   members: ProjectMember[];
   onClick: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   });
+
+  const style: React.CSSProperties | undefined = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        zIndex: 50,
+        position: "relative" as const,
+      }
+    : undefined;
 
   const assignee = task.assigneeId
     ? members.find((m) => m.userId === task.assigneeId)
@@ -55,13 +62,16 @@ const TaskCard = React.memo(function TaskCard({
   return (
     <div
       ref={setNodeRef}
+      style={style}
       {...attributes}
       {...listeners}
       className={cn(
-        "group bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-grab active:cursor-grabbing touch-none hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all",
-        isDragging && "opacity-20",
+        "group bg-white dark:bg-slate-800 rounded-lg border p-3 cursor-grab active:cursor-grabbing touch-none hover:shadow-sm transition-colors",
+        isDragging
+          ? "border-blue-400 dark:border-blue-500 shadow-xl opacity-90"
+          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600",
       )}
-      onClick={onClick}
+      onClick={isDragging ? undefined : onClick}
     >
       <div className="flex items-start gap-1">
         <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -319,8 +329,6 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
     await deleteTask(projectId, taskId);
   }, [projectId, deleteTask]);
 
-  const draggedTask = dragActiveId ? tasks.find((t) => t.id === dragActiveId) : null;
-
   if (loading && tasks.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -359,21 +367,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
             ))}
           </div>
 
-          <DragOverlay dropAnimation={null}>
-            {draggedTask && (
-              <div className="w-[260px] bg-white dark:bg-slate-800 rounded-lg border border-blue-400 dark:border-blue-500 p-3 shadow-xl cursor-grabbing">
-                <div className="flex items-center gap-1.5">
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: priorityColor(draggedTask.priority) }}
-                  />
-                  <span className="text-[13px] text-slate-900 dark:text-white font-medium truncate">
-                    {draggedTask.title}
-                  </span>
-                </div>
-              </div>
-            )}
-          </DragOverlay>
+          {/* No DragOverlay — card itself moves with cursor via transform */}
         </DndContext>
       </div>
 
