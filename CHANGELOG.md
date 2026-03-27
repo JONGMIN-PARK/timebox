@@ -3,10 +3,11 @@
 ## Project Overview
 
 **TimeBox** — Personal Schedule Manager Web App
-- **Stack:** React 18 + Vite 5 + Tailwind CSS + Express.js + SQLite + Drizzle ORM
+- **Stack:** React 18 + Vite 5 + Tailwind CSS + Express.js + PostgreSQL + Drizzle ORM
 - **Repo:** https://github.com/JONGMIN-PARK/timebox
 - **Deploy:** Render.com (free tier, Singapore region)
 - **Monorepo:** pnpm workspace (`@timebox/client`, `@timebox/server`, `@timebox/shared`)
+- **Features:** Team collaboration, inbox messaging, per-user Telegram, responsive PWA
 
 ---
 
@@ -60,6 +61,32 @@
 | Time statistics | ✅ Done | Category stats in TimeBox/Scheduler |
 | Actual vs planned time | ⏳ Partial | Completion tracking in time blocks |
 
+### Phase 5: Team Collaboration — ✅ Complete
+
+| PRD Item | Status | Notes |
+|----------|--------|-------|
+| Team groups (admin manages) | ✅ Done | Create groups, assign users, role-based access |
+| Project management | ✅ Done | CRUD with dates, D-Day, docs, team group linking |
+| Kanban board | ✅ Done | 5 columns, drag & drop, auto-assign, date range |
+| Project dashboard | ✅ Done | Progress, D-Day, weekly stats, member workload, activity |
+| Bulletin board | ✅ Done | Posts, comments, categories (notice/discussion/question) |
+| Shared file manager | ✅ Done | Folder structure, upload/download, team storage |
+| Team chat | ✅ Done | Per-project, polling, keep-alive tabs |
+| Task transfer | ✅ Done | Request/accept/reject workflow, notifications |
+| Project documents | ✅ Done | Overview/specs editor, viewer role separation |
+| Member management | ✅ Done | Invite, roles, team group auto-viewer access |
+
+### Phase 6: Messaging & Notifications — ✅ Complete
+
+| PRD Item | Status | Notes |
+|----------|--------|-------|
+| Inbox messaging | ✅ Done | Send/receive, read status, compose with user select |
+| Task assignment notifications | ✅ Done | Auto-inbox + Telegram on assign |
+| Per-user Telegram | ✅ Done | Link code → /link, per-user chatId, all commands per-user |
+| Telegram new commands | ✅ Done | /project, /mytasks, /inbox, /msg + auto-complete menu |
+| Online presence | ✅ Done | Heartbeat system, green dot in sidebar |
+| Header unread badge | ✅ Done | Bell icon with count, 30s polling |
+
 ---
 
 ## Features Beyond PRD (Added)
@@ -89,6 +116,23 @@
 | **Telegram shortcuts** | 1-2 char aliases (/s /a /t /l /b /d /h) |
 | **Telegram todo flags** | Priority (!high !low) + Category (@work @study @project @urgent) |
 | **Telegram management** | /check N, /del N, /done, /week, /stats |
+| **Team group access control** | Admin creates groups, assigns users; UI conditionally shows team features |
+| **Project creation form** | Name, description, dates, color, docs, team group selection |
+| **Project D-Day** | Start/target dates, D-Day badge (color-coded) on dashboard |
+| **Kanban improvements** | Card follows cursor on drag, blue border for my tasks, full assignee names |
+| **Kanban → Todo** | "내 할 일에 추가" button copies task to personal todo list |
+| **Project documents** | Markdown/text docs per project, admin/owner editable |
+| **Inbox messaging** | User-to-user messages, compose, received/sent tabs, delete |
+| **Task assignment inbox** | Auto-notification on assign with project/task/date details |
+| **Per-user Telegram** | Each user links via /link CODE, all notifications route to own chatId |
+| **Telegram /project** | View project progress and D-Day from Telegram |
+| **Telegram /mytasks** | View assigned active tasks from Telegram |
+| **Telegram /inbox** | View unread messages from Telegram |
+| **Telegram /msg** | Send message to another user from Telegram |
+| **Online presence** | Green dot + full name for online team members in sidebar |
+| **Todo time support** | Date picker + time picker (HH:MM), stored as YYYY-MM-DDThh:mm |
+| **iPhone safe area** | env(safe-area-inset-*) for notch/Dynamic Island padding |
+| **Responsive design** | All panels adapt to screen size, tab bar scrollable, column widths scale |
 
 ---
 
@@ -102,6 +146,14 @@
 | ErrorBoundary | React error boundary prevents full app crash |
 | Per-user data isolation | All tables have userId, queries filtered by user |
 | Telegram prod-only | Bot polling only in NODE_ENV=production (prevents conflict) |
+| CORS + Rate limiting | Configurable origin, 300/15min general, 20/15min auth |
+| File upload shared module | lib/upload.ts: multer fileFilter, safeUnlink, safeJsonParse |
+| N+1 query fixes | inArray + Map lookups, db.transaction for reorder |
+| React.memo + useCallback | KanbanBoard TaskCard memoized, handlers stabilized |
+| i18n coverage | 50+ new translation keys, all hardcoded Korean removed |
+| Accessibility | ARIA labels, dialog roles, focus trap, escape handlers |
+| Token security | Removed cache storage duplication, localStorage only |
+| DB indexes | 10+ new indexes for team/project/inbox tables |
 
 ---
 
@@ -125,6 +177,29 @@ def025a UI polish: Inter font, glass effects, refined colors, subtle animations
 53070e7 Add todo categorization with hierarchical categories and filtering
 d8bd49c Add animations, ambient backgrounds, data backup/restore
 1b56c8c Refactoring, Telegram enhancement, keyboard shortcuts, help modal
+8458a1b Code review fixes + team group access control feature
+d69d943 Fix sidebar: show ungrouped projects + grouped projects together
+633678b Add project creation UI + fix ProjectView i18n
+f2c67fa Add GET /api/projects/:projectId endpoint
+35b7ff7 Fix dashboard: stats/activity API field mapping + auto-refresh
+bd57987 Fix dashboard: use memberStats from stats API instead of members endpoint
+35f4d82 Improve dashboard-task integration
+8aa56b8 Fix: project-invited users can now see team features
+4d0fe1e Fix: stats/activity endpoints missing projectMemberMiddleware
+340e038 Add project dates, task date range, D-Day display, transfer badge
+c82ca79 Admin-only project creation, fix drag UX, show full assignee names
+be70f54 Fix drag: make entire card draggable, not just handle icon
+3f7f019 Fix drag: card itself follows cursor via transform instead of DragOverlay
+60bb3d5 Fix drag: card no longer hides behind other columns
+c647d24 Chat layout fix, team group project access, task indicators, online status
+3a389fe Add kanban-to-todo integration + project documents feature
+da34327 Add inbox messaging system with task assignment notifications
+6c6a894 Add Telegram notifications for inbox messages and task assignments
+269e10b Per-user Telegram linking + todo time/minute support
+7bb4df4 Fix: all users can compose inbox messages, not just admins
+106ba64 Overhaul Telegram bot: per-user commands + 4 new commands + auto-complete
+f040e92 Responsive design: auto-adapt to all screen sizes
+d6eab73 Fix iPhone safe area: prevent overlap with status bar/Dynamic Island
 ```
 
 ---
@@ -140,8 +215,18 @@ d8bd49c Add animations, ambient backgrounds, data backup/restore
 - [x] ~~Daily schedule templates~~ ✅
 - [x] ~~Telegram file → vault auto-save~~ ✅
 - [x] ~~Search across all entities~~ ✅
+- [x] ~~Team collaboration~~ ✅
+- [x] ~~Inbox messaging~~ ✅
+- [x] ~~Per-user Telegram~~ ✅
+- [x] ~~Responsive design~~ ✅
+- [x] ~~iPhone safe area~~ ✅
 
 ### Remaining
+- [ ] WebSocket real-time (replace polling)
+- [ ] Push notifications (Web Push API)
+- [ ] Gantt chart view for projects
+- [ ] File versioning
+- [ ] @mention in chat/posts
 - [ ] Service worker (full offline support)
 - [ ] Swipe gestures (mobile)
 - [ ] Data analytics dashboard
@@ -161,8 +246,9 @@ pnpm build
 pnpm start
 
 # Default admin account (first run)
-# username: admin
-# password: admin123
+# username: admin (or DEFAULT_ADMIN_USERNAME)
+# password: admin123 (or DEFAULT_ADMIN_PASSWORD)
+# Change password immediately after first login
 ```
 
 ### Environment Variables (Render.com)
@@ -173,3 +259,6 @@ pnpm start
 | JWT_SECRET | Yes | Random secret string |
 | TELEGRAM_BOT_TOKEN | No | BotFather token |
 | TELEGRAM_CHAT_ID | No | Your chat ID |
+| CORS_ORIGIN | No | Allowed origin for CORS |
+| DEFAULT_ADMIN_USERNAME | No | Admin username (default: admin) |
+| DEFAULT_ADMIN_PASSWORD | No | Admin password (default: admin123) |
