@@ -154,6 +154,23 @@ router.put("/read-all", async (req: AuthRequest, res) => {
   }
 });
 
+// GET /users — list all active users (for compose recipient selection)
+router.get("/users", async (req: AuthRequest, res) => {
+  try {
+    const allUsers = await db.select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+      role: users.role,
+    }).from(users).where(eq(users.active, true));
+    const data = allUsers.filter(u => u.id !== req.userId!);
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("inbox:users", error);
+    res.status(500).json({ success: false, error: "Failed to fetch users" });
+  }
+});
+
 // DELETE /:id — delete a message
 router.delete("/:id", async (req: AuthRequest, res) => {
   try {

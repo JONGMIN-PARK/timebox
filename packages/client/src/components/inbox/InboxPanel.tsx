@@ -77,9 +77,9 @@ export default function InboxPanel() {
   };
 
   const openCompose = async () => {
-    const res = await api.get<UserOption[]>("/auth/users");
+    const res = await api.get<UserOption[]>("/inbox/users");
     if (res.success && res.data) {
-      setAllUsers(res.data.filter((u: any) => u.id !== user?.id && u.active !== false));
+      setAllUsers(res.data);
     }
     setView("compose");
     setToUserId("");
