@@ -32,12 +32,12 @@ function CategoryPicker({ value, onChange, compact }: { value: string; onChange:
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className={cn("flex items-center gap-1 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/50", compact ? "px-1.5 py-0.5" : "px-2 py-1")}>
-        <span className={compact ? "text-xs" : "text-sm"}>{info.icon}</span>
+        className={cn("flex items-center gap-0.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/50", compact ? "px-1 py-0" : "px-2 py-1")}>
+        {!compact && <span className="text-sm">{info.icon}</span>}
         <span className={cn("text-slate-600 dark:text-slate-400", compact ? "text-[10px]" : "text-xs")}>
-          {info.parentLabel ? `${info.parentLabel} › ${info.label}` : info.label}
+          {compact ? (info.parentLabel ? `${info.parentLabel} › ${info.label}` : info.label) : (info.parentLabel ? `${info.parentLabel} › ${info.label}` : info.label)}
         </span>
-        <ChevronDown className="w-3 h-3 text-slate-400" />
+        <ChevronDown className={cn("text-slate-400", compact ? "w-2.5 h-2.5" : "w-3 h-3")} />
       </button>
     );
   }
@@ -132,17 +132,25 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
               onDoubleClick={() => { setIsEditing(true); setEditTitle(todo.title); }}>{todo.title}</span>
           )}
         </div>
-        {/* Meta row */}
-        <div className="flex items-center gap-2 mt-1 ml-3">
-          {/* Category tag */}
-          <CategoryPicker value={todo.category} onChange={(cat) => onUpdateCategory(todo.id, cat)} compact />
-          {/* Date */}
+        {/* Meta row - single line */}
+        <div className="flex items-center gap-1.5 mt-0.5 ml-3 text-[10px] text-slate-400 dark:text-slate-500 leading-none">
+          <span className="flex items-center gap-0.5 shrink-0">
+            <span>{catInfo.icon}</span>
+            <CategoryPicker value={todo.category} onChange={(cat) => onUpdateCategory(todo.id, cat)} compact />
+          </span>
+          <span className="text-slate-300 dark:text-slate-600">·</span>
           <button onClick={() => setShowDatePicker(!showDatePicker)}
-            className={cn("text-[11px] flex items-center gap-0.5 hover:text-blue-500 transition-colors", daysLeftColor(daysLeft))}>
-            <CalendarDays className="w-3 h-3" />
-            {todo.dueDate ? <span>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""} <span className="font-medium">{daysLeftLabel(daysLeft)}</span></span>
-              : <span className="text-slate-400">Set date</span>}
+            className={cn("flex items-center gap-0.5 shrink-0 hover:text-blue-500 transition-colors", daysLeft !== null ? daysLeftColor(daysLeft) : "")}>
+            <CalendarDays className="w-2.5 h-2.5" />
+            {todo.dueDate ? <span>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""}</span>
+              : <span>date</span>}
           </button>
+          {daysLeft !== null && (
+            <>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span className={cn("font-semibold shrink-0", daysLeftColor(daysLeft))}>{daysLeftLabel(daysLeft)}</span>
+            </>
+          )}
         </div>
         {showDatePicker && (
           <div className="mt-1 ml-3 flex items-center gap-2">
