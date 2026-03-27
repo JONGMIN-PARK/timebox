@@ -9,6 +9,8 @@ const router = Router();
 // All routes require project membership
 router.use("/:projectId/tasks", projectMemberMiddleware);
 router.use("/:projectId/transfers", projectMemberMiddleware);
+router.use("/:projectId/stats", projectMemberMiddleware);
+router.use("/:projectId/activity", projectMemberMiddleware);
 
 // GET /api/projects/:projectId/tasks
 router.get("/:projectId/tasks", async (req: ProjectRequest, res) => {
