@@ -41,6 +41,21 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addedToTodo, setAddedToTodo] = useState(false);
 
+  // Reactions state
+  const [reactions, setReactions] = useState<{id: number; emoji: string; userId: number; userName: string}[]>([]);
+
+  useEffect(() => {
+    api.get<any[]>(`/projects/${projectId}/tasks/${task.id}/reactions`).then(res => {
+      if (res.success && res.data) setReactions(res.data);
+    });
+  }, [projectId, task.id]);
+
+  const toggleReaction = async (emoji: string) => {
+    await api.post(`/projects/${projectId}/tasks/${task.id}/reactions`, { emoji });
+    const res = await api.get<any[]>(`/projects/${projectId}/tasks/${task.id}/reactions`);
+    if (res.success && res.data) setReactions(res.data);
+  };
+
   // Transfer state
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferToUserId, setTransferToUserId] = useState<number | "">("");
@@ -266,6 +281,32 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
                 </>
               )}
             </button>
+          </div>
+
+          {/* Reactions */}
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {["\u{1F44D}", "\u{1F525}", "\u{1F4AA}", "\u26A0\uFE0F", "\u2764\uFE0F", "\u{1F440}", "\u{1F389}", "\u{1F4AC}"].map(emoji => {
+                const count = reactions.filter(r => r.emoji === emoji).length;
+                const myReaction = reactions.some(r => r.emoji === emoji && r.userId === (task.assigneeId || 0));
+                return (
+                  <button
+                    key={emoji}
+                    onClick={() => toggleReaction(emoji)}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors",
+                      count > 0
+                        ? "border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-500/10"
+                        : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                    )}
+                    title={reactions.filter(r => r.emoji === emoji).map(r => r.userName).join(", ")}
+                  >
+                    <span>{emoji}</span>
+                    {count > 0 && <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Transfer section */}

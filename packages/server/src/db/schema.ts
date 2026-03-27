@@ -332,3 +332,12 @@ export const inboxMessages = pgTable("inbox_messages", {
   read: boolean("read").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
+
+// ── Task Reactions ──
+export const taskReactions = pgTable("task_reactions", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull(),
+  userId: integer("user_id").notNull(),
+  emoji: text("emoji").notNull(), // "👍" "🔥" "💪" "⚠️" "❤️" "👀" "🎉" etc.
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});

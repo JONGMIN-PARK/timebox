@@ -380,6 +380,15 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_telegram_config_user ON telegram_config(user_id);
       CREATE INDEX IF NOT EXISTS idx_telegram_config_chat ON telegram_config(chat_id);
       CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(project_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS task_reactions (
+        id SERIAL PRIMARY KEY,
+        task_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_reactions_task ON task_reactions(task_id);
     `);
 
     // Seed default categories if empty

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages, telegramConfig } from "../db/schema.js";
+import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages, telegramConfig, taskReactions } from "../db/schema.js";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { getTelegramBot } from "../telegram/bot.js";
@@ -204,6 +204,57 @@ router.delete("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
   } catch (error) {
     console.error("projectTasks:delete", error);
     res.status(500).json({ success: false, error: "Failed to delete task" });
+  }
+});
+
+// GET /api/projects/:projectId/tasks/:taskId/reactions
+router.get("/:projectId/tasks/:taskId/reactions", async (req: ProjectRequest, res) => {
+  try {
+    const taskId = parseInt(req.params.taskId as string);
+    const reactions = await db.select().from(taskReactions).where(eq(taskReactions.taskId, taskId));
+
+    const userIds = [...new Set(reactions.map(r => r.userId))];
+    const userRows = userIds.length > 0
+      ? await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users).where(inArray(users.id, userIds))
+      : [];
+    const userMap = new Map(userRows.map(u => [u.id, u.displayName || u.username]));
+
+    const data = reactions.map(r => ({
+      ...r,
+      userName: userMap.get(r.userId) || "Unknown",
+    }));
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("taskReactions:list", error);
+    res.status(500).json({ success: false, error: "Failed to fetch reactions" });
+  }
+});
+
+// POST /api/projects/:projectId/tasks/:taskId/reactions
+router.post("/:projectId/tasks/:taskId/reactions", async (req: ProjectRequest, res) => {
+  try {
+    const taskId = parseInt(req.params.taskId as string);
+    const { emoji } = req.body;
+    if (!emoji) { res.status(400).json({ success: false, error: "Emoji required" }); return; }
+
+    // Remove existing same reaction from this user (toggle behavior)
+    const existing = await db.select().from(taskReactions)
+      .where(and(eq(taskReactions.taskId, taskId), eq(taskReactions.userId, req.userId!), eq(taskReactions.emoji, emoji)));
+
+    if (existing[0]) {
+      await db.delete(taskReactions).where(eq(taskReactions.id, existing[0].id));
+      res.json({ success: true, data: { action: "removed" } });
+    } else {
+      const result = await db.insert(taskReactions).values({
+        taskId,
+        userId: req.userId!,
+        emoji,
+      }).returning();
+      res.status(201).json({ success: true, data: { action: "added", reaction: result[0] } });
+    }
+  } catch (error) {
+    console.error("taskReactions:toggle", error);
+    res.status(500).json({ success: false, error: "Failed to toggle reaction" });
   }
 });
 

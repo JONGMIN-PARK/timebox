@@ -146,9 +146,12 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         {hasTeamAccess && (
           <div className="pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/40">
             <div className="hidden lg:flex items-center justify-between px-3 pb-1.5">
-              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                {t("project.title")}
-              </span>
+              <button
+                onClick={() => { setActiveProject(null); onTabChange("projects"); }}
+                className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider hover:text-blue-500 transition-colors"
+              >
+                {t("project.title")} ▸
+              </button>
             </div>
             {/* Team group accordion sections */}
             {user?.teamGroups && user.teamGroups.length > 0 && (

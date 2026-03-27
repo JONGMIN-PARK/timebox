@@ -19,6 +19,7 @@ import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
 
 const ProjectView = lazy(() => import("@/components/project/ProjectView"));
+const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
 import NewProjectForm from "@/components/project/NewProjectForm";
 
 export default function DashboardPage() {
@@ -72,6 +73,8 @@ export default function DashboardPage() {
         return <FileVault />;
       case "inbox":
         return <InboxPanel />;
+      case "projects":
+        return <ProjectSummary />;
       case "project-new":
         return (
           <NewProjectForm

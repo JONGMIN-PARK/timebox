@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projects, projectMembers, users, teamGroupMembers } from "../db/schema.js";
+import { projects, projectMembers, projectTasks, users, teamGroupMembers } from "../db/schema.js";
 import { eq, and, desc, inArray, sql, count } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { projectMemberMiddleware, projectAdminMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
@@ -59,6 +59,88 @@ router.get("/", async (req: AuthRequest, res) => {
   } catch (error) {
     console.error("projects:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch projects" });
+  }
+});
+
+// GET /api/projects/summary — all projects summary at a glance
+router.get("/summary", async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+
+    // Get user's projects (same logic as GET /)
+    const memberships = await db.select().from(projectMembers).where(eq(projectMembers.userId, userId));
+    const directProjectIds = memberships.map(m => m.projectId);
+
+    const userGroups = await db.select({ groupId: teamGroupMembers.groupId })
+      .from(teamGroupMembers).where(eq(teamGroupMembers.userId, userId));
+    const groupIds = userGroups.map(g => g.groupId);
+
+    let groupProjectIds: number[] = [];
+    if (groupIds.length > 0) {
+      const gp = await db.select({ id: projects.id })
+        .from(projects).where(inArray(projects.teamGroupId, groupIds));
+      groupProjectIds = gp.map(p => p.id);
+    }
+
+    const allProjectIds = [...new Set([...directProjectIds, ...groupProjectIds])];
+    if (allProjectIds.length === 0) { res.json({ success: true, data: [] }); return; }
+
+    const myProjects = await db.select().from(projects).where(inArray(projects.id, allProjectIds));
+
+    // Get all tasks for these projects
+    const allTasks = await db.select().from(projectTasks).where(inArray(projectTasks.projectId, allProjectIds));
+
+    // Get member counts
+    const memberCounts = await db.select({
+      projectId: projectMembers.projectId,
+      count: sql<number>`count(*)::int`,
+    }).from(projectMembers)
+      .where(inArray(projectMembers.projectId, allProjectIds))
+      .groupBy(projectMembers.projectId);
+    const memberCountMap = new Map(memberCounts.map(mc => [mc.projectId, mc.count]));
+
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const summary = myProjects.map(p => {
+      const tasks = allTasks.filter(t => t.projectId === p.id);
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.status === "done").length;
+      const inProgress = tasks.filter(t => t.status === "in_progress").length;
+      const myTasks = tasks.filter(t => t.assigneeId === userId && t.status !== "done").length;
+      const overdue = tasks.filter(t => t.dueDate && t.dueDate < todayStr && t.status !== "done").length;
+      const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      let dDay: number | null = null;
+      if (p.targetDate) {
+        const target = new Date(p.targetDate);
+        target.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dDay = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      }
+
+      return {
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        startDate: p.startDate,
+        targetDate: p.targetDate,
+        dDay,
+        total,
+        completed,
+        inProgress,
+        myTasks,
+        overdue,
+        progress,
+        memberCount: memberCountMap.get(p.id) || 0,
+      };
+    });
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    console.error("projects:summary", error);
+    res.status(500).json({ success: false, error: "Failed to fetch summary" });
   }
 });
 
