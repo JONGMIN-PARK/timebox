@@ -278,6 +278,17 @@ const translations: Record<Locale, Record<string, string>> = {
     "post.commentPlaceholder": "Write a comment...",
     "post.titlePlaceholder": "Post title",
     "post.contentPlaceholder": "Write your content...",
+
+    // Inbox
+    "inbox.title": "Inbox",
+    "inbox.received": "Received",
+    "inbox.sent": "Sent",
+    "inbox.compose": "New Message",
+    "inbox.send": "Send",
+    "inbox.empty": "No messages",
+    "inbox.selectRecipient": "Select recipient...",
+    "inbox.subjectPlaceholder": "Subject",
+    "inbox.contentPlaceholder": "Write your message...",
   },
   ko: {
     // Navigation
@@ -556,6 +567,17 @@ const translations: Record<Locale, Record<string, string>> = {
     "post.commentPlaceholder": "\ub313\uae00\uc744 \uc785\ub825\ud558\uc138\uc694...",
     "post.titlePlaceholder": "\uc81c\ubaa9\uc744 \uc785\ub825\ud558\uc138\uc694",
     "post.contentPlaceholder": "\ub0b4\uc6a9\uc744 \uc785\ub825\ud558\uc138\uc694...",
+
+    // Inbox
+    "inbox.title": "\uba54\uc2dc\uc9c0\ud568",
+    "inbox.received": "\ubc1b\uc740 \uba54\uc2dc\uc9c0",
+    "inbox.sent": "\ubcf4\ub0b8 \uba54\uc2dc\uc9c0",
+    "inbox.compose": "\uc0c8 \uba54\uc2dc\uc9c0",
+    "inbox.send": "\ubcf4\ub0b4\uae30",
+    "inbox.empty": "\uba54\uc2dc\uc9c0\uac00 \uc5c6\uc2b5\ub2c8\ub2e4",
+    "inbox.selectRecipient": "\ubc1b\ub294 \uc0ac\ub78c \uc120\ud0dd...",
+    "inbox.subjectPlaceholder": "\uc81c\ubaa9",
+    "inbox.contentPlaceholder": "\ub0b4\uc6a9\uc744 \uc785\ub825\ud558\uc138\uc694...",
   },
 };
 

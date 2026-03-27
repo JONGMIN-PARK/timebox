@@ -9,6 +9,7 @@ import ReminderPanel from "@/components/reminders/ReminderPanel";
 import TimeBoxView from "@/components/timebox/TimeBoxView";
 import ElonScheduler from "@/components/scheduler/ElonScheduler";
 import FileVault from "@/components/files/FileVault";
+import InboxPanel from "@/components/inbox/InboxPanel";
 import SettingsPage from "@/pages/SettingsPage";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -67,6 +68,8 @@ export default function DashboardPage() {
         return <SettingsPage />;
       case "files":
         return <FileVault />;
+      case "inbox":
+        return <InboxPanel />;
       case "project-new":
         return (
           <NewProjectForm
@@ -89,7 +92,10 @@ export default function DashboardPage() {
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Header />
+        <Header onInboxClick={() => {
+          useProjectStore.getState().setActiveProject(null);
+          setActiveTab("inbox");
+        }} />
 
         <div className="flex-1 flex overflow-hidden">
           {activeProjectId && hasTeamAccess ? (

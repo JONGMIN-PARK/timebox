@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects } from "../db/schema.js";
+import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages } from "../db/schema.js";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
@@ -63,6 +63,21 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
       metadata: JSON.stringify({ title: result[0].title }),
     });
 
+    // Send inbox notification to assignee
+    if (result[0].assigneeId && result[0].assigneeId !== req.userId) {
+      const project = await db.select().from(projects).where(eq(projects.id, req.projectId!));
+      const projectName = project[0]?.name || "Project";
+      await db.insert(inboxMessages).values({
+        fromUserId: req.userId!,
+        toUserId: result[0].assigneeId,
+        subject: `[${projectName}] 새 태스크 할당: ${result[0].title}`,
+        content: `프로젝트 "${projectName}"에서 태스크 "${result[0].title}"이(가) 할당되었습니다.${result[0].dueDate ? `\n마감일: ${result[0].dueDate}` : ""}`,
+        type: "task_assignment",
+        relatedProjectId: req.projectId!,
+        relatedTaskId: result[0].id,
+      });
+    }
+
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
     console.error("projectTasks:create", error);
@@ -103,6 +118,21 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
         targetType: "task",
         targetId: taskId,
         metadata: JSON.stringify({ title: result[0].title, status: req.body.status }),
+      });
+    }
+
+    // Notify assignee on assignment change
+    if (req.body.assigneeId && req.body.assigneeId !== req.userId) {
+      const project = await db.select().from(projects).where(eq(projects.id, req.projectId!));
+      const projectName = project[0]?.name || "Project";
+      await db.insert(inboxMessages).values({
+        fromUserId: req.userId!,
+        toUserId: req.body.assigneeId,
+        subject: `[${projectName}] 태스크 할당: ${result[0].title}`,
+        content: `"${result[0].title}" 태스크가 할당되었습니다.${result[0].dueDate ? ` (마감: ${result[0].dueDate})` : ""}`,
+        type: "task_assignment",
+        relatedProjectId: req.projectId!,
+        relatedTaskId: result[0].id,
       });
     }
 

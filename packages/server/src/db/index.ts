@@ -353,6 +353,22 @@ export async function initDb() {
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_date TEXT;
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS docs TEXT;
       ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TEXT;
+
+      CREATE TABLE IF NOT EXISTS inbox_messages (
+        id SERIAL PRIMARY KEY,
+        from_user_id INTEGER NOT NULL,
+        to_user_id INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        content TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'message',
+        related_project_id INTEGER,
+        related_task_id INTEGER,
+        read BOOLEAN NOT NULL DEFAULT false,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_inbox_to_user ON inbox_messages(to_user_id);
+      CREATE INDEX IF NOT EXISTS idx_inbox_from_user ON inbox_messages(from_user_id);
     `);
 
     // Seed default categories if empty

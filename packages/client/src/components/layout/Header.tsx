@@ -1,6 +1,25 @@
+import { useEffect, useState } from "react";
+import { Bell } from "lucide-react";
+import { api } from "@/lib/api";
 import DDayChips from "@/components/dday/DDayChips";
 
-export default function Header() {
+interface HeaderProps {
+  onInboxClick?: () => void;
+}
+
+export default function Header({ onInboxClick }: HeaderProps) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const res = await api.get<{ count: number }>("/inbox/unread-count");
+      if (res.success && res.data) setUnreadCount(res.data.count);
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="h-12 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">
       <div className="flex items-center gap-3 md:hidden">
@@ -13,6 +32,19 @@ export default function Header() {
       <div className="hidden md:block flex-1 overflow-x-auto">
         <DDayChips />
       </div>
+
+      {/* Inbox bell */}
+      <button
+        onClick={onInboxClick}
+        className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+      >
+        <Bell className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center text-[9px] font-bold bg-red-500 text-white rounded-full px-1">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
     </header>
   );
 }

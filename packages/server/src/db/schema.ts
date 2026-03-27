@@ -318,3 +318,17 @@ export const teamGroupMembers = pgTable("team_group_members", {
   userId: integer("user_id").notNull(),
   joinedAt: text("joined_at").notNull().default(sql`now()`),
 });
+
+// ── User Inbox Messages ──
+export const inboxMessages = pgTable("inbox_messages", {
+  id: serial("id").primaryKey(),
+  fromUserId: integer("from_user_id").notNull(),
+  toUserId: integer("to_user_id").notNull(),
+  subject: text("subject").notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull().default("message"), // "message" | "task_assignment" | "system"
+  relatedProjectId: integer("related_project_id"),
+  relatedTaskId: integer("related_task_id"),
+  read: boolean("read").notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
