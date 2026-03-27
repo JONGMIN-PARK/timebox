@@ -3,13 +3,15 @@ import { db } from "../db/index.js";
 import { telegramConfig } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { getTelegramBot } from "../telegram/bot.js";
+import { type AuthRequest } from "../middleware/auth.js";
+import crypto from "crypto";
 
 const router = Router();
 
-// GET /api/telegram/config
-router.get("/config", async (req, res) => {
+// GET /api/telegram/config — get MY telegram config
+router.get("/config", async (req: AuthRequest, res) => {
   try {
-    const config = await db.select().from(telegramConfig).limit(1);
+    const config = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, req.userId!));
     res.json({ success: true, data: config[0] || null });
   } catch (error) {
     console.error("telegram:getConfig", error);
@@ -17,58 +19,55 @@ router.get("/config", async (req, res) => {
   }
 });
 
-// PUT /api/telegram/config
-router.put("/config", async (req, res) => {
+// POST /api/telegram/generate-link — generate a unique link code for this user
+router.post("/generate-link", async (req: AuthRequest, res) => {
   try {
-    const { chatId, dailyBriefingTime, active } = req.body;
-    const config = await db.select().from(telegramConfig).limit(1);
+    const code = crypto.randomBytes(4).toString("hex"); // 8-char hex code
 
-    if (config.length === 0) {
-      const result = await db.insert(telegramConfig).values({
-        chatId: chatId || null,
-        dailyBriefingTime: dailyBriefingTime || null,
-        active: active !== undefined ? active : true,
-      }).returning();
-      res.json({ success: true, data: result[0] });
-    } else {
-      const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-      if (chatId !== undefined) updates.chatId = chatId;
-      if (dailyBriefingTime !== undefined) updates.dailyBriefingTime = dailyBriefingTime;
-      if (active !== undefined) updates.active = active;
+    // Store the link code in memory (temporary, expires in 10 minutes)
+    linkCodes.set(code, { userId: req.userId!, createdAt: Date.now() });
 
-      const result = await db.update(telegramConfig)
-        .set(updates)
-        .where(eq(telegramConfig.id, config[0].id))
-        .returning();
-      res.json({ success: true, data: result[0] });
+    // Clean up old codes (older than 10 minutes)
+    for (const [k, v] of linkCodes.entries()) {
+      if (Date.now() - v.createdAt > 10 * 60 * 1000) linkCodes.delete(k);
     }
+
+    res.json({ success: true, data: { code, instruction: `텔레그램 봇에서 /link ${code} 를 입력하세요` } });
   } catch (error) {
-    console.error("telegram:updateConfig", error);
-    res.status(500).json({ success: false, error: "Failed to update telegram config" });
+    console.error("telegram:generateLink", error);
+    res.status(500).json({ success: false, error: "Failed to generate link code" });
   }
 });
 
-// POST /api/telegram/test
-router.post("/test", async (req, res) => {
+// POST /api/telegram/unlink — disconnect telegram
+router.post("/unlink", async (req: AuthRequest, res) => {
+  try {
+    await db.delete(telegramConfig).where(eq(telegramConfig.userId, req.userId!));
+    res.json({ success: true });
+  } catch (error) {
+    console.error("telegram:unlink", error);
+    res.status(500).json({ success: false, error: "Failed to unlink" });
+  }
+});
+
+// POST /api/telegram/test — send test message to MY telegram
+router.post("/test", async (req: AuthRequest, res) => {
   try {
     const bot = getTelegramBot();
-    if (!bot) {
-      res.status(400).json({ success: false, error: "Telegram bot not initialized" });
-      return;
-    }
+    if (!bot) { res.status(400).json({ success: false, error: "Telegram bot not initialized" }); return; }
 
-    const config = await db.select().from(telegramConfig).limit(1);
-    if (!config[0]?.chatId) {
-      res.status(400).json({ success: false, error: "Chat ID not configured" });
-      return;
-    }
+    const config = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, req.userId!));
+    if (!config[0]?.chatId) { res.status(400).json({ success: false, error: "Telegram not linked" }); return; }
 
-    bot.sendMessage(config[0].chatId, "🔔 TimeBox 테스트 메시지입니다!");
-    res.json({ success: true, data: { sent: true } });
+    await bot.sendMessage(config[0].chatId, "🔔 TimeBox 테스트 메시지입니다!");
+    res.json({ success: true });
   } catch (error) {
     console.error("telegram:test", error);
     res.status(500).json({ success: false, error: "Failed to send test message" });
   }
 });
+
+// In-memory link codes map (code -> { userId, createdAt })
+export const linkCodes = new Map<string, { userId: number; createdAt: number }>();
 
 export default router;

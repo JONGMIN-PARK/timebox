@@ -5,15 +5,14 @@ import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { getTelegramBot } from "../telegram/bot.js";
 
-async function notifyTaskViaTelegram(projectName: string, taskTitle: string, dueDate: string | null) {
+async function notifyTaskViaTelegram(toUserId: number, projectName: string, taskTitle: string, dueDate: string | null) {
   try {
     const bot = getTelegramBot();
     if (!bot) return;
-    const conf = await db.select().from(telegramConfig).limit(1);
-    const chatId = conf[0]?.chatId;
-    if (!chatId) return;
+    const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, toUserId));
+    if (!conf[0]?.chatId || !conf[0]?.active) return;
     const msg = `📋 *태스크 할당*\n\n📁 프로젝트: *${projectName}*\n📌 태스크: ${taskTitle}${dueDate ? `\n📅 마감: ${dueDate}` : ""}`;
-    await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+    await bot.sendMessage(conf[0].chatId, msg, { parse_mode: "Markdown" });
   } catch (e) {
     console.error("telegram-task-notify:", e);
   }
@@ -91,7 +90,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
-      notifyTaskViaTelegram(projectName, result[0].title, result[0].dueDate);
+      notifyTaskViaTelegram(result[0].assigneeId, projectName, result[0].title, result[0].dueDate);
     }
 
     res.status(201).json({ success: true, data: result[0] });
@@ -150,6 +149,7 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
+      notifyTaskViaTelegram(req.body.assigneeId, projectName, result[0].title, result[0].dueDate);
     }
 
     res.json({ success: true, data: result[0] });

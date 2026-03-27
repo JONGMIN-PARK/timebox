@@ -15,7 +15,7 @@ import { useI18n } from "@/lib/useI18n";
 function getDaysLeft(d: string | null): number | null {
   if (!d) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const target = new Date(d); target.setHours(0, 0, 0, 0);
+  const target = new Date(d.includes("T") ? d : d + "T00:00"); target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 function daysLeftLabel(d: number | null) { if (d === null) return ""; return d === 0 ? "D-Day" : d > 0 ? `D-${d}` : `D+${Math.abs(d)}`; }
@@ -140,15 +140,30 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
           <button onClick={() => setShowDatePicker(!showDatePicker)}
             className={cn("text-[11px] flex items-center gap-0.5 hover:text-blue-500 transition-colors", daysLeftColor(daysLeft))}>
             <CalendarDays className="w-3 h-3" />
-            {todo.dueDate ? <span>{todo.dueDate.slice(5)} <span className="font-medium">{daysLeftLabel(daysLeft)}</span></span>
+            {todo.dueDate ? <span>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""} <span className="font-medium">{daysLeftLabel(daysLeft)}</span></span>
               : <span className="text-slate-400">Set date</span>}
           </button>
         </div>
         {showDatePicker && (
-          <div className="mt-1 ml-3">
-            <input type="date" value={todo.dueDate || new Date().toISOString().slice(0, 10)}
-              onChange={(e) => { onUpdateDate(todo.id, e.target.value); setShowDatePicker(false); }}
+          <div className="mt-1 ml-3 flex items-center gap-2">
+            <input type="date" value={(todo.dueDate || "").slice(0, 10) || new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                const time = (todo.dueDate || "").includes("T") ? (todo.dueDate || "").slice(10) : "";
+                onUpdateDate(todo.id, e.target.value + time);
+                if (!time) setShowDatePicker(false);
+              }}
               className="text-xs bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
+            <input type="time" value={(todo.dueDate || "").includes("T") ? (todo.dueDate || "").slice(11, 16) : ""}
+              onChange={(e) => {
+                const dateStr = (todo.dueDate || new Date().toISOString()).slice(0, 10);
+                if (e.target.value) {
+                  onUpdateDate(todo.id, `${dateStr}T${e.target.value}`);
+                } else {
+                  onUpdateDate(todo.id, dateStr);
+                }
+              }}
+              className="text-xs bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" />
+            <button onClick={() => setShowDatePicker(false)} className="text-xs text-slate-400 hover:text-slate-600 px-1">✓</button>
           </div>
         )}
       </div>

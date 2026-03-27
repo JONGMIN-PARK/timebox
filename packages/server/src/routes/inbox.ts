@@ -10,12 +10,11 @@ async function notifyViaTelegram(toUserId: number, fromName: string, subject: st
   try {
     const bot = getTelegramBot();
     if (!bot) return;
-    const conf = await db.select().from(telegramConfig).limit(1);
-    const chatId = conf[0]?.chatId;
-    if (!chatId) return;
+    const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, toUserId));
+    if (!conf[0]?.chatId || !conf[0]?.active) return;
     const preview = content.length > 100 ? content.slice(0, 100) + "..." : content;
     const msg = `📬 *새 메시지*\n\n👤 보낸 사람: *${fromName}*\n📌 제목: ${subject}\n\n${preview}`;
-    await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+    await bot.sendMessage(conf[0].chatId, msg, { parse_mode: "Markdown" });
   } catch (e) {
     console.error("telegram-inbox-notify:", e);
   }

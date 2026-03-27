@@ -139,13 +139,13 @@ app.listen(PORT, () => {
       if (ready.length > 0) {
         console.log(`[cron] ${ready.length} due reminder(s) found`);
 
-        // Send Telegram notification
+        // Send Telegram notification to each reminder's user
         const bot = getTelegramBot();
         if (bot) {
-          const conf = await db.select().from(telegramConfig).limit(1);
-          const chatId = conf[0]?.chatId;
-          if (chatId) {
-            for (const r of ready) {
+          for (const r of ready) {
+            const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, r.userId));
+            const chatId = conf[0]?.chatId;
+            if (chatId && conf[0]?.active) {
               const msg = `🔔 *리마인더*\n\n⏰ *${r.title}*${r.message ? `\n${r.message}` : ""}\n\n_${new Date(r.remindAt).toLocaleString("ko-KR")}_`;
               try {
                 await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });

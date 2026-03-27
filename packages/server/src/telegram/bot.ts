@@ -63,6 +63,39 @@ export async function initTelegramBot() {
     bot!.sendMessage(msg.chat.id, `✅ *TimeBox Bot Connected!*\n\nType /h for quick help or /help for full commands.`, { parse_mode: "Markdown" });
   });
 
+  // ── /link CODE — link Telegram to a user account ──
+  bot.onText(/\/link\s+(\w+)/, async (msg, match) => {
+    const chatId = msg.chat.id.toString();
+    const code = match?.[1];
+    if (!code) {
+      bot!.sendMessage(msg.chat.id, "❌ 사용법: `/link 코드`\n설정에서 생성한 연동 코드를 입력하세요.", { parse_mode: "Markdown" });
+      return;
+    }
+
+    // Import linkCodes from telegram routes
+    const { linkCodes } = await import("../routes/telegram.js");
+    const linkData = linkCodes.get(code);
+    if (!linkData) {
+      bot!.sendMessage(msg.chat.id, "❌ 유효하지 않거나 만료된 코드입니다. 설정에서 새 코드를 생성해주세요.");
+      return;
+    }
+
+    // Save chatId for this user
+    const existing = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, linkData.userId));
+    if (existing.length > 0) {
+      await db.update(telegramConfig).set({ chatId, active: true, updatedAt: new Date().toISOString() })
+        .where(eq(telegramConfig.userId, linkData.userId));
+    } else {
+      await db.insert(telegramConfig).values({ userId: linkData.userId, chatId, active: true });
+    }
+
+    linkCodes.delete(code);
+
+    const userRows = await db.select().from(users).where(eq(users.id, linkData.userId));
+    const userName = userRows[0]?.displayName || userRows[0]?.username || "User";
+    bot!.sendMessage(msg.chat.id, `✅ *${userName}* 계정과 연동되었습니다!\n\n이제 메시지와 알림을 텔레그램으로 받을 수 있습니다.`, { parse_mode: "Markdown" });
+  });
+
   // ── /help or /h — Full help ──
   bot.onText(/\/(help|h)$/, (msg) => {
     bot!.sendMessage(msg.chat.id,
@@ -454,10 +487,11 @@ async function setupDailyBriefing() {
 
 async function sendDailyBriefing() {
   if (!bot) return;
-  const conf = await db.select().from(telegramConfig).limit(1);
-  if (!conf[0]?.chatId || !conf[0]?.active) return;
+  // Send daily briefing to all linked users
+  const allConf = await db.select().from(telegramConfig);
+  const activeConfs = allConf.filter((c) => c.chatId && c.active);
+  if (activeConfs.length === 0) return;
 
-  const chatId = conf[0].chatId;
   const today = new Date().toISOString().slice(0, 10);
 
   const todayEvents = await db.select().from(events)
@@ -509,7 +543,14 @@ async function sendDailyBriefing() {
   }
 
   text += `\n_Type /h for commands_`;
-  bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
+
+  for (const conf of activeConfs) {
+    try {
+      bot.sendMessage(conf.chatId!, text, { parse_mode: "Markdown" });
+    } catch (e) {
+      console.error(`daily-briefing send to ${conf.chatId}:`, e);
+    }
+  }
 }
 
 export function getTelegramBot() { return bot; }
