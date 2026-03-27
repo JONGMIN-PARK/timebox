@@ -55,23 +55,16 @@ const TaskCard = React.memo(function TaskCard({
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       className={cn(
-        "group bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all",
+        "group bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-grab active:cursor-grabbing touch-none hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all",
         isDragging && "opacity-20",
       )}
       onClick={onClick}
     >
-      <div className="flex items-start gap-2">
-        {/* Drag handle */}
-        <button
-          {...attributes}
-          {...listeners}
-          className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none mt-0.5 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Drag to reorder task"
-        >
-          <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600" />
-        </button>
+      <div className="flex items-start gap-1">
+        <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
 
         <div className="flex-1 min-w-0">
           {/* Title row */}
