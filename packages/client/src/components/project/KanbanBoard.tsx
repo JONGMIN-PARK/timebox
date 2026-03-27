@@ -3,15 +3,22 @@ import { Plus, GripVertical, CalendarDays, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
   useDroppable,
-  useDraggable,
   type DragStartEvent,
   type DragEndEvent,
+  type DragOverEvent,
 } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useProjectTaskStore, type ProjectTask, type TaskStatus } from "@/stores/projectTaskStore";
 import { useProjectStore, type ProjectMember } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -42,18 +49,18 @@ const TaskCard = React.memo(function TaskCard({
   const currentUserId = useAuthStore(s => s.user?.id);
   const isMyTask = task.assigneeId === currentUserId;
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
-    data: { task },
+    data: { task, status: task.status },
   });
 
-  const style: React.CSSProperties | undefined = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 50,
-        position: "relative" as const,
-      }
-    : undefined;
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    position: isDragging ? "relative" as const : undefined,
+    opacity: isDragging ? 0.5 : undefined,
+  };
 
   const assignee = task.assigneeId
     ? members.find((m) => m.userId === task.assigneeId)
@@ -71,7 +78,7 @@ const TaskCard = React.memo(function TaskCard({
       className={cn(
         "group bg-white dark:bg-slate-800 rounded-lg border p-3 cursor-grab active:cursor-grabbing touch-none hover:shadow-sm transition-colors",
         isDragging
-          ? "border-blue-400 dark:border-blue-500 shadow-xl opacity-90"
+          ? "border-blue-400 dark:border-blue-500 shadow-xl"
           : isMyTask
           ? "border-l-[3px] border-l-blue-500 border-t-slate-200 border-r-slate-200 border-b-slate-200 dark:border-l-blue-400 dark:border-t-slate-700 dark:border-r-slate-700 dark:border-b-slate-700 hover:border-l-blue-600"
           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600",
@@ -201,16 +208,18 @@ function KanbanColumn({
 
       {/* Cards */}
       <div className={cn("flex-1 px-2 py-2 space-y-2 min-h-[100px]", isDraggingAny ? "overflow-visible" : "overflow-y-auto")}>
-        {tasks
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              members={members}
-              onClick={() => onClickTask(task)}
-            />
-          ))}
+        <SortableContext items={tasks.sort((a, b) => a.sortOrder - b.sortOrder).map(t => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                members={members}
+                onClick={() => onClickTask(task)}
+              />
+            ))}
+        </SortableContext>
       </div>
 
       {/* Add task */}
@@ -297,31 +306,77 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
     const { active, over } = event;
     if (!over) return;
 
-    const taskId = active.id as number;
-    const targetStatus = over.id as TaskStatus;
-    const task = tasks.find((t) => t.id === taskId);
+    const activeId = active.id as number;
+    const overId = over.id;
+    const activeTask = tasks.find(t => t.id === activeId);
+    if (!activeTask) return;
 
-    if (!task || task.status === targetStatus) return;
+    // Check if dropped on a column (status string) or on another task (number)
+    const isColumnDrop = typeof overId === "string" && ["backlog", "todo", "in_progress", "review", "done"].includes(overId);
 
-    // Optimistic update: move task to new status
-    const updatedTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, status: targetStatus } : t,
-    );
-    useProjectTaskStore.setState({ tasks: updatedTasks });
+    if (isColumnDrop) {
+      const targetStatus = overId as TaskStatus;
+      if (activeTask.status === targetStatus) return;
 
-    // Persist
-    updateTask(projectId, taskId, { status: targetStatus });
+      // Move to new column
+      const updatedTasks = tasks.map(t =>
+        t.id === activeId ? { ...t, status: targetStatus } : t
+      );
+      useProjectTaskStore.setState({ tasks: updatedTasks });
+      updateTask(projectId, activeId, { status: targetStatus });
 
-    // Reorder: put at end of target column
-    const targetTasks = updatedTasks
-      .filter((t) => t.status === targetStatus)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-    const reorderItems = targetTasks.map((t, i) => ({
-      id: t.id,
-      sortOrder: i,
-      status: targetStatus,
-    }));
-    reorderTasks(projectId, reorderItems);
+      const targetTasks = updatedTasks.filter(t => t.status === targetStatus).sort((a, b) => a.sortOrder - b.sortOrder);
+      reorderTasks(projectId, targetTasks.map((t, i) => ({ id: t.id, sortOrder: i, status: targetStatus })));
+    } else {
+      // Dropped on another task — reorder within same column OR move to different column
+      const overTask = tasks.find(t => t.id === overId);
+      if (!overTask) return;
+
+      const targetStatus = overTask.status;
+      const sameColumn = activeTask.status === targetStatus;
+
+      // Get column tasks
+      let columnTasks = tasks
+        .filter(t => t.status === targetStatus)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+
+      if (!sameColumn) {
+        // Move to new column first
+        const movedTask = { ...activeTask, status: targetStatus };
+        columnTasks = [...columnTasks.filter(t => t.id !== activeId), movedTask];
+      }
+
+      // Reorder: remove active, insert at over position
+      const oldIndex = columnTasks.findIndex(t => t.id === activeId);
+      const newIndex = columnTasks.findIndex(t => t.id === (overId as number));
+
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reordered = [...columnTasks];
+        const [moved] = reordered.splice(oldIndex, 1);
+        reordered.splice(newIndex, 0, moved);
+
+        // Update sort orders
+        const updatedTasks = tasks.map(t => {
+          const idx = reordered.findIndex(r => r.id === t.id);
+          if (idx !== -1) return { ...t, status: targetStatus, sortOrder: idx };
+          if (t.id === activeId && !sameColumn) return { ...t, status: targetStatus };
+          return t;
+        });
+
+        useProjectTaskStore.setState({ tasks: updatedTasks });
+        reorderTasks(projectId, reordered.map((t, i) => ({ id: t.id, sortOrder: i, status: targetStatus })));
+      } else if (!sameColumn) {
+        // Just move between columns (dropped on task in different column)
+        const updatedTasks = tasks.map(t =>
+          t.id === activeId ? { ...t, status: targetStatus } : t
+        );
+        useProjectTaskStore.setState({ tasks: updatedTasks });
+        updateTask(projectId, activeId, { status: targetStatus });
+
+        const targetTasks = updatedTasks.filter(t => t.status === targetStatus).sort((a, b) => a.sortOrder - b.sortOrder);
+        reorderTasks(projectId, targetTasks.map((t, i) => ({ id: t.id, sortOrder: i, status: targetStatus })));
+      }
+    }
   }, [tasks, projectId, updateTask, reorderTasks]);
 
   const currentUserId = useAuthStore(s => s.user?.id);
@@ -387,7 +442,20 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
             ))}
           </div>
 
-          {/* No DragOverlay — card itself moves with cursor via transform */}
+          <DragOverlay dropAnimation={null}>
+            {dragActiveId && (() => {
+              const t = tasks.find(t => t.id === dragActiveId);
+              if (!t) return null;
+              return (
+                <div className="w-[240px] sm:w-[260px] md:w-[280px] bg-white dark:bg-slate-800 rounded-lg border border-blue-400 p-3 shadow-xl cursor-grabbing">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: priorityColor(t.priority) }} />
+                    <span className="text-[13px] text-slate-900 dark:text-white font-medium truncate">{t.title}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </DragOverlay>
         </DndContext>
       </div>
 

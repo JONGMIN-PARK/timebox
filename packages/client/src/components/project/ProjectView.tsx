@@ -47,6 +47,18 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [transferCount, setTransferCount] = useState(0);
+  const [editingDates, setEditingDates] = useState(false);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editTargetDate, setEditTargetDate] = useState("");
+
+  const handleSaveDates = async () => {
+    await api.put(`/projects/${projectId}`, {
+      startDate: editStartDate || null,
+      targetDate: editTargetDate || null,
+    });
+    setProject(prev => prev ? { ...prev, startDate: editStartDate || null, targetDate: editTargetDate || null } : prev);
+    setEditingDates(false);
+  };
 
   useEffect(() => {
     if (!pageVisible) return;
@@ -121,12 +133,37 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
               );
             })()}
 
-            {/* Date range */}
-            {(project.startDate || project.targetDate) && (
-              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
-                <CalendarDays className="w-3 h-3" />
-                {project.startDate?.slice(5) || "?"} ~ {project.targetDate?.slice(5) || "?"}
+            {/* Date range — clickable for admin */}
+            {editingDates ? (
+              <span className="flex items-center gap-1">
+                <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)}
+                  className="text-[10px] bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-white outline-none w-[110px]" />
+                <span className="text-[10px] text-slate-400">~</span>
+                <input type="date" value={editTargetDate} onChange={(e) => setEditTargetDate(e.target.value)}
+                  className="text-[10px] bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-white outline-none w-[110px]" />
+                <button onClick={handleSaveDates} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium px-1">✓</button>
+                <button onClick={() => setEditingDates(false)} className="text-[10px] text-slate-400 hover:text-slate-600 px-1">✕</button>
               </span>
+            ) : (
+              <button
+                onClick={() => {
+                  if (project.myRole === "owner" || project.myRole === "admin") {
+                    setEditStartDate(project.startDate || "");
+                    setEditTargetDate(project.targetDate || "");
+                    setEditingDates(true);
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-0.5 text-[10px] text-slate-400",
+                  (project.myRole === "owner" || project.myRole === "admin") && "hover:text-blue-500 cursor-pointer"
+                )}
+                title={project.myRole === "owner" || project.myRole === "admin" ? "Click to edit dates" : undefined}
+              >
+                <CalendarDays className="w-3 h-3" />
+                {project.startDate || project.targetDate
+                  ? `${project.startDate?.slice(5) || "?"} ~ ${project.targetDate?.slice(5) || "?"}`
+                  : (project.myRole === "owner" || project.myRole === "admin") ? "날짜 설정" : ""}
+              </button>
             )}
 
             {/* Member count */}
