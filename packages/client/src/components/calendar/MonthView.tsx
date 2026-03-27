@@ -3,6 +3,7 @@ import { enUS } from "date-fns/locale";
 import { Plus, X, CheckSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalendarEvent, Todo, HoverTooltipItem } from "./calendarTypes";
+import HoverTooltip from "./HoverTooltip";
 
 interface MonthViewProps {
   days: Date[];
@@ -14,8 +15,9 @@ interface MonthViewProps {
   selectedDateTodos: Todo[];
   onSelectDate: (date: Date) => void;
   onDoubleClickDate: (date: Date) => void;
+  hoverDateKey: string | null;
+  getHoverItems: (dateKey: string) => HoverTooltipItem[];
   onDayHover: (e: React.MouseEvent, dateKey: string) => void;
-  onDayMouseMove: (e: React.MouseEvent) => void;
   onDayLeave: () => void;
   onShowAddModal: () => void;
   onDeleteEvent: (id: number) => void;
@@ -31,8 +33,9 @@ export default function MonthView({
   selectedDateTodos,
   onSelectDate,
   onDoubleClickDate,
+  hoverDateKey,
+  getHoverItems,
   onDayHover,
-  onDayMouseMove,
   onDayLeave,
   onShowAddModal,
   onDeleteEvent,
@@ -59,7 +62,6 @@ export default function MonthView({
               onClick={() => onSelectDate(day)}
               onDoubleClick={() => onDoubleClickDate(day)}
               onMouseEnter={(e) => onDayHover(e, dateKey)}
-              onMouseMove={onDayMouseMove}
               onMouseLeave={onDayLeave}
               className={cn(
                 "relative flex flex-col items-start p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors overflow-hidden",
@@ -95,6 +97,9 @@ export default function MonthView({
                   <span className="text-[9px] text-slate-400 px-0.5">+{dayEvents.length + dayTodos.length - 4} more</span>
                 )}
               </div>
+              {hoverDateKey === dateKey && (dayEvents.length > 0 || dayTodos.length > 0) && (
+                <HoverTooltip items={getHoverItems(dateKey)} />
+              )}
             </button>
           );
         })}
