@@ -12,6 +12,7 @@ router.get("/config", async (req, res) => {
     const config = await db.select().from(telegramConfig).limit(1);
     res.json({ success: true, data: config[0] || null });
   } catch (error) {
+    console.error("telegram:getConfig", error);
     res.status(500).json({ success: false, error: "Failed to fetch telegram config" });
   }
 });
@@ -42,6 +43,7 @@ router.put("/config", async (req, res) => {
       res.json({ success: true, data: result[0] });
     }
   } catch (error) {
+    console.error("telegram:updateConfig", error);
     res.status(500).json({ success: false, error: "Failed to update telegram config" });
   }
 });
@@ -64,6 +66,7 @@ router.post("/test", async (req, res) => {
     bot.sendMessage(config[0].chatId, "🔔 TimeBox 테스트 메시지입니다!");
     res.json({ success: true, data: { sent: true } });
   } catch (error) {
+    console.error("telegram:test", error);
     res.status(500).json({ success: false, error: "Failed to send test message" });
   }
 });

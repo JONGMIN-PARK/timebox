@@ -43,6 +43,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("auth:login", error);
     res.status(500).json({ success: false, error: "Login failed" });
   }
 });
@@ -82,6 +83,7 @@ router.post("/request", async (req, res) => {
       data: { id: result[0].id, username: result[0].username, status: result[0].status },
     });
   } catch (error) {
+    console.error("auth:request", error);
     res.status(500).json({ success: false, error: "Request failed" });
   }
 });
@@ -96,6 +98,7 @@ router.get("/requests", authMiddleware, adminMiddleware, async (req: AuthRequest
 
     res.json({ success: true, data: all });
   } catch (error) {
+    console.error("auth:listRequests", error);
     res.status(500).json({ success: false, error: "Failed to fetch requests" });
   }
 });
@@ -151,6 +154,7 @@ router.put("/requests/:id", authMiddleware, adminMiddleware, async (req: AuthReq
       res.status(400).json({ success: false, error: "Invalid action (use 'approve' or 'reject')" });
     }
   } catch (error) {
+    console.error("auth:processRequest", error);
     res.status(500).json({ success: false, error: "Failed to process request" });
   }
 });
@@ -183,6 +187,7 @@ router.post("/register", authMiddleware, adminMiddleware, async (req: AuthReques
       data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role },
     });
   } catch (error) {
+    console.error("auth:register", error);
     res.status(500).json({ success: false, error: "Registration failed" });
   }
 });
@@ -201,6 +206,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role },
     });
   } catch (error) {
+    console.error("auth:me", error);
     res.status(500).json({ success: false, error: "Failed to get user info" });
   }
 });
@@ -214,6 +220,7 @@ router.get("/users", authMiddleware, adminMiddleware, async (req: AuthRequest, r
 
     res.json({ success: true, data: allUsers });
   } catch (error) {
+    console.error("auth:listUsers", error);
     res.status(500).json({ success: false, error: "Failed to fetch users" });
   }
 });
@@ -243,6 +250,7 @@ router.put("/users/:id", authMiddleware, adminMiddleware, async (req: AuthReques
       data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role, active: result[0].active },
     });
   } catch (error) {
+    console.error("auth:updateUser", error);
     res.status(500).json({ success: false, error: "Failed to update user" });
   }
 });
@@ -260,6 +268,7 @@ router.delete("/users/:id", authMiddleware, adminMiddleware, async (req: AuthReq
     await db.delete(users).where(eq(users.id, id));
     res.json({ success: true });
   } catch (error) {
+    console.error("auth:deleteUser", error);
     res.status(500).json({ success: false, error: "Failed to delete user" });
   }
 });

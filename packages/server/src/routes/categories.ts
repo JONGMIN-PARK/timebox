@@ -10,6 +10,7 @@ router.get("/", async (req, res) => {
     const result = await db.select().from(categories);
     res.json({ success: true, data: result });
   } catch (error) {
+    console.error("categories:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch categories" });
   }
 });

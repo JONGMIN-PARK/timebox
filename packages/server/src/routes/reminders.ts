@@ -22,6 +22,7 @@ router.get("/", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
+    console.error("reminders:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch reminders" });
   }
 });
@@ -49,6 +50,7 @@ router.post("/", async (req: AuthRequest, res) => {
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("reminders:create", error);
     res.status(500).json({ success: false, error: "Failed to create reminder" });
   }
 });
@@ -73,6 +75,7 @@ router.put("/:id", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("reminders:update", error);
     res.status(500).json({ success: false, error: "Failed to update reminder" });
   }
 });
@@ -97,6 +100,7 @@ router.post("/:id/snooze", async (req: AuthRequest, res) => {
     if (!result[0]) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("reminders:snooze", error);
     res.status(500).json({ success: false, error: "Snooze failed" });
   }
 });
@@ -112,6 +116,7 @@ router.delete("/:id", async (req: AuthRequest, res) => {
     if (!result[0]) { res.status(404).json({ success: false, error: "Reminder not found" }); return; }
     res.json({ success: true });
   } catch (error) {
+    console.error("reminders:delete", error);
     res.status(500).json({ success: false, error: "Delete failed" });
   }
 });

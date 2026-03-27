@@ -147,6 +147,16 @@ export async function initDb() {
         active BOOLEAN NOT NULL DEFAULT false,
         updated_at TEXT NOT NULL DEFAULT now()
       );
+
+      -- Indexes for common queries
+      CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);
+      CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
+      CREATE INDEX IF NOT EXISTS idx_time_blocks_user_id ON time_blocks(user_id);
+      CREATE INDEX IF NOT EXISTS idx_ddays_user_id ON ddays(user_id);
+      CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
+      CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
+      CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
+      CREATE INDEX IF NOT EXISTS idx_time_blocks_date ON time_blocks(date);
     `);
 
     // Seed default categories if empty

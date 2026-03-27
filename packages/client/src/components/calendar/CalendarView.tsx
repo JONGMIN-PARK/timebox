@@ -9,77 +9,22 @@ import {
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
-  isSameMonth,
-  isSameDay,
-  isToday,
   addMonths,
   subMonths,
   addWeeks,
   subWeeks,
   addDays,
   subDays,
-  parseISO,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X, CheckSquare, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type ViewMode = "month" | "week" | "day";
-
-const HOUR_HEIGHT = 56;
-const START_HOUR = 6;
-const END_HOUR = 24;
-const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR);
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-// Tooltip component for hover - anchored to cell element
-function HoverTooltip({ items, anchorRect }: {
-  items: { type: "event" | "todo"; title: string; time?: string; color: string; completed?: boolean }[];
-  anchorRect: DOMRect;
-}) {
-  if (items.length === 0) return null;
-
-  // Position tooltip just below the cell, centered horizontally
-  const tooltipWidth = 220;
-  let left = anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2;
-  let top = anchorRect.bottom + 4;
-
-  // Keep within viewport
-  if (left < 8) left = 8;
-  if (left + tooltipWidth > window.innerWidth - 8) left = window.innerWidth - tooltipWidth - 8;
-  // If below viewport, show above the cell
-  if (top + 150 > window.innerHeight) {
-    top = anchorRect.top - 4;
-  }
-
-  return (
-    <div
-      className="fixed z-[100] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-2.5 pointer-events-none"
-      style={{ left, top: top + 150 > window.innerHeight ? undefined : top, bottom: top + 150 > window.innerHeight ? (window.innerHeight - anchorRect.top + 4) : undefined, width: tooltipWidth }}
-    >
-      {items.map((item, i) => (
-        <div key={i} className="flex items-center gap-2 py-1">
-          {item.type === "event" ? (
-            <Calendar className="w-3 h-3 flex-shrink-0" style={{ color: item.color }} />
-          ) : (
-            <CheckSquare className={cn("w-3 h-3 flex-shrink-0", item.completed ? "text-green-500" : "text-amber-500")} />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className={cn("text-xs truncate", item.completed ? "line-through text-slate-400" : "text-slate-900 dark:text-white")}>
-              {item.title}
-            </p>
-            {item.time && <p className="text-[10px] text-slate-400">{item.time}</p>}
-          </div>
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-        </div>
-      ))}
-    </div>
-  );
-}
+import type { ViewMode, HoverTooltipItem } from "./calendarTypes";
+import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
+import HoverTooltip from "./HoverTooltip";
+import MonthView from "./MonthView";
+import WeekView from "./WeekView";
+import DayView from "./DayView";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent } = useEventStore();
@@ -91,7 +36,7 @@ export default function CalendarView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [hoverInfo, setHoverInfo] = useState<{ items: any[]; anchorRect: DOMRect } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ items: HoverTooltipItem[]; anchorRect: DOMRect } | null>(null);
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     if (viewMode === "month") {
@@ -141,7 +86,6 @@ export default function CalendarView() {
     return map;
   }, [events]);
 
-  // Todos by due date
   const todosByDate = useMemo(() => {
     const map = new Map<string, typeof todos>();
     todos.forEach((t) => {
@@ -198,11 +142,10 @@ export default function CalendarView() {
     fetchEvents(start, end);
   };
 
-  // Build hover items for a date
-  const getHoverItems = (dateKey: string) => {
+  const getHoverItems = (dateKey: string): HoverTooltipItem[] => {
     const dayEvents = eventsByDate.get(dateKey) || [];
     const dayTodos = todosByDate.get(dateKey) || [];
-    const items: { type: "event" | "todo"; title: string; time?: string; color: string; completed?: boolean }[] = [];
+    const items: HoverTooltipItem[] = [];
 
     dayEvents.forEach((ev) => {
       items.push({
@@ -278,288 +221,51 @@ export default function CalendarView() {
 
       {/* === MONTH VIEW === */}
       {viewMode === "month" && (
-        <>
-          <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
-              <div key={day} className={cn("text-center text-xs font-medium py-2", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="flex-1 grid grid-cols-7 auto-rows-fr">
-            {days.map((day) => {
-              const dateKey = format(day, "yyyy-MM-dd");
-              const dayEvents = eventsByDate.get(dateKey) || [];
-              const dayTodos = todosByDate.get(dateKey) || [];
-              const isSelected = selectedDate && isSameDay(day, selectedDate);
-              const dow = day.getDay();
-              const hasItems = dayEvents.length > 0 || dayTodos.length > 0;
-              return (
-                <button
-                  key={dateKey}
-                  onClick={() => setSelectedDate(day)}
-                  onDoubleClick={() => { setSelectedDate(day); setViewMode("day"); setCurrentDate(day); }}
-                  onMouseEnter={(e) => handleDayHover(e, dateKey)}
-                  onMouseLeave={() => setHoverInfo(null)}
-                  className={cn(
-                    "relative flex flex-col items-start p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors overflow-hidden",
-                    !isSameMonth(day, currentDate) && "opacity-30",
-                    isSelected && "bg-blue-50 dark:bg-blue-900/20",
-                    !isSelected && "hover:bg-slate-50 dark:hover:bg-slate-700/30",
-                  )}
-                >
-                  <span className={cn(
-                    "w-6 h-6 flex items-center justify-center rounded-full text-xs shrink-0",
-                    isToday(day) && "bg-blue-600 text-white font-bold",
-                    !isToday(day) && dow === 0 && "text-red-500",
-                    !isToday(day) && dow === 6 && "text-blue-500",
-                    !isToday(day) && dow !== 0 && dow !== 6 && "text-slate-700 dark:text-slate-300",
-                  )}>
-                    {format(day, "d")}
-                  </span>
-                  {/* Event & todo titles */}
-                  <div className="w-full mt-0.5 space-y-0.5 overflow-hidden flex-1 min-h-0">
-                    {dayEvents.slice(0, 2).map((ev) => (
-                      <div key={`e-${ev.id}`} className="flex items-center gap-0.5 px-0.5">
-                        <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
-                        <p className="text-[10px] leading-tight truncate text-slate-700 dark:text-slate-300">{ev.title}</p>
-                      </div>
-                    ))}
-                    {dayTodos.slice(0, 2).map((t) => (
-                      <div key={`t-${t.id}`} className="flex items-center gap-0.5 px-0.5">
-                        <div className={cn("w-1 h-1 rounded-sm shrink-0", t.completed ? "bg-green-400" : "bg-amber-400")} />
-                        <p className={cn("text-[10px] leading-tight truncate", t.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{t.title}</p>
-                      </div>
-                    ))}
-                    {(dayEvents.length + dayTodos.length) > 4 && (
-                      <span className="text-[9px] text-slate-400 px-0.5">+{dayEvents.length + dayTodos.length - 4} more</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {/* Selected date detail - events + todos */}
-          {selectedDate && (
-            <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
-                <span className="text-sm font-medium text-slate-900 dark:text-white">
-                  {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
-                </span>
-                <button onClick={() => setShowAddModal(true)} className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white">
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="max-h-48 overflow-y-auto">
-                {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
-                  <p className="px-4 py-4 text-sm text-slate-400 text-center">No events</p>
-                ) : (
-                  <>
-                    {/* Events */}
-                    {selectedDateEvents.map((ev) => (
-                      <div key={`ev-${ev.id}`} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                        <div className="w-1 h-8 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
-                        <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
-                          <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
-                        </div>
-                        <button onClick={() => deleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100">
-                          <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                        </button>
-                      </div>
-                    ))}
-                    {/* Todos */}
-                    {selectedDateTodos.map((t) => (
-                      <div key={`td-${t.id}`} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                        <div className={cn("w-1 h-8 rounded-full", t.completed ? "bg-green-400" : "bg-amber-400")} />
-                        <CheckSquare className={cn("w-3.5 h-3.5 flex-shrink-0", t.completed ? "text-green-500" : "text-amber-500")} />
-                        <div className="flex-1 min-w-0">
-                          <p className={cn("text-sm truncate", t.completed ? "line-through text-slate-400" : "text-slate-900 dark:text-white")}>
-                            {t.title}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </>
+        <MonthView
+          days={days}
+          currentDate={currentDate}
+          selectedDate={selectedDate}
+          eventsByDate={eventsByDate}
+          todosByDate={todosByDate}
+          selectedDateEvents={selectedDateEvents}
+          selectedDateTodos={selectedDateTodos}
+          onSelectDate={setSelectedDate}
+          onDoubleClickDate={(day) => { setSelectedDate(day); setViewMode("day"); setCurrentDate(day); }}
+          onDayHover={handleDayHover}
+          onDayLeave={() => setHoverInfo(null)}
+          onShowAddModal={() => setShowAddModal(true)}
+          onDeleteEvent={deleteEvent}
+        />
       )}
 
       {/* === WEEK VIEW === */}
       {viewMode === "week" && (
-        <>
-          <div className="grid grid-cols-[3rem_repeat(7,1fr)] border-b border-slate-200 dark:border-slate-700">
-            <div />
-            {days.map((day) => {
-              const dow = day.getDay();
-              const dateKey = format(day, "yyyy-MM-dd");
-              const dayTodos = todosByDate.get(dateKey) || [];
-              return (
-                <button
-                  key={dateKey}
-                  onClick={() => { setViewMode("day"); setCurrentDate(day); }}
-                  className="flex flex-col items-center py-2 hover:bg-slate-50 dark:hover:bg-slate-700/30"
-                >
-                  <span className={cn("text-xs font-medium", dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-slate-500")}>
-                    {format(day, "EEE", { locale: enUS })}
-                  </span>
-                  <span className={cn(
-                    "w-7 h-7 flex items-center justify-center rounded-full text-sm mt-0.5",
-                    isToday(day) && "bg-blue-600 text-white font-bold",
-                    !isToday(day) && "text-slate-700 dark:text-slate-300",
-                  )}>
-                    {format(day, "d")}
-                  </span>
-                  {dayTodos.length > 0 && (
-                    <div className="flex gap-0.5 mt-0.5">
-                      {dayTodos.slice(0, 3).map((t) => (
-                        <div key={t.id} className={cn("w-1 h-1 rounded-sm", t.completed ? "bg-green-400" : "bg-amber-400")} />
-                      ))}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div ref={timelineRef} className="flex-1 overflow-y-auto">
-            <div className="relative grid grid-cols-[3rem_repeat(7,1fr)]" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
-              {HOURS.map((hour) => (
-                <div key={hour} className="absolute left-0 w-12 text-right pr-2" style={{ top: (hour - START_HOUR) * HOUR_HEIGHT - 6 }}>
-                  <span className="text-xs text-slate-400 dark:text-slate-500">{hour.toString().padStart(2, "0")}:00</span>
-                </div>
-              ))}
-              {HOURS.map((hour) => (
-                <div key={`line-${hour}`} className="absolute left-12 right-0 border-t border-slate-100 dark:border-slate-700/50" style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }} />
-              ))}
-              {currentMinutes >= START_HOUR * 60 && (
-                <div className="absolute left-12 right-0 z-10 flex items-center pointer-events-none" style={{ top: currentTimeTop }}>
-                  <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
-                  <div className="flex-1 h-0.5 bg-red-500" />
-                </div>
-              )}
-              {days.map((day, colIdx) => {
-                const dateKey = format(day, "yyyy-MM-dd");
-                const dayEvents = eventsByDate.get(dateKey) || [];
-                return (
-                  <div
-                    key={dateKey}
-                    className="relative border-r border-slate-100 dark:border-slate-700/50"
-                    style={{ gridColumn: colIdx + 2 }}
-                    onClick={() => { setSelectedDate(day); setShowAddModal(true); }}
-                  >
-                    {dayEvents.map((ev) => {
-                      const startMin = timeToMinutes(ev.startTime.slice(11, 16));
-                      const endMin = timeToMinutes(ev.endTime.slice(11, 16));
-                      const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                      const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 20);
-                      return (
-                        <div
-                          key={ev.id}
-                          className="absolute left-0.5 right-0.5 rounded border-l-3 px-1 py-0.5 overflow-hidden cursor-pointer group"
-                          style={{ top, height, borderLeftColor: ev.color || "#3b82f6", backgroundColor: (ev.color || "#3b82f6") + "20" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <p className="text-xs font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
-                          {height >= 36 && <p className="text-[10px] text-slate-400">{ev.startTime.slice(11, 16)}</p>}
-                          <button onClick={() => deleteEvent(ev.id)} className="absolute top-0.5 right-0.5 hidden group-hover:flex w-4 h-4 items-center justify-center rounded bg-white/80 dark:bg-slate-800/80">
-                            <X className="w-3 h-3 text-red-500" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
+        <WeekView
+          days={days}
+          eventsByDate={eventsByDate}
+          todosByDate={todosByDate}
+          currentTimeTop={currentTimeTop}
+          currentMinutes={currentMinutes}
+          timelineRef={timelineRef}
+          onDayClick={(day) => { setViewMode("day"); setCurrentDate(day); }}
+          onCellClick={(day) => { setSelectedDate(day); setShowAddModal(true); }}
+          onDeleteEvent={deleteEvent}
+        />
       )}
 
       {/* === DAY VIEW === */}
       {viewMode === "day" && (
-        <>
-          {/* Day header with todos */}
-          <div className="border-b border-slate-100 dark:border-slate-700/50">
-            <div className="flex items-center justify-between px-4 py-2">
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {events.filter((e) => e.startTime.startsWith(format(currentDate, "yyyy-MM-dd"))).length} events
-                {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).length > 0 && (
-                  <span className="ml-2">
-                    · {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).length} todos
-                  </span>
-                )}
-              </span>
-              <button onClick={() => { setSelectedDate(currentDate); setShowAddModal(true); }} className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white">
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-            {/* Todos for this day */}
-            {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).length > 0 && (
-              <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-                {(todosByDate.get(format(currentDate, "yyyy-MM-dd")) || []).map((t) => (
-                  <span
-                    key={t.id}
-                    className={cn(
-                      "text-xs px-2 py-0.5 rounded-full",
-                      t.completed
-                        ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 line-through"
-                        : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-                    )}
-                  >
-                    {t.title}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-          <div ref={timelineRef} className="flex-1 overflow-y-auto">
-            <div className="relative" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
-              {HOURS.map((hour) => (
-                <div key={hour} className="absolute left-0 right-0 border-t border-slate-100 dark:border-slate-700/50" style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}>
-                  <span className="absolute -top-2.5 left-2 text-xs text-slate-400 dark:text-slate-500 w-10">
-                    {hour.toString().padStart(2, "0")}:00
-                  </span>
-                </div>
-              ))}
-              {isToday(currentDate) && currentMinutes >= START_HOUR * 60 && (
-                <div className="absolute left-12 right-2 z-10 flex items-center pointer-events-none" style={{ top: currentTimeTop }}>
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1" />
-                  <div className="flex-1 h-0.5 bg-red-500" />
-                </div>
-              )}
-              {(eventsByDate.get(format(currentDate, "yyyy-MM-dd")) || []).map((ev) => {
-                const startMin = timeToMinutes(ev.startTime.slice(11, 16));
-                const endMin = timeToMinutes(ev.endTime.slice(11, 16));
-                const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-                const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 24);
-                return (
-                  <div
-                    key={ev.id}
-                    className="absolute left-14 right-3 rounded-lg border-l-4 px-3 py-1.5 group"
-                    style={{ top, height, borderLeftColor: ev.color || "#3b82f6", backgroundColor: (ev.color || "#3b82f6") + "18" }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
-                        {height >= 40 && <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>}
-                      </div>
-                      <button onClick={() => deleteEvent(ev.id)} className="hidden group-hover:flex w-5 h-5 items-center justify-center">
-                        <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
+        <DayView
+          currentDate={currentDate}
+          events={events}
+          eventsByDate={eventsByDate}
+          todosByDate={todosByDate}
+          currentTimeTop={currentTimeTop}
+          currentMinutes={currentMinutes}
+          timelineRef={timelineRef}
+          onAddEvent={() => { setSelectedDate(currentDate); setShowAddModal(true); }}
+          onDeleteEvent={deleteEvent}
+        />
       )}
 
       {/* Hover tooltip */}

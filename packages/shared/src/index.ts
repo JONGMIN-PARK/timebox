@@ -9,20 +9,32 @@ export interface AuthResponse {
   token: string;
 }
 
-// ── Event (Calendar) ──
-export interface Event {
+// ── User ──
+export interface User {
   id: number;
+  username: string;
+  displayName: string | null;
+  role: string;
+}
+
+// ── Event (Calendar) ──
+export interface CalendarEvent {
+  id: number;
+  userId: number;
   title: string;
-  description?: string;
+  description: string | null;
   startTime: string;
   endTime: string;
   allDay: boolean;
-  categoryId?: number;
-  recurrenceRule?: string;
-  color?: string;
+  categoryId: number | null;
+  recurrenceRule: string | null;
+  color: string;
   createdAt: string;
   updatedAt: string;
 }
+
+/** @deprecated Use CalendarEvent instead */
+export type Event = CalendarEvent;
 
 export interface CreateEventInput {
   title: string;
@@ -48,12 +60,13 @@ export type TimeBlockCategory =
 
 export interface TimeBlock {
   id: number;
+  userId: number;
   date: string;
   startTime: string;
   endTime: string;
   title: string;
-  category: TimeBlockCategory;
-  color?: string;
+  category: string;
+  color: string | null;
   completed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -73,12 +86,14 @@ export type Priority = "high" | "medium" | "low";
 
 export interface Todo {
   id: number;
+  userId: number;
   title: string;
   completed: boolean;
-  priority: Priority;
-  dueDate?: string;
+  priority: string;
+  category: string;
+  dueDate: string | null;
   sortOrder: number;
-  parentId?: number;
+  parentId: number | null;
   children?: Todo[];
   createdAt: string;
   updatedAt: string;
@@ -89,15 +104,17 @@ export interface CreateTodoInput {
   priority?: Priority;
   dueDate?: string;
   parentId?: number;
+  category?: string;
 }
 
 // ── D-Day ──
 export interface DDay {
   id: number;
+  userId: number;
   title: string;
   targetDate: string;
-  color?: string;
-  icon?: string;
+  color: string;
+  icon: string | null;
   daysLeft: number;
   createdAt: string;
   updatedAt: string;
@@ -116,15 +133,16 @@ export type ReminderSourceType = "event" | "todo" | "dday" | "custom";
 
 export interface Reminder {
   id: number;
+  userId: number;
   title: string;
-  message?: string;
+  message: string | null;
   remindAt: string;
-  repeatRule?: string;
+  repeatRule: string | null;
   sourceType: ReminderSourceType;
-  sourceId?: number;
+  sourceId: number | null;
   channel: ReminderChannel;
   sent: boolean;
-  snoozedUntil?: string;
+  snoozedUntil: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -165,7 +183,7 @@ export interface Category {
   id: number;
   name: string;
   color: string;
-  icon?: string;
+  icon: string | null;
 }
 
 // ── API Response ──

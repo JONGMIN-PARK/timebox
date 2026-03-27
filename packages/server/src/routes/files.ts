@@ -5,7 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { db } from "../db/index.js";
 import { files } from "../db/schema.js";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, ilike } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import crypto from "crypto";
 
@@ -36,6 +36,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB per file
 
+const ALLOWED_EXTENSIONS = new Set([
+  ".jpg", ".jpeg", ".png", ".gif", ".webp",
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+  ".txt", ".csv", ".zip", ".mp3", ".mp4", ".mov",
+]);
+
 const router = Router();
 
 // GET /api/files
@@ -43,13 +49,18 @@ router.get("/", async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { tag, search } = req.query;
-    let result = await db.select().from(files).where(eq(files.userId, userId));
 
+    const conditions = [eq(files.userId, userId)];
+    if (search) conditions.push(ilike(files.originalName, `%${search as string}%`));
+
+    let result = await db.select().from(files).where(and(...conditions));
+
+    // Tags are stored as JSON text, so filter in JS
     if (tag) result = result.filter((f) => JSON.parse(f.tags).includes(tag));
-    if (search) result = result.filter((f) => f.originalName.toLowerCase().includes((search as string).toLowerCase()));
 
     res.json({ success: true, data: result });
   } catch (error) {
+    console.error("files:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch files" });
   }
 });
@@ -62,6 +73,7 @@ router.get("/usage", async (req: AuthRequest, res) => {
     const usedBytes = result.reduce((s, f) => s + f.size, 0);
     res.json({ success: true, data: { usedBytes, maxBytes: MAX_STORAGE, fileCount: result.length } });
   } catch (error) {
+    console.error("files:usage", error);
     res.status(500).json({ success: false, error: "Failed to get usage" });
   }
 });
@@ -72,6 +84,14 @@ router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
     const userId = req.userId!;
     const file = req.file;
     if (!file) { res.status(400).json({ success: false, error: "No file uploaded" }); return; }
+
+    // Validate file extension
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ success: false, error: `File type '${ext}' is not allowed` });
+      return;
+    }
 
     // Check storage limit
     const currentFiles = await db.select().from(files).where(eq(files.userId, userId));
@@ -95,6 +115,7 @@ router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("files:upload", error);
     res.status(500).json({ success: false, error: "Upload failed" });
   }
 });
@@ -118,6 +139,7 @@ router.get("/:id/download", async (req: AuthRequest, res) => {
     res.setHeader("Content-Type", file.mimeType);
     res.sendFile(filePath);
   } catch (error) {
+    console.error("files:download", error);
     res.status(500).json({ success: false, error: "Download failed" });
   }
 });
@@ -140,6 +162,7 @@ router.get("/:id/preview", async (req: AuthRequest, res) => {
     res.setHeader("Content-Disposition", "inline");
     res.sendFile(filePath);
   } catch (error) {
+    console.error("files:preview", error);
     res.status(500).json({ success: false, error: "Preview failed" });
   }
 });
@@ -158,6 +181,7 @@ router.put("/:id/tags", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("files:updateTags", error);
     res.status(500).json({ success: false, error: "Failed to update tags" });
   }
 });
@@ -180,6 +204,7 @@ router.delete("/:id", async (req: AuthRequest, res) => {
     await db.delete(files).where(eq(files.id, id));
     res.json({ success: true });
   } catch (error) {
+    console.error("files:delete", error);
     res.status(500).json({ success: false, error: "Delete failed" });
   }
 });

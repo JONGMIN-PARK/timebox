@@ -20,6 +20,7 @@ router.get("/", async (req: AuthRequest, res) => {
     const withDaysLeft = result.map((d) => ({ ...d, daysLeft: calcDaysLeft(d.targetDate) }));
     res.json({ success: true, data: withDaysLeft });
   } catch (error) {
+    console.error("ddays:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch ddays" });
   }
 });
@@ -35,6 +36,7 @@ router.post("/", async (req: AuthRequest, res) => {
     const result = await db.insert(ddays).values({ userId, title: title.trim(), targetDate, color: color || "#3b82f6", icon: icon || null }).returning();
     res.json({ success: true, data: { ...result[0], daysLeft: calcDaysLeft(result[0].targetDate) } });
   } catch (error) {
+    console.error("ddays:create", error);
     res.status(500).json({ success: false, error: "Failed to create dday" });
   }
 });
@@ -53,6 +55,7 @@ router.put("/:id", async (req: AuthRequest, res) => {
     if (!result[0]) { res.status(404).json({ success: false, error: "D-Day not found" }); return; }
     res.json({ success: true, data: { ...result[0], daysLeft: calcDaysLeft(result[0].targetDate) } });
   } catch (error) {
+    console.error("ddays:update", error);
     res.status(500).json({ success: false, error: "Failed to update dday" });
   }
 });
@@ -65,6 +68,7 @@ router.delete("/:id", async (req: AuthRequest, res) => {
     if (!result[0]) { res.status(404).json({ success: false, error: "D-Day not found" }); return; }
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("ddays:delete", error);
     res.status(500).json({ success: false, error: "Failed to delete dday" });
   }
 });

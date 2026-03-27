@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "../db/index.js";
 import { events } from "../db/schema.js";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { type AuthRequest } from "../middleware/auth.js";
+import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -21,6 +21,7 @@ router.get("/", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
+    console.error("events:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch events" });
   }
 });
@@ -48,13 +49,15 @@ router.post("/", async (req: AuthRequest, res) => {
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("events:create", error);
     res.status(500).json({ success: false, error: "Failed to create event" });
   }
 });
 
 router.put("/:id", async (req: AuthRequest, res) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = safeParseId(req.params.id);
+    if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
     const userId = req.userId!;
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
@@ -74,13 +77,15 @@ router.put("/:id", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("events:update", error);
     res.status(500).json({ success: false, error: "Failed to update event" });
   }
 });
 
 router.delete("/:id", async (req: AuthRequest, res) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = safeParseId(req.params.id);
+    if (!id) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
     const userId = req.userId!;
     const result = await db.delete(events).where(and(eq(events.id, id), eq(events.userId, userId))).returning();
     if (!result[0]) {
@@ -89,6 +94,7 @@ router.delete("/:id", async (req: AuthRequest, res) => {
     }
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("events:delete", error);
     res.status(500).json({ success: false, error: "Failed to delete event" });
   }
 });

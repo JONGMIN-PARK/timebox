@@ -24,6 +24,7 @@ router.get("/export", async (req: AuthRequest, res) => {
     res.setHeader("Content-Disposition", `attachment; filename=timebox-backup-${new Date().toISOString().slice(0, 10)}.json`);
     res.json({ success: true, data });
   } catch (error) {
+    console.error("backup:export", error);
     res.status(500).json({ success: false, error: "Failed to export data" });
   }
 });
@@ -117,6 +118,7 @@ router.post("/import", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: { imported } });
   } catch (error) {
+    console.error("backup:import", error);
     res.status(500).json({ success: false, error: "Failed to import data" });
   }
 });

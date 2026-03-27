@@ -22,6 +22,7 @@ router.get("/", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result });
   } catch (error) {
+    console.error("todos:list", error);
     res.status(500).json({ success: false, error: "Failed to fetch todos" });
   }
 });
@@ -52,6 +53,7 @@ router.post("/", async (req: AuthRequest, res) => {
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("todos:create", error);
     res.status(500).json({ success: false, error: "Failed to create todo" });
   }
 });
@@ -73,6 +75,7 @@ router.put("/reorder", async (req: AuthRequest, res) => {
 
     res.json({ success: true });
   } catch (error) {
+    console.error("todos:reorder", error);
     res.status(500).json({ success: false, error: "Failed to reorder todos" });
   }
 });
@@ -98,6 +101,7 @@ router.put("/:id", async (req: AuthRequest, res) => {
 
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("todos:update", error);
     res.status(500).json({ success: false, error: "Failed to update todo" });
   }
 });
@@ -113,6 +117,7 @@ router.delete("/:id", async (req: AuthRequest, res) => {
     }
     res.json({ success: true, data: result[0] });
   } catch (error) {
+    console.error("todos:delete", error);
     res.status(500).json({ success: false, error: "Failed to delete todo" });
   }
 });
