@@ -1,41 +1,57 @@
 import pg from "pg";
-import dns from "dns";
-import net from "net";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { lookup } from "dns/promises";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import bcrypt from "bcrypt";
 import * as schema from "./schema.js";
 
-// Force IPv4 globally to avoid ENETUNREACH on platforms without IPv6
-dns.setDefaultResultOrder("ipv4first");
-
-// Parse DATABASE_URL to extract host for IPv4 lookup override
-function createPool() {
-  const dbUrl = process.env.DATABASE_URL || "";
-  const isLocal = dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1");
-
-  return new pg.Pool({
-    connectionString: dbUrl,
-    ssl: isLocal ? false : { rejectUnauthorized: false },
-    // Force IPv4 TCP connections
-    ...(isLocal ? {} : {
-      lookup: (hostname: string, options: any, callback: any) => {
-        // If options is callback (2-arg form)
-        if (typeof options === "function") {
-          callback = options;
-          options = {};
-        }
-        dns.lookup(hostname, { ...options, family: 4 }, callback);
-      },
-    }),
-  });
+// Resolve hostname to IPv4 address to avoid IPv6 ENETUNREACH on Render
+async function resolveToIPv4(dbUrl: string): Promise<string> {
+  try {
+    const url = new URL(dbUrl);
+    // Skip if already an IPv4 address or localhost
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) || url.hostname === "localhost") {
+      return dbUrl;
+    }
+    const { address } = await lookup(url.hostname, { family: 4 });
+    // Replace hostname with resolved IPv4, keep original host in sslmode/options for SNI
+    const original = url.hostname;
+    url.hostname = address;
+    // Preserve original hostname for SSL SNI via search params
+    if (!url.searchParams.has("options")) {
+      url.searchParams.set("options", `project=${original.split(".")[0]}`);
+    }
+    return url.toString();
+  } catch (err) {
+    console.warn("IPv4 resolution failed, using original URL:", err);
+    return dbUrl;
+  }
 }
 
-const pool = createPool();
+// These are set during initDb() before any routes execute
+let pool: pg.Pool;
+let _db: NodePgDatabase<typeof schema>;
 
-export const db = drizzle(pool, { schema });
+// Export db - guaranteed to be initialized before routes (initDb runs first in index.ts)
+export function getDb() { return _db; }
+// Keep backward-compatible named export (accessed after initDb completes)
+export let db: NodePgDatabase<typeof schema>;
 
-// Initialize tables
+// Initialize pool, db, and tables
 export async function initDb() {
+  const rawUrl = process.env.DATABASE_URL || "";
+  const isLocal = rawUrl.includes("localhost") || rawUrl.includes("127.0.0.1");
+  const resolvedUrl = isLocal ? rawUrl : await resolveToIPv4(rawUrl);
+
+  console.log("DB connecting to:", resolvedUrl.replace(/:[^:@]+@/, ":***@"));
+
+  pool = new pg.Pool({
+    connectionString: resolvedUrl,
+    ssl: isLocal ? false : { rejectUnauthorized: false },
+  });
+
+  _db = drizzle(pool, { schema });
+  db = _db;
+
   const client = await pool.connect();
   try {
     await client.query(`
@@ -203,6 +219,8 @@ export async function initDb() {
       );
       console.log("Default admin user created: admin / admin123");
     }
+
+    console.log("Database initialized successfully");
   } finally {
     client.release();
   }
