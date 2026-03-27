@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { BarChart3, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { BarChart3, CheckCircle2, Clock, AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 
@@ -77,24 +77,27 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    Promise.all([
+  const fetchData = useCallback(async () => {
+    const [statsRes, membersRes, activityRes] = await Promise.all([
       api.get<ProjectStats>(`/projects/${projectId}/stats`),
       api.get<MemberStats[]>(`/projects/${projectId}/members`),
       api.get<ActivityItem[]>(`/projects/${projectId}/activity`),
-    ]).then(([statsRes, membersRes, activityRes]) => {
-      if (cancelled) return;
-      if (statsRes.data) setStats(statsRes.data);
-      if (membersRes.data) setMembers(membersRes.data);
-      if (activityRes.data) setActivity(activityRes.data);
-      setLoading(false);
-    });
-
-    return () => { cancelled = true; };
+    ]);
+    if (statsRes.data) setStats(statsRes.data);
+    if (membersRes.data) setMembers(membersRes.data);
+    if (activityRes.data) setActivity(activityRes.data);
   }, [projectId]);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -108,6 +111,20 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
 
   return (
     <div className="space-y-4 p-4 overflow-y-auto">
+      {/* Dashboard header with refresh */}
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          {t("project.dashboard")}
+        </h3>
+        <button
+          onClick={() => fetchData()}
+          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          aria-label="Refresh"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* Progress & Weekly Stats */}
       <div className="card p-4">
         <div className="flex flex-col sm:flex-row gap-6">

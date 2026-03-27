@@ -375,11 +375,28 @@ router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
       ? await db.select().from(users).where(inArray(users.id, logUserIds))
       : [];
     const activityUserMap = new Map(logUsers.map(u => [u.id, u]));
-    const result = logs.map(l => ({
-      ...l,
-      userName: activityUserMap.get(l.userId)?.displayName || "Unknown",
-      metadata: JSON.parse(l.metadata),
-    }));
+
+    const actionMap: Record<string, string> = {
+      task_created: "created",
+      task_completed: "completed",
+      task_updated: "updated",
+      comment_added: "commented",
+      task_transfer_requested: "transfer_requested",
+      task_transfer_accepted: "transfer_accepted",
+      task_transfer_rejected: "transfer_rejected",
+    };
+
+    const result = logs.map(l => {
+      const parsed = typeof l.metadata === "string" ? JSON.parse(l.metadata) : (l.metadata || {});
+      return {
+        id: l.id,
+        userId: l.userId,
+        username: activityUserMap.get(l.userId)?.displayName || "Unknown",
+        action: actionMap[l.action] || l.action,
+        targetTitle: parsed.title || "",
+        createdAt: l.createdAt,
+      };
+    });
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -395,25 +412,40 @@ router.get("/:projectId/stats", async (req: ProjectRequest, res) => {
     const members = await db.select().from(projectMembers).where(eq(projectMembers.projectId, req.projectId!));
 
     const total = tasks.length;
-    const done = tasks.filter(t => t.status === "done").length;
+    const completed = tasks.filter(t => t.status === "done").length;
     const inProgress = tasks.filter(t => t.status === "in_progress").length;
-    const overdue = tasks.filter(t => t.dueDate && t.dueDate < new Date().toISOString().slice(0, 10) && t.status !== "done").length;
 
-    // Per-member stats
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const todayStr = now.toISOString().slice(0, 10);
+    const dueSoon = tasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done").length;
+
+    // Weekly stats: tasks updated within the last 7 days
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const weekCompleted = tasks.filter(t => t.status === "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
+    const weekInProgress = tasks.filter(t => t.status === "in_progress" && t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
+    const weekDueSoon = tasks.filter(t => t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
+
+    // Per-member stats with username
+    const memberUserIds = members.map(m => m.userId);
+    const memberUsers = memberUserIds.length > 0
+      ? await db.select().from(users).where(inArray(users.id, memberUserIds))
+      : [];
+    const memberUserMap = new Map(memberUsers.map(u => [u.id, u]));
+
     const memberStats = members.map(m => {
       const assigned = tasks.filter(t => t.assigneeId === m.userId);
       return {
         userId: m.userId,
-        role: m.role,
-        total: assigned.length,
-        done: assigned.filter(t => t.status === "done").length,
-        inProgress: assigned.filter(t => t.status === "in_progress").length,
+        username: memberUserMap.get(m.userId)?.displayName || memberUserMap.get(m.userId)?.username || "Unknown",
+        totalTasks: assigned.length,
+        completedTasks: assigned.filter(t => t.status === "done").length,
       };
     });
 
     res.json({
       success: true,
-      data: { total, done, inProgress, overdue, progress: total > 0 ? Math.round((done / total) * 100) : 0, memberStats },
+      data: { total, completed, inProgress, dueSoon, progressPercent: total > 0 ? Math.round((completed / total) * 100) : 0, weekCompleted, weekInProgress, weekDueSoon, memberStats },
     });
   } catch (error) {
     console.error("projectStats:get", error);
