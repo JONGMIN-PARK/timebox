@@ -38,6 +38,17 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [transferCount, setTransferCount] = useState(0);
+
+  useEffect(() => {
+    const fetchTransferCount = async () => {
+      const res = await api.get<any[]>(`/projects/${projectId}/transfers`);
+      if (res.success && res.data) setTransferCount(res.data.length);
+    };
+    fetchTransferCount();
+    const interval = setInterval(fetchTransferCount, 30000);
+    return () => clearInterval(interval);
+  }, [projectId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +89,11 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           <h2 className="text-base font-semibold text-slate-900 dark:text-white truncate">
             {project.name}
           </h2>
+          {transferCount > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+              {transferCount}
+            </span>
+          )}
         </div>
 
         {/* Tab Bar */}

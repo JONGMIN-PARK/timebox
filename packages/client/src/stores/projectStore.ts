@@ -33,7 +33,7 @@ interface ProjectState {
   error: string | null;
   setActiveProject: (id: number | null) => void;
   fetchProjects: () => Promise<void>;
-  createProject: (data: { name: string; description?: string; color?: string; icon?: string; teamGroupId?: number }) => Promise<Project | undefined>;
+  createProject: (data: { name: string; description?: string; color?: string; icon?: string; teamGroupId?: number; startDate?: string; targetDate?: string }) => Promise<Project | undefined>;
   updateProject: (id: number, data: Partial<Project>) => Promise<void>;
   deleteProject: (id: number) => Promise<void>;
   fetchMembers: (projectId: number) => Promise<ProjectMember[]>;

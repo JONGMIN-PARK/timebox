@@ -349,6 +349,9 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_tgm_user ON team_group_members(user_id);
 
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS team_group_id INTEGER;
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date TEXT;
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_date TEXT;
+      ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TEXT;
     `);
 
     // Seed default categories if empty

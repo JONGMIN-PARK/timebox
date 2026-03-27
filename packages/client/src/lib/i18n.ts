@@ -186,6 +186,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "project.backToPersonal": "Personal",
     "project.createFailed": "Failed to create project",
     "project.notFound": "Project not found",
+    "project.startDate": "Start Date",
+    "project.targetDate": "Target Date",
+    "project.dDay": "D-Day",
 
     // Transfers
     "transfer.title": "Task Transfers",
@@ -460,6 +463,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "project.backToPersonal": "\uac1c\uc778",
     "project.notFound": "\ud504\ub85c\uc81d\ud2b8\ub97c \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4",
     "project.createFailed": "\ud504\ub85c\uc81d\ud2b8 \uc0dd\uc131\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4",
+    "project.startDate": "\uc2dc\uc791\uc77c",
+    "project.targetDate": "\ubaa9\ud45c\uc77c",
+    "project.dDay": "\ub514\ub370\uc774",
 
     // Transfers
     "transfer.title": "\uc5c5\ubb34 \uc804\ub2ec",

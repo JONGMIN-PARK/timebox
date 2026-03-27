@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers } from "../db/schema.js";
+import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects } from "../db/schema.js";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
@@ -33,7 +33,7 @@ router.get("/:projectId/tasks", async (req: ProjectRequest, res) => {
 // POST /api/projects/:projectId/tasks
 router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
   try {
-    const { title, description, status, priority, assigneeId, dueDate, tags, parentId } = req.body;
+    const { title, description, status, priority, assigneeId, startDate, dueDate, tags, parentId } = req.body;
     if (!title?.trim()) {
       res.status(400).json({ success: false, error: "Title is required" });
       return;
@@ -47,6 +47,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
       priority: priority || "medium",
       assigneeId: assigneeId || null,
       reporterId: req.userId!,
+      startDate: startDate || null,
       dueDate: dueDate || null,
       tags: JSON.stringify(tags || []),
       parentId: parentId || null,
@@ -80,6 +81,7 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
     if (req.body.status !== undefined) updates.status = req.body.status;
     if (req.body.priority !== undefined) updates.priority = req.body.priority;
     if (req.body.assigneeId !== undefined) updates.assigneeId = req.body.assigneeId;
+    if (req.body.startDate !== undefined) updates.startDate = req.body.startDate;
     if (req.body.dueDate !== undefined) updates.dueDate = req.body.dueDate;
     if (req.body.tags !== undefined) updates.tags = JSON.stringify(req.body.tags);
     if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
@@ -413,6 +415,18 @@ router.get("/:projectId/stats", async (req: ProjectRequest, res) => {
     const tasks = await db.select().from(projectTasks).where(eq(projectTasks.projectId, req.projectId!));
     const members = await db.select().from(projectMembers).where(eq(projectMembers.projectId, req.projectId!));
 
+    const project = await db.select().from(projects).where(eq(projects.id, req.projectId!));
+    const startDate = project[0]?.startDate || null;
+    const targetDate = project[0]?.targetDate || null;
+    let dDay: number | null = null;
+    if (targetDate) {
+      const target = new Date(targetDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      target.setHours(0, 0, 0, 0);
+      dDay = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
     const total = tasks.length;
     const completed = tasks.filter(t => t.status === "done").length;
     const inProgress = tasks.filter(t => t.status === "in_progress").length;
@@ -449,7 +463,7 @@ router.get("/:projectId/stats", async (req: ProjectRequest, res) => {
 
     res.json({
       success: true,
-      data: { total, completed, inProgress, dueSoon, unassigned, progressPercent: total > 0 ? Math.round((completed / total) * 100) : 0, weekCompleted, weekInProgress, weekDueSoon, memberStats },
+      data: { total, completed, inProgress, dueSoon, unassigned, progressPercent: total > 0 ? Math.round((completed / total) * 100) : 0, weekCompleted, weekInProgress, weekDueSoon, memberStats, startDate, targetDate, dDay },
     });
   } catch (error) {
     console.error("projectStats:get", error);

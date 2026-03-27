@@ -15,6 +15,9 @@ interface ProjectStats {
   weekInProgress: number;
   weekDueSoon: number;
   memberStats: MemberStats[];
+  startDate: string | null;
+  targetDate: string | null;
+  dDay: number | null;
 }
 
 interface MemberStats {
@@ -127,6 +130,38 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* Project D-Day */}
+      {stats?.targetDate && (
+        <div className="card p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {stats.startDate && (
+              <span className="text-xs text-slate-400">
+                {stats.startDate} ~
+              </span>
+            )}
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              목표: {stats.targetDate}
+            </span>
+          </div>
+          <div className={cn(
+            "text-lg font-bold px-3 py-1 rounded-lg",
+            stats.dDay !== null && stats.dDay < 0
+              ? "bg-red-50 dark:bg-red-500/10 text-red-500"
+              : stats.dDay !== null && stats.dDay <= 7
+              ? "bg-orange-50 dark:bg-orange-500/10 text-orange-500"
+              : "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          )}>
+            {stats.dDay !== null
+              ? stats.dDay === 0
+                ? "D-Day!"
+                : stats.dDay > 0
+                ? `D-${stats.dDay}`
+                : `D+${Math.abs(stats.dDay)}`
+              : ""}
+          </div>
+        </div>
+      )}
 
       {/* Progress & Weekly Stats */}
       <div className="card p-4">

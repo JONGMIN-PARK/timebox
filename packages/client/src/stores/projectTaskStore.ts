@@ -13,6 +13,7 @@ export interface ProjectTask {
   assigneeId: number | null;
   reporterId: number;
   dueDate: string | null;
+  startDate: string | null;
   tags: string;
   sortOrder: number;
   parentId: number | null;

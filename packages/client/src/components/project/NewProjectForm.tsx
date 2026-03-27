@@ -18,6 +18,8 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [targetDate, setTargetDate] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [teamGroupId, setTeamGroupId] = useState<number | "">(
     user?.teamGroups?.length === 1 ? user.teamGroups[0].id : ""
@@ -39,6 +41,8 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
       description: description.trim() || undefined,
       color,
       teamGroupId: teamGroupId ? Number(teamGroupId) : undefined,
+      startDate: startDate || undefined,
+      targetDate: targetDate || undefined,
     });
 
     if (project) {
@@ -83,6 +87,32 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
             rows={3}
             className="w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           />
+        </div>
+
+        {/* Dates */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
+              시작일
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
+              목표일
+            </label>
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
         {/* Color picker */}

@@ -36,6 +36,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   const [priority, setPriority] = useState(task.priority);
   const [assigneeId, setAssigneeId] = useState<number | null>(task.assigneeId);
   const [dueDate, setDueDate] = useState(task.dueDate || "");
+  const [startDate, setStartDate] = useState(task.startDate || "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -52,6 +53,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
     status !== task.status ||
     priority !== task.priority ||
     assigneeId !== task.assigneeId ||
+    startDate !== (task.startDate || "") ||
     dueDate !== (task.dueDate || "");
 
   const handleSave = async () => {
@@ -63,6 +65,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
       status,
       priority,
       assigneeId,
+      startDate: startDate || null,
       dueDate: dueDate || null,
     });
     setSaving(false);
@@ -175,22 +178,35 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
             </div>
           </div>
 
-          {/* Assignee + Due date row */}
+          {/* Assignee */}
+          <div>
+            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Assignee</label>
+            <select
+              value={assigneeId ?? ""}
+              onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+            >
+              <option value="">Unassigned</option>
+              {members.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.displayName || m.username || `User #${m.userId}`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date range row */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Assignee</label>
-              <select
-                value={assigneeId ?? ""}
-                onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : null)}
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
+                <CalendarDays className="w-3 h-3" /> Start date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.displayName || m.username || `User #${m.userId}`}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="flex-1">
               <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
