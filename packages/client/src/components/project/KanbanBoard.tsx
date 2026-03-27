@@ -30,15 +30,6 @@ const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
 const priorityColor = (p: string) =>
   p === "high" ? "#ef4444" : p === "medium" ? "#f59e0b" : "#94a3b8";
 
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
 // ── Draggable task card ──
 const TaskCard = React.memo(function TaskCard({
   task,
@@ -49,14 +40,10 @@ const TaskCard = React.memo(function TaskCard({
   members: ProjectMember[];
   onClick: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
     data: { task },
   });
-
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
-    : undefined;
 
   const assignee = task.assigneeId
     ? members.find((m) => m.userId === task.assigneeId)
@@ -68,10 +55,9 @@ const TaskCard = React.memo(function TaskCard({
   return (
     <div
       ref={setNodeRef}
-      style={style}
       className={cn(
         "group bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all",
-        isDragging && "opacity-40 shadow-lg",
+        isDragging && "opacity-20",
       )}
       onClick={onClick}
     >
@@ -130,15 +116,11 @@ const TaskCard = React.memo(function TaskCard({
             {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Assignee avatar */}
+            {/* Assignee name */}
             {assignee && (
-              <div
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0"
-                style={{ backgroundColor: "#6366f1" }}
-                title={assignee.displayName || assignee.username || ""}
-              >
-                {getInitials(assignee.displayName || assignee.username || "?")}
-              </div>
+              <span className="text-[10px] font-medium text-indigo-500 dark:text-indigo-400 truncate max-w-[80px]">
+                {assignee.displayName || assignee.username || "?"}
+              </span>
             )}
           </div>
         </div>
@@ -384,9 +366,9 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
             ))}
           </div>
 
-          <DragOverlay>
+          <DragOverlay dropAnimation={null}>
             {draggedTask && (
-              <div className="w-[260px] bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 shadow-xl rotate-2">
+              <div className="w-[260px] bg-white dark:bg-slate-800 rounded-lg border border-blue-400 dark:border-blue-500 p-3 shadow-xl cursor-grabbing">
                 <div className="flex items-center gap-1.5">
                   <div
                     className="w-2 h-2 rounded-full flex-shrink-0"

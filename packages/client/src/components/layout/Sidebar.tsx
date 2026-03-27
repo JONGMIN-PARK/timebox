@@ -177,13 +177,15 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 <span className="hidden lg:block truncate">{project.name}</span>
               </button>
             ))}
-            <button
-              onClick={() => onTabChange("project-new")}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
-            >
-              <Plus className="w-[18px] h-[18px] flex-shrink-0" />
-              <span className="hidden lg:block">{t("project.new")}</span>
-            </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => onTabChange("project-new")}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
+              >
+                <Plus className="w-[18px] h-[18px] flex-shrink-0" />
+                <span className="hidden lg:block">{t("project.new")}</span>
+              </button>
+            )}
           </div>
         )}
       </nav>
