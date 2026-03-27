@@ -271,3 +271,55 @@ export interface ProjectStats {
   progress: number;
   memberStats: { userId: number; role: string; total: number; done: number; inProgress: number }[];
 }
+
+// ── Post (Bulletin Board) ──
+export interface Post {
+  id: number;
+  projectId: number;
+  authorId: number;
+  authorName?: string;
+  title: string;
+  content: string;
+  pinned: boolean;
+  category: string;
+  commentCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PostComment {
+  id: number;
+  postId: number;
+  authorId: number;
+  authorName?: string;
+  content: string;
+  createdAt: string;
+}
+
+// ── Project File (shared) ──
+export interface ProjectFile {
+  id: number;
+  projectId: number;
+  uploaderId: number;
+  uploaderName?: string;
+  originalName: string;
+  storedName: string;
+  mimeType: string;
+  size: number;
+  folder: string;
+  tags: string;
+  createdAt: string;
+}
+
+// ── Chat Message ──
+export interface ChatMessage {
+  id: number;
+  projectId: number;
+  channel: string;
+  senderId: number;
+  senderName?: string;
+  content: string;
+  type: string;
+  replyTo: number | null;
+  createdAt: string;
+}

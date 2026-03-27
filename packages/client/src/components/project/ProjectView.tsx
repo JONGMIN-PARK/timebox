@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
 import MemberManager from "./MemberManager";
 import TransferPanel from "./TransferPanel";
+import PostBoard from "./PostBoard";
+import ProjectFileManager from "./ProjectFileManager";
+import ProjectChat from "./ProjectChat";
 
-type Tab = "dashboard" | "tasks" | "members";
+type Tab = "dashboard" | "tasks" | "members" | "board" | "files" | "chat";
 
 interface ProjectInfo {
   id: number;
@@ -22,6 +26,9 @@ interface ProjectViewProps {
 const TABS: { key: Tab; label: string }[] = [
   { key: "dashboard", label: "현황판" },
   { key: "tasks", label: "태스크" },
+  { key: "board", label: "게시판" },
+  { key: "files", label: "자료실" },
+  { key: "chat", label: "채팅" },
   { key: "members", label: "멤버" },
 ];
 
@@ -101,8 +108,23 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           </div>
         )}
         {activeTab === "tasks" && (
-          <div className="h-full overflow-y-auto flex items-center justify-center">
-            <p className="text-sm text-slate-400">태스크 보드 (KanbanBoard 연결 예정)</p>
+          <div className="h-full overflow-hidden">
+            <KanbanBoard projectId={projectId} />
+          </div>
+        )}
+        {activeTab === "board" && (
+          <div className="h-full overflow-y-auto">
+            <PostBoard projectId={projectId} />
+          </div>
+        )}
+        {activeTab === "files" && (
+          <div className="h-full overflow-y-auto">
+            <ProjectFileManager projectId={projectId} />
+          </div>
+        )}
+        {activeTab === "chat" && (
+          <div className="h-full overflow-hidden">
+            <ProjectChat projectId={projectId} />
           </div>
         )}
         {activeTab === "members" && (

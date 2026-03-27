@@ -246,3 +246,51 @@ export const taskTransfers = pgTable("task_transfers", {
   createdAt: text("created_at").notNull().default(sql`now()`),
   respondedAt: text("responded_at"),
 });
+
+// ── Posts (Bulletin Board) ──
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  authorId: integer("author_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  pinned: boolean("pinned").notNull().default(false),
+  category: text("category").notNull().default("discussion"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
+// ── Post Comments ──
+export const postComments = pgTable("post_comments", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull(),
+  authorId: integer("author_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
+// ── Project Files (shared) ──
+export const projectFiles = pgTable("project_files", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  uploaderId: integer("uploader_id").notNull(),
+  originalName: text("original_name").notNull(),
+  storedName: text("stored_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  folder: text("folder").notNull().default("/"),
+  tags: text("tags").notNull().default("[]"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
+// ── Chat Messages ──
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  channel: text("channel").notNull().default("general"),
+  senderId: integer("sender_id").notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull().default("text"),
+  replyTo: integer("reply_to"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});

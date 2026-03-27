@@ -274,6 +274,56 @@ export async function initDb() {
         responded_at TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_task_transfers_to_user ON task_transfers(to_user_id);
+
+      CREATE TABLE IF NOT EXISTS posts (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        author_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        pinned BOOLEAN NOT NULL DEFAULT false,
+        category TEXT NOT NULL DEFAULT 'discussion',
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS post_comments (
+        id SERIAL PRIMARY KEY,
+        post_id INTEGER NOT NULL,
+        author_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS project_files (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        uploader_id INTEGER NOT NULL,
+        original_name TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        folder TEXT NOT NULL DEFAULT '/',
+        tags TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        channel TEXT NOT NULL DEFAULT 'general',
+        sender_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'text',
+        reply_to INTEGER,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_posts_project ON posts(project_id);
+      CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id);
+      CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_project ON messages(project_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel);
     `);
 
     // Seed default categories if empty

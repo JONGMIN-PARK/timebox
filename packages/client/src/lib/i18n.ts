@@ -137,6 +137,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "files.uploading": "Uploading...",
     "files.deleteConfirm": "Delete this file?",
     "files.all": "All",
+    "files.shared": "Shared Files",
+    "files.folder": "Folder",
+    "files.root": "Root",
+
+    // Chat
+    "chat.title": "Chat",
+    "chat.placeholder": "Type a message...",
+    "chat.send": "Send",
+    "chat.noMessages": "No messages yet",
 
     // Scheduler
     "scheduler.brainBox": "Brain Box",
@@ -332,6 +341,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "files.uploading": "\uc5c5\ub85c\ub4dc \uc911...",
     "files.deleteConfirm": "\uc774 \ud30c\uc77c\uc744 \uc0ad\uc81c\ud560\uae4c\uc694?",
     "files.all": "\uc804\uccb4",
+    "files.shared": "\uacf5\uc720 \uc790\ub8cc\uc2e4",
+    "files.folder": "\ud3f4\ub354",
+    "files.root": "\ucd5c\uc0c1\uc704",
+
+    // Chat
+    "chat.title": "\ucc44\ud305",
+    "chat.placeholder": "\uba54\uc2dc\uc9c0\ub97c \uc785\ub825\ud558\uc138\uc694...",
+    "chat.send": "\uc804\uc1a1",
+    "chat.noMessages": "\uba54\uc2dc\uc9c0\uac00 \uc5c6\uc2b5\ub2c8\ub2e4",
 
     // Scheduler
     "scheduler.brainBox": "\ube0c\ub808\uc778 \ubc15\uc2a4",
