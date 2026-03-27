@@ -1,8 +1,25 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { inboxMessages, users } from "../db/schema.js";
+import { inboxMessages, users, telegramConfig } from "../db/schema.js";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
+import { getTelegramBot } from "../telegram/bot.js";
+
+// Send Telegram notification for inbox message
+async function notifyViaTelegram(toUserId: number, fromName: string, subject: string, content: string) {
+  try {
+    const bot = getTelegramBot();
+    if (!bot) return;
+    const conf = await db.select().from(telegramConfig).limit(1);
+    const chatId = conf[0]?.chatId;
+    if (!chatId) return;
+    const preview = content.length > 100 ? content.slice(0, 100) + "..." : content;
+    const msg = `📬 *새 메시지*\n\n👤 보낸 사람: *${fromName}*\n📌 제목: ${subject}\n\n${preview}`;
+    await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+  } catch (e) {
+    console.error("telegram-inbox-notify:", e);
+  }
+}
 
 const router = Router();
 
@@ -86,6 +103,11 @@ router.post("/", async (req: AuthRequest, res) => {
       return;
     }
 
+    // Get sender name
+    const senderRows = await db.select({ displayName: users.displayName, username: users.username })
+      .from(users).where(eq(users.id, fromUserId));
+    const fromName = senderRows[0]?.displayName || senderRows[0]?.username || "Unknown";
+
     const result = await db.insert(inboxMessages).values({
       fromUserId,
       toUserId,
@@ -95,6 +117,9 @@ router.post("/", async (req: AuthRequest, res) => {
       relatedProjectId: relatedProjectId || null,
       relatedTaskId: relatedTaskId || null,
     }).returning();
+
+    // Send Telegram notification (async, non-blocking)
+    notifyViaTelegram(toUserId, fromName, subject.trim(), content.trim());
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {

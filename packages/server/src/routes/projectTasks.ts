@@ -1,8 +1,23 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages } from "../db/schema.js";
+import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages, telegramConfig } from "../db/schema.js";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
+import { getTelegramBot } from "../telegram/bot.js";
+
+async function notifyTaskViaTelegram(projectName: string, taskTitle: string, dueDate: string | null) {
+  try {
+    const bot = getTelegramBot();
+    if (!bot) return;
+    const conf = await db.select().from(telegramConfig).limit(1);
+    const chatId = conf[0]?.chatId;
+    if (!chatId) return;
+    const msg = `📋 *태스크 할당*\n\n📁 프로젝트: *${projectName}*\n📌 태스크: ${taskTitle}${dueDate ? `\n📅 마감: ${dueDate}` : ""}`;
+    await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
+  } catch (e) {
+    console.error("telegram-task-notify:", e);
+  }
+}
 
 const router = Router();
 
@@ -63,7 +78,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
       metadata: JSON.stringify({ title: result[0].title }),
     });
 
-    // Send inbox notification to assignee
+    // Send inbox + Telegram notification to assignee
     if (result[0].assigneeId && result[0].assigneeId !== req.userId) {
       const project = await db.select().from(projects).where(eq(projects.id, req.projectId!));
       const projectName = project[0]?.name || "Project";
@@ -76,6 +91,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
+      notifyTaskViaTelegram(projectName, result[0].title, result[0].dueDate);
     }
 
     res.status(201).json({ success: true, data: result[0] });
