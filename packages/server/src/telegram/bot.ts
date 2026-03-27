@@ -1,7 +1,7 @@
 import TelegramBot from "node-telegram-bot-api";
 import { db } from "../db/index.js";
 import { todos, events, ddays, telegramConfig, timeBlocks, users, files } from "../db/schema.js";
-import { eq, gte, lte, and } from "drizzle-orm";
+import { eq, gte, lte, and, inArray } from "drizzle-orm";
 import cron from "node-cron";
 import fs from "fs";
 import path from "path";
@@ -14,9 +14,17 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname2, "../../upload
 
 let bot: TelegramBot | null = null;
 
-async function getUserIdFromChat(chatId: string): Promise<number> {
-  const conf = (await db.select().from(telegramConfig)).find((c) => c.chatId === chatId);
-  return conf?.userId || 1;
+async function isLinkedUser(msg: TelegramBot.Message): Promise<number | null> {
+  const chatId = msg.chat.id.toString();
+  const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.chatId, chatId));
+  if (conf[0]?.userId && conf[0]?.active) return conf[0].userId;
+  return null;
+}
+
+async function getUserIdFromChat(chatId: string): Promise<number | null> {
+  const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.chatId, chatId));
+  if (conf[0]?.userId && conf[0]?.active) return conf[0].userId;
+  return null;
 }
 
 function parseDateInput(input: string): string {
@@ -45,22 +53,32 @@ export async function initTelegramBot() {
   if (!token) { console.log("TELEGRAM_BOT_TOKEN not set, skipping"); return; }
 
   bot = new TelegramBot(token, { polling: true });
-  console.log("Telegram bot initialized");
 
-  // Save config with userId
-  const existing = await db.select().from(telegramConfig);
-  if (existing.length === 0) {
-    await db.insert(telegramConfig).values({ userId: 1, chatId: process.env.TELEGRAM_CHAT_ID || null, active: true });
-  }
+  await bot.setMyCommands([
+    { command: "help", description: "도움말 보기" },
+    { command: "today", description: "오늘 브리핑" },
+    { command: "add", description: "일정 추가" },
+    { command: "todo", description: "할일 추가" },
+    { command: "list", description: "할일 목록" },
+    { command: "check", description: "할일 완료 (번호)" },
+    { command: "del", description: "할일 삭제 (번호)" },
+    { command: "done", description: "완료된 할일" },
+    { command: "dday", description: "D-Day 목록" },
+    { command: "blocks", description: "오늘 타임블록" },
+    { command: "week", description: "주간 요약" },
+    { command: "stats", description: "통계" },
+    { command: "project", description: "내 프로젝트 현황" },
+    { command: "mytasks", description: "나에게 할당된 태스크" },
+    { command: "inbox", description: "안읽은 메시지" },
+    { command: "msg", description: "메시지 보내기" },
+    { command: "link", description: "계정 연동 (코드)" },
+  ]);
+
+  console.log("Telegram bot initialized");
 
   // ── /start ──
   bot.onText(/\/start/, async (msg) => {
-    const chatId = msg.chat.id.toString();
-    const conf = await db.select().from(telegramConfig).limit(1);
-    if (conf.length > 0) {
-      await db.update(telegramConfig).set({ chatId, active: true, updatedAt: new Date().toISOString() }).where(eq(telegramConfig.id, conf[0].id));
-    }
-    bot!.sendMessage(msg.chat.id, `✅ *TimeBox Bot Connected!*\n\nType /h for quick help or /help for full commands.`, { parse_mode: "Markdown" });
+    bot!.sendMessage(msg.chat.id, `✅ *TimeBox Bot Connected!*\n\nType /h for quick help or /help for full commands.\n먼저 /link 코드 로 계정을 연동해주세요.`, { parse_mode: "Markdown" });
   });
 
   // ── /link CODE — link Telegram to a user account ──
@@ -101,52 +119,44 @@ export async function initTelegramBot() {
     bot!.sendMessage(msg.chat.id,
 `📋 *TimeBox Bot Commands*
 
-*Quick Actions (shortcuts):*
-\`/a\` — Add event (same as /add)
-\`/t\` — Add todo (same as /todo)
-\`/d\` — D-Day list (same as /dday)
-\`/b\` — Today's blocks (same as /blocks)
-\`/s\` — Summary (same as /today)
+*Quick Actions:*
+\`/s\` — 오늘 브리핑
+\`/a\` — 일정 추가
+\`/t\` — 할일 추가
+\`/l\` — 할일 목록
+\`/b\` — 타임블록
+\`/d\` — D-Day
 
-*Events:*
-\`/add [date] [time] title\`
-  /add meeting with John
-  /add tomorrow 14:00 team standup
-  /add 14:00-15:30 code review
+*프로젝트:*
+\`/project\` — 내 프로젝트 현황
+\`/mytasks\` — 할당된 태스크
+\`/inbox\` — 안읽은 메시지
+\`/msg @user 내용\` — 메시지 보내기
 
-*Todos:*
-\`/todo title [!high|!low]\`
-  /todo finish report !high
-  /todo buy groceries
+*할일 관리:*
+\`/check N\` — N번 할일 완료
+\`/del N\` — N번 할일 삭제
+\`/done\` — 완료 목록
 
-*Quick Todo:*
-\`/t title\` — add with default priority
-
-*View:*
-\`/today\` or \`/s\` — daily briefing
-\`/blocks\` or \`/b\` — time blocks
-\`/dday\` or \`/d\` — D-Day list
-\`/list\` or \`/l\` — active todos
-\`/done\` — completed todos
-\`/week\` — week summary
-\`/stats\` — statistics
-
-*Actions:*
-\`/check [number]\` — complete todo #N
-\`/del [number]\` — delete todo #N`, { parse_mode: "Markdown" });
+*기타:*
+\`/week\` — 주간 요약
+\`/stats\` — 통계
+\`/link 코드\` — 계정 연동`, { parse_mode: "Markdown" });
   });
 
   // ── /today or /s — Daily briefing ──
   bot.onText(/\/(today|s)$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
     const today = new Date().toISOString().slice(0, 10);
 
     const todayEvents = await db.select().from(events)
-      .where(and(gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
-    const allTodos = await db.select().from(todos);
+      .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
+    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
     const active = allTodos.filter((t) => !t.completed);
     const completed = allTodos.filter((t) => t.completed);
-    const todayBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.date, today));
+    const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
 
     let text = `📅 *Daily Briefing* — ${today}\n\n`;
 
@@ -183,7 +193,10 @@ export async function initTelegramBot() {
 
   // ── /add or /a — Add event ──
   bot.onText(/\/(add|a)\s+(.+)/, async (msg, match) => {
-    if (!isAuthorized(msg) || !match) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+    if (!match) return;
+
     const parts = match[2].trim().split(/\s+/);
     let dateStr = new Date().toISOString().slice(0, 10);
     let timeRange: { start: string; end: string } | null = null;
@@ -207,7 +220,7 @@ export async function initTelegramBot() {
     const end = timeRange?.end || "10:00";
 
     await db.insert(events).values({
-      userId: 1, title, startTime: `${dateStr}T${start}:00`, endTime: `${dateStr}T${end}:00`, allDay: false, color: "#3b82f6",
+      userId, title, startTime: `${dateStr}T${start}:00`, endTime: `${dateStr}T${end}:00`, allDay: false, color: "#3b82f6",
     });
 
     bot!.sendMessage(msg.chat.id, `✅ *Event added*\n📅 ${dateStr} ${start}-${end}\n📝 ${title}`, { parse_mode: "Markdown" });
@@ -215,7 +228,10 @@ export async function initTelegramBot() {
 
   // ── /todo or /t — Add todo ──
   bot.onText(/\/(todo|t)\s+(.+)/, async (msg, match) => {
-    if (!isAuthorized(msg) || !match) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+    if (!match) return;
+
     let text = match[2].trim();
     let priority = "medium";
     let category = "personal";
@@ -230,10 +246,10 @@ export async function initTelegramBot() {
 
     if (!text) { bot!.sendMessage(msg.chat.id, "❌ Please provide a task title"); return; }
 
-    const allTodos = await db.select().from(todos);
+    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
     const maxOrder = allTodos.reduce((max, t) => Math.max(max, t.sortOrder), -1);
     await db.insert(todos).values({
-      userId: 1, title: text, priority, category, sortOrder: maxOrder + 1, dueDate: new Date().toISOString().slice(0, 10),
+      userId, title: text, priority, category, sortOrder: maxOrder + 1, dueDate: new Date().toISOString().slice(0, 10),
     });
 
     const emoji = priority === "high" ? "🔴" : priority === "low" ? "⚪" : "🟡";
@@ -242,8 +258,10 @@ export async function initTelegramBot() {
 
   // ── /list or /l — List active todos ──
   bot.onText(/\/(list|l)$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
-    const active = (await db.select().from(todos).where(eq(todos.completed, false)))
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (active.length === 0) { bot!.sendMessage(msg.chat.id, "✨ No active todos!"); return; }
@@ -262,9 +280,12 @@ export async function initTelegramBot() {
 
   // ── /check N — Complete todo by number ──
   bot.onText(/\/check\s+(\d+)/, async (msg, match) => {
-    if (!isAuthorized(msg) || !match) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+    if (!match) return;
+
     const num = parseInt(match[1]);
-    const active = (await db.select().from(todos).where(eq(todos.completed, false)))
+    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (num < 1 || num > active.length) {
@@ -279,9 +300,12 @@ export async function initTelegramBot() {
 
   // ── /del N — Delete todo by number ──
   bot.onText(/\/del\s+(\d+)/, async (msg, match) => {
-    if (!isAuthorized(msg) || !match) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+    if (!match) return;
+
     const num = parseInt(match[1]);
-    const active = (await db.select().from(todos).where(eq(todos.completed, false)))
+    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (num < 1 || num > active.length) {
@@ -296,8 +320,10 @@ export async function initTelegramBot() {
 
   // ── /done — Show completed todos ──
   bot.onText(/\/done$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
-    const completed = await db.select().from(todos).where(eq(todos.completed, true));
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const completed = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true)));
 
     if (completed.length === 0) { bot!.sendMessage(msg.chat.id, "No completed todos yet"); return; }
 
@@ -310,8 +336,10 @@ export async function initTelegramBot() {
 
   // ── /dday or /d ──
   bot.onText(/\/(dday|d)$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
-    const allDdays = await db.select().from(ddays);
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const allDdays = await db.select().from(ddays).where(eq(ddays.userId, userId));
 
     if (allDdays.length === 0) { bot!.sendMessage(msg.chat.id, "📅 No D-Days set"); return; }
 
@@ -329,9 +357,11 @@ export async function initTelegramBot() {
 
   // ── /blocks or /b ──
   bot.onText(/\/(blocks|b)$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
     const today = new Date().toISOString().slice(0, 10);
-    const blocks = await db.select().from(timeBlocks).where(eq(timeBlocks.date, today));
+    const blocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
 
     if (blocks.length === 0) { bot!.sendMessage(msg.chat.id, "⏱ No time blocks today"); return; }
 
@@ -345,7 +375,9 @@ export async function initTelegramBot() {
 
   // ── /week — Week summary ──
   bot.onText(/\/week$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
     const now = new Date();
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
@@ -353,10 +385,10 @@ export async function initTelegramBot() {
     const endStr = weekEnd.toISOString().slice(0, 10);
 
     const weekEvents = await db.select().from(events)
-      .where(and(gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)));
+      .where(and(eq(events.userId, userId), gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)));
 
-    const allTodos = await db.select().from(todos);
-    const allBlocks = await db.select().from(timeBlocks);
+    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
+    const allBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
     const weekBlocks = allBlocks.filter((b) => b.date >= startStr && b.date <= endStr);
 
     const totalBlockMins = weekBlocks.reduce((s, b) => {
@@ -365,12 +397,12 @@ export async function initTelegramBot() {
       return s + (eh * 60 + em) - (sh * 60 + sm);
     }, 0);
 
-    const allDdays = await db.select().from(ddays);
+    const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
     let text = `📊 *Week Summary* (${startStr} ~ ${endStr})\n\n`;
     text += `📌 Events: ${weekEvents.length}\n`;
     text += `⏱ Time blocks: ${weekBlocks.length} (${fmtDuration(totalBlockMins)})\n`;
     text += `✅ Todos: ${allTodos.filter((t) => t.completed).length}/${allTodos.length} done\n`;
-    text += `📅 Upcoming D-Days: ${allDdays.filter((d) => {
+    text += `📅 Upcoming D-Days: ${allDdays2.filter((d) => {
       const diff = Math.ceil((new Date(d.targetDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       return diff >= 0 && diff <= 7;
     }).length}\n`;
@@ -380,11 +412,13 @@ export async function initTelegramBot() {
 
   // ── /stats — Statistics ──
   bot.onText(/\/stats$/, async (msg) => {
-    if (!isAuthorized(msg)) return;
-    const allTodos = await db.select().from(todos);
-    const allEvents = await db.select().from(events);
-    const allBlocks = await db.select().from(timeBlocks);
-    const allDdays = await db.select().from(ddays);
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
+    const allEvents = await db.select().from(events).where(eq(events.userId, userId));
+    const allBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
+    const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
 
     const catCounts: Record<string, number> = {};
     allTodos.forEach((t) => {
@@ -396,7 +430,7 @@ export async function initTelegramBot() {
     text += `📋 Todos: ${allTodos.length} total (${allTodos.filter((t) => t.completed).length} done)\n`;
     text += `📌 Events: ${allEvents.length}\n`;
     text += `⏱ Time Blocks: ${allBlocks.length}\n`;
-    text += `📅 D-Days: ${allDdays.length}\n`;
+    text += `📅 D-Days: ${allDdays2.length}\n`;
     text += `\n*Todo Categories:*\n`;
     Object.entries(catCounts).sort((a, b) => b[1] - a[1]).forEach(([cat, count]) => {
       text += `  ${cat}: ${count}\n`;
@@ -405,10 +439,141 @@ export async function initTelegramBot() {
     bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
   });
 
+  // ── /project or /p — My project status ──
+  bot.onText(/\/(project|p)$/, async (msg) => {
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const { projectMembers, projects, projectTasks } = await import("../db/schema.js");
+    const memberships = await db.select().from(projectMembers).where(eq(projectMembers.userId, userId));
+    if (memberships.length === 0) { bot!.sendMessage(msg.chat.id, "📁 참여 중인 프로젝트가 없습니다."); return; }
+
+    const projectIds = memberships.map(m => m.projectId);
+    const myProjects = await db.select().from(projects).where(inArray(projects.id, projectIds));
+    const allTasks = await db.select().from(projectTasks).where(inArray(projectTasks.projectId, projectIds));
+
+    let text = "📁 *내 프로젝트*\n\n";
+    for (const p of myProjects) {
+      const tasks = allTasks.filter(t => t.projectId === p.id);
+      const done = tasks.filter(t => t.status === "done").length;
+      const total = tasks.length;
+      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+      const myTasks = tasks.filter(t => t.assigneeId === userId && t.status !== "done").length;
+
+      let dDayStr = "";
+      if (p.targetDate) {
+        const diff = Math.ceil((new Date(p.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        dDayStr = diff === 0 ? " 🔥D-Day" : diff > 0 ? ` D-${diff}` : ` D+${Math.abs(diff)}`;
+      }
+
+      text += `*${p.name}*${dDayStr}\n`;
+      text += `  진행: ${progress}% (${done}/${total})`;
+      if (myTasks > 0) text += ` | 내 할일: ${myTasks}개`;
+      text += "\n\n";
+    }
+
+    bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+  });
+
+  // ── /mytasks or /mt — My assigned tasks ──
+  bot.onText(/\/(mytasks|mt)$/, async (msg) => {
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const { projectTasks, projects } = await import("../db/schema.js");
+    const myTasks = await db.select().from(projectTasks).where(eq(projectTasks.assigneeId, userId));
+    const activeTasks = myTasks.filter(t => t.status !== "done");
+
+    if (activeTasks.length === 0) { bot!.sendMessage(msg.chat.id, "✨ 할당된 태스크가 없습니다!"); return; }
+
+    const projectIds = [...new Set(activeTasks.map(t => t.projectId))];
+    const taskProjects = await db.select().from(projects).where(inArray(projects.id, projectIds));
+    const projectMap = new Map(taskProjects.map(p => [p.id, p.name]));
+
+    let text = `📋 *내 태스크* (${activeTasks.length}개)\n\n`;
+    const statusIcon: Record<string, string> = { backlog: "⬜", todo: "📝", in_progress: "🔄", review: "👀" };
+
+    activeTasks.forEach((t, i) => {
+      const icon = statusIcon[t.status] || "📌";
+      const project = projectMap.get(t.projectId) || "";
+      text += `${i + 1}. ${icon} ${t.title}\n`;
+      text += `   📁 ${project}`;
+      if (t.dueDate) text += ` | 📅 ${t.dueDate.slice(0, 10)}`;
+      text += "\n";
+    });
+
+    bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+  });
+
+  // ── /inbox or /i — Unread messages ──
+  bot.onText(/\/(inbox|i)$/, async (msg) => {
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+
+    const { inboxMessages } = await import("../db/schema.js");
+    const unread = await db.select().from(inboxMessages)
+      .where(and(eq(inboxMessages.toUserId, userId), eq(inboxMessages.read, false)));
+
+    if (unread.length === 0) { bot!.sendMessage(msg.chat.id, "📭 새 메시지가 없습니다."); return; }
+
+    // Get sender names
+    const senderIds = [...new Set(unread.map(m => m.fromUserId))];
+    const senders = senderIds.length > 0
+      ? await db.select().from(users).where(inArray(users.id, senderIds)) : [];
+    const senderMap = new Map(senders.map(s => [s.id, s.displayName || s.username]));
+
+    let text = `📬 *안읽은 메시지* (${unread.length}개)\n\n`;
+    unread.slice(0, 10).forEach((m, i) => {
+      const from = senderMap.get(m.fromUserId) || "Unknown";
+      const typeIcon = m.type === "task_assignment" ? "📋" : m.type === "system" ? "🔔" : "💬";
+      text += `${i + 1}. ${typeIcon} *${m.subject}*\n   👤 ${from} | ${m.createdAt.slice(0, 10)}\n\n`;
+    });
+    if (unread.length > 10) text += `...+${unread.length - 10}개 더\n`;
+
+    bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+  });
+
+  // ── /msg or /m — Send message ──
+  bot.onText(/\/(msg|m)\s+(\S+)\s+(.+)/, async (msg, match) => {
+    const userId = await isLinkedUser(msg);
+    if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
+    if (!match) return;
+
+    const targetUsername = match[2];
+    const content = match[3].trim();
+
+    const targetUser = await db.select().from(users).where(eq(users.username, targetUsername));
+    if (!targetUser[0]) { bot!.sendMessage(msg.chat.id, `❌ 사용자 "${targetUsername}"을(를) 찾을 수 없습니다.`); return; }
+
+    const { inboxMessages } = await import("../db/schema.js");
+    const senderRows = await db.select().from(users).where(eq(users.id, userId));
+    const fromName = senderRows[0]?.displayName || senderRows[0]?.username || "Unknown";
+
+    await db.insert(inboxMessages).values({
+      fromUserId: userId,
+      toUserId: targetUser[0].id,
+      subject: `${fromName}님의 텔레그램 메시지`,
+      content,
+      type: "message",
+    });
+
+    // Also send telegram notification to recipient if they have it linked
+    const recipientConf = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, targetUser[0].id));
+    if (recipientConf[0]?.chatId && recipientConf[0]?.active && bot) {
+      const preview = content.length > 100 ? content.slice(0, 100) + "..." : content;
+      await bot.sendMessage(recipientConf[0].chatId, `📬 *새 메시지*\n👤 ${fromName}\n\n${preview}`, { parse_mode: "Markdown" });
+    }
+
+    bot!.sendMessage(msg.chat.id, `✅ ${targetUser[0].displayName || targetUser[0].username}에게 메시지를 보냈습니다.`);
+  });
+
   // ── File handler — auto-save to vault ──
   bot.on("document", async (msg) => {
-    if (!isAuthorized(msg) || !msg.document) return;
     const userId = await getUserIdFromChat(msg.chat.id.toString());
+    if (!userId || !msg.document) {
+      if (!userId) bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요.");
+      return;
+    }
     const doc = msg.document;
 
     try {
@@ -439,8 +604,11 @@ export async function initTelegramBot() {
 
   // ── Photo handler ──
   bot.on("photo", async (msg) => {
-    if (!isAuthorized(msg) || !msg.photo) return;
     const userId = await getUserIdFromChat(msg.chat.id.toString());
+    if (!userId || !msg.photo) {
+      if (!userId) bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요.");
+      return;
+    }
     const photo = msg.photo[msg.photo.length - 1];
 
     try {
@@ -471,11 +639,6 @@ export async function initTelegramBot() {
   await setupDailyBriefing();
 }
 
-function isAuthorized(msg: TelegramBot.Message): boolean {
-  const expected = process.env.TELEGRAM_CHAT_ID;
-  return !expected || msg.chat.id.toString() === expected;
-}
-
 async function setupDailyBriefing() {
   const conf = await db.select().from(telegramConfig).limit(1);
   const briefingTime = conf[0]?.dailyBriefingTime || "08:00";
@@ -493,59 +656,60 @@ async function sendDailyBriefing() {
   if (activeConfs.length === 0) return;
 
   const today = new Date().toISOString().slice(0, 10);
-
-  const todayEvents = await db.select().from(events)
-    .where(and(gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
-  const activeTodos = await db.select().from(todos).where(eq(todos.completed, false));
-  const todayBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.date, today));
-
   const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
-  const allDdays = await db.select().from(ddays);
-  const upcoming = allDdays.filter((d) => {
-    const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-    return diff >= 0 && diff <= 7;
-  });
-
-  let text = `🌅 *Good morning! Daily Briefing*\n📅 ${today}\n\n`;
-
-  if (todayEvents.length > 0) {
-    text += `📌 ${todayEvents.length} events\n`;
-    todayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((e) => {
-      text += `  • ${e.startTime.slice(11, 16)} ${e.title}\n`;
-    });
-    text += "\n";
-  }
-
-  if (todayBlocks.length > 0) {
-    text += `⏱ ${todayBlocks.length} time blocks\n`;
-    todayBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((b) => {
-      text += `  • ${b.startTime}-${b.endTime} ${b.title}\n`;
-    });
-    text += "\n";
-  }
-
-  if (activeTodos.length > 0) {
-    text += `✅ ${activeTodos.length} active todos\n`;
-    activeTodos.slice(0, 5).forEach((t) => {
-      const p = t.priority === "high" ? "🔴" : t.priority === "medium" ? "🟡" : "⚪";
-      text += `  ${p} ${t.title}\n`;
-    });
-    if (activeTodos.length > 5) text += `  ...+${activeTodos.length - 5} more\n`;
-    text += "\n";
-  }
-
-  if (upcoming.length > 0) {
-    text += `🎯 Upcoming D-Days\n`;
-    upcoming.forEach((d) => {
-      const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-      text += `  ${diff === 0 ? "🔥 D-Day!" : `D-${diff}`} ${d.title}\n`;
-    });
-  }
-
-  text += `\n_Type /h for commands_`;
 
   for (const conf of activeConfs) {
     try {
+      const userId = conf.userId!;
+
+      const todayEvents = await db.select().from(events)
+        .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
+      const activeTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false)));
+      const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
+      const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
+      const upcoming = allDdays2.filter((d) => {
+        const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+        return diff >= 0 && diff <= 7;
+      });
+
+      let text = `🌅 *Good morning! Daily Briefing*\n📅 ${today}\n\n`;
+
+      if (todayEvents.length > 0) {
+        text += `📌 ${todayEvents.length} events\n`;
+        todayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((e) => {
+          text += `  • ${e.startTime.slice(11, 16)} ${e.title}\n`;
+        });
+        text += "\n";
+      }
+
+      if (todayBlocks.length > 0) {
+        text += `⏱ ${todayBlocks.length} time blocks\n`;
+        todayBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((b) => {
+          text += `  • ${b.startTime}-${b.endTime} ${b.title}\n`;
+        });
+        text += "\n";
+      }
+
+      if (activeTodos.length > 0) {
+        text += `✅ ${activeTodos.length} active todos\n`;
+        activeTodos.slice(0, 5).forEach((t) => {
+          const p = t.priority === "high" ? "🔴" : t.priority === "medium" ? "🟡" : "⚪";
+          text += `  ${p} ${t.title}\n`;
+        });
+        if (activeTodos.length > 5) text += `  ...+${activeTodos.length - 5} more\n`;
+        text += "\n";
+      }
+
+      if (upcoming.length > 0) {
+        text += `🎯 Upcoming D-Days\n`;
+        upcoming.forEach((d) => {
+          const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+          text += `  ${diff === 0 ? "🔥 D-Day!" : `D-${diff}`} ${d.title}\n`;
+        });
+      }
+
+      text += `\n_Type /h for commands_`;
+
       bot.sendMessage(conf.chatId!, text, { parse_mode: "Markdown" });
     } catch (e) {
       console.error(`daily-briefing send to ${conf.chatId}:`, e);
