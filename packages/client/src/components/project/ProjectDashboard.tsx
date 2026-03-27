@@ -13,6 +13,7 @@ interface ProjectStats {
   weekCompleted: number;
   weekInProgress: number;
   weekDueSoon: number;
+  memberStats: MemberStats[];
 }
 
 interface MemberStats {
@@ -78,13 +79,14 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    const [statsRes, membersRes, activityRes] = await Promise.all([
+    const [statsRes, activityRes] = await Promise.all([
       api.get<ProjectStats>(`/projects/${projectId}/stats`),
-      api.get<MemberStats[]>(`/projects/${projectId}/members`),
       api.get<ActivityItem[]>(`/projects/${projectId}/activity`),
     ]);
-    if (statsRes.data) setStats(statsRes.data);
-    if (membersRes.data) setMembers(membersRes.data);
+    if (statsRes.data) {
+      setStats(statsRes.data);
+      setMembers(statsRes.data.memberStats || []);
+    }
     if (activityRes.data) setActivity(activityRes.data);
   }, [projectId]);
 
