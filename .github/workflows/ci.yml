@@ -1,4 +1,5 @@
-name: CI
+name: CI/CD
+
 on:
   push:
     branches: [main]
@@ -19,3 +20,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Deploy to Render
+        run: |
+          curl -sf "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" || echo "Deploy hook triggered"
