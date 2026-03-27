@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
 import MemberManager from "./MemberManager";
@@ -23,16 +24,17 @@ interface ProjectViewProps {
   initialTab?: Tab;
 }
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "dashboard", label: "현황판" },
-  { key: "tasks", label: "태스크" },
-  { key: "board", label: "게시판" },
-  { key: "files", label: "자료실" },
-  { key: "chat", label: "채팅" },
-  { key: "members", label: "멤버" },
+const TAB_KEYS: { key: Tab; labelKey: string }[] = [
+  { key: "dashboard", labelKey: "project.dashboard" },
+  { key: "tasks", labelKey: "project.tasks" },
+  { key: "board", labelKey: "post.title" },
+  { key: "files", labelKey: "files.shared" },
+  { key: "chat", labelKey: "chat.title" },
+  { key: "members", labelKey: "project.members" },
 ];
 
 export default function ProjectView({ projectId, initialTab = "dashboard" }: ProjectViewProps) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   if (!project) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-slate-400">프로젝트를 찾을 수 없습니다</p>
+        <p className="text-sm text-slate-400">{t("project.notFound")}</p>
       </div>
     );
   }
@@ -80,7 +82,7 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
 
         {/* Tab Bar */}
         <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-          {TABS.map((tab) => (
+          {TAB_KEYS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -91,7 +93,7 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
                   : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
               )}
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>

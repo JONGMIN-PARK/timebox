@@ -16,6 +16,7 @@ import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
 
 const ProjectView = lazy(() => import("@/components/project/ProjectView"));
+import NewProjectForm from "@/components/project/NewProjectForm";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
@@ -66,6 +67,16 @@ export default function DashboardPage() {
         return <SettingsPage />;
       case "files":
         return <FileVault />;
+      case "project-new":
+        return (
+          <NewProjectForm
+            onCreated={(projectId) => {
+              useProjectStore.getState().setActiveProject(projectId);
+              setActiveTab("project-dashboard");
+            }}
+            onCancel={() => setActiveTab("calendar")}
+          />
+        );
       default:
         return <CalendarView />;
     }
