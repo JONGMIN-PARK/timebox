@@ -44,6 +44,7 @@ interface ChatMessage {
   content: string;
   type: string;
   deleted?: boolean;
+  readBy?: string;
   createdAt: string;
 }
 
@@ -177,8 +178,8 @@ export default function ChatPanel() {
     if (res.success && res.data) setMessages(res.data);
     setMessagesLoading(false);
 
-    // Mark as read
-    // read tracking handled by opening the room
+    // Mark messages as read
+    await api.put(`/chat/${room.id}/read`, {});
     setRooms((prev) =>
       prev.map((r) => (r.id === room.id ? { ...r, unreadCount: 0 } : r)),
     );
@@ -332,6 +333,14 @@ export default function ChatPanel() {
 
   const getInitial = (name: string) => {
     return name.charAt(0).toUpperCase();
+  };
+
+  const renderContent = (text: string) => {
+    return text.split(/(@\w+)/g).map((part, i) =>
+      part.startsWith("@")
+        ? <span key={i} className="text-blue-500 font-medium cursor-pointer hover:underline">{part}</span>
+        : part
+    );
   };
 
   const getRoomDisplayName = (room: ChatRoom) => {
@@ -593,7 +602,7 @@ export default function ChatPanel() {
                       )}
                     >
                       <p className="whitespace-pre-wrap break-words">
-                        {msg.content}
+                        {renderContent(msg.content)}
                       </p>
                     </div>
                     {isMe && !msg.deleted && (
@@ -606,7 +615,7 @@ export default function ChatPanel() {
                     )}
                   </div>
 
-                  {/* Time */}
+                  {/* Time + read receipt */}
                   <span
                     className={cn(
                       "text-[9px] text-slate-400 mt-0.5",
@@ -614,6 +623,11 @@ export default function ChatPanel() {
                     )}
                   >
                     {formatTime(msg.createdAt)}
+                    {isMe && !msg.deleted && (
+                      <span className="text-[9px] text-slate-400 ml-0.5">
+                        {msg.readBy && JSON.parse(msg.readBy || "[]").length > 0 ? "\u2713\u2713" : "\u2713"}
+                      </span>
+                    )}
                   </span>
                 </div>
               );

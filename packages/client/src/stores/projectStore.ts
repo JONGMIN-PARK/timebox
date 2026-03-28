@@ -10,6 +10,7 @@ export interface Project {
   ownerId: number;
   visibility: string;
   teamGroupId?: number | null;
+  archived?: boolean;
   memberCount?: number;
   myRole?: string;
   createdAt: string;
@@ -39,6 +40,7 @@ interface ProjectState {
   fetchMembers: (projectId: number) => Promise<ProjectMember[]>;
   inviteMember: (projectId: number, username: string, role?: string) => Promise<void>;
   removeMember: (projectId: number, userId: number) => Promise<void>;
+  archiveProject: (projectId: number) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -125,6 +127,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       await api.delete(`/projects/${projectId}/members/${userId}`);
     } catch {
       set({ error: "Failed to remove member" });
+    }
+  },
+
+  archiveProject: async (projectId) => {
+    set({ error: null });
+    try {
+      const res = await api.put<{ archived: boolean }>(`/projects/${projectId}/archive`, {});
+      if (res.success && res.data) {
+        set({
+          projects: get().projects.map(p =>
+            p.id === projectId ? { ...p, archived: res.data!.archived } : p
+          ),
+        });
+      }
+    } catch {
+      set({ error: "Failed to archive project" });
     }
   },
 }));

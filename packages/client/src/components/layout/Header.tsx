@@ -13,7 +13,19 @@ interface HeaderProps {
 
 export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const pageVisible = usePageVisible();
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const fetchUnread = async () => {
     const res = await api.get<{ count: number }>("/inbox/unread-count");
@@ -60,6 +72,14 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
           v{APP_VERSION}
         </button>
       </div>
+
+      {/* Offline indicator */}
+      {!isOnline && (
+        <span className="flex items-center gap-1 text-[10px] text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          오프라인
+        </span>
+      )}
 
       {/* Inbox bell */}
       <button

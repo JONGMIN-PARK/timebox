@@ -157,7 +157,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             {/* Team group accordion sections */}
             {user?.teamGroups && user.teamGroups.length > 0 && (
               user.teamGroups.map((group) => {
-                const groupProjects = projects.filter(p => p.teamGroupId === group.id);
+                const groupProjects = projects.filter(p => p.teamGroupId === group.id && !p.archived);
                 const isOpen = openGroups.has(group.id);
                 return (
                   <div key={group.id}>
@@ -192,7 +192,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               })
             )}
             {/* Ungrouped projects (teamGroupId is null) — always show */}
-            {projects.filter(p => !p.teamGroupId).map((project) => (
+            {projects.filter(p => !p.teamGroupId && !p.archived).map((project) => (
               <button
                 key={project.id}
                 onClick={() => { setActiveProject(project.id); onTabChange("project-dashboard"); }}

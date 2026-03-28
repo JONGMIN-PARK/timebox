@@ -52,6 +52,28 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
+  const [notifPermission, setNotifPermission] = useState(
+    typeof Notification !== "undefined" ? Notification.permission : "default"
+  );
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem("timebox_notification_prefs");
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return { reminders: true, chat: true, tasks: true, inbox: true };
+  });
+
+  const requestNotificationPermission = async () => {
+    if (typeof Notification === "undefined") return;
+    const perm = await Notification.requestPermission();
+    setNotifPermission(perm);
+  };
+
+  const toggleNotifPref = (key: string) => {
+    const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
+    setNotifPrefs(updated);
+    localStorage.setItem("timebox_notification_prefs", JSON.stringify(updated));
+  };
 
   const isAdmin = user?.role === "admin";
   const pendingRequests = requests.filter((r) => r.status === "pending");
@@ -207,6 +229,51 @@ export default function SettingsPage() {
 
         {/* Telegram Integration */}
         <TelegramSection />
+
+        {/* Notifications */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.notifications")}</h2>
+          <div className="card p-4 space-y-3">
+            {/* Browser notification permission */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-700 dark:text-slate-300">브라우저 알림</p>
+                <p className="text-[10px] text-slate-400">리마인더, 채팅 알림을 브라우저로 받습니다</p>
+              </div>
+              <button onClick={requestNotificationPermission} className={cn(
+                "px-3 py-1.5 text-xs rounded-lg font-medium transition-colors",
+                notifPermission === "granted"
+                  ? "bg-green-50 dark:bg-green-900/20 text-green-600"
+                  : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100"
+              )}>
+                {notifPermission === "granted" ? "✓ 허용됨" : notifPermission === "denied" ? "차단됨" : "허용하기"}
+              </button>
+            </div>
+
+            {/* Toggle switches for each notification type */}
+            {[
+              { key: "reminders", label: "리마인더 알림", desc: "리마인더 시간에 알림" },
+              { key: "chat", label: "채팅 메시지 알림", desc: "새 채팅 메시지 수신 시" },
+              { key: "tasks", label: "태스크 할당 알림", desc: "태스크가 나에게 할당될 때" },
+              { key: "inbox", label: "인박스 메시지 알림", desc: "새 인박스 메시지 수신 시" },
+            ].map(item => (
+              <div key={item.key} className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">{item.label}</p>
+                  <p className="text-[10px] text-slate-400">{item.desc}</p>
+                </div>
+                <button onClick={() => toggleNotifPref(item.key)}
+                  className={cn("w-10 h-5 rounded-full transition-colors relative",
+                    notifPrefs[item.key] ? "bg-blue-500" : "bg-slate-300 dark:bg-slate-600"
+                  )}>
+                  <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                    notifPrefs[item.key] ? "translate-x-5" : "translate-x-0.5"
+                  )} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Data Management */}
         <section className="animate-in">

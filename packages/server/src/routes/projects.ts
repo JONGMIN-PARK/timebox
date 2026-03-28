@@ -36,7 +36,11 @@ router.get("/", async (req: AuthRequest, res) => {
       return;
     }
 
-    const myProjects = await db.select().from(projects).where(inArray(projects.id, allProjectIds));
+    const includeArchived = req.query.includeArchived === "true";
+    let myProjects = await db.select().from(projects).where(inArray(projects.id, allProjectIds));
+    if (!includeArchived) {
+      myProjects = myProjects.filter(p => !p.archived);
+    }
 
     // Single query to get member counts grouped by projectId
     const memberCounts = await db.select({
@@ -85,7 +89,11 @@ router.get("/summary", async (req: AuthRequest, res) => {
     const allProjectIds = [...new Set([...directProjectIds, ...groupProjectIds])];
     if (allProjectIds.length === 0) { res.json({ success: true, data: [] }); return; }
 
-    const myProjects = await db.select().from(projects).where(inArray(projects.id, allProjectIds));
+    const includeArchived = req.query.includeArchived === "true";
+    let myProjects = await db.select().from(projects).where(inArray(projects.id, allProjectIds));
+    if (!includeArchived) {
+      myProjects = myProjects.filter(p => !p.archived);
+    }
 
     // Get all tasks for these projects
     const allTasks = await db.select().from(projectTasks).where(inArray(projectTasks.projectId, allProjectIds));
@@ -134,6 +142,7 @@ router.get("/summary", async (req: AuthRequest, res) => {
         overdue,
         progress,
         memberCount: memberCountMap.get(p.id) || 0,
+        archived: p.archived,
       };
     });
 
@@ -227,6 +236,26 @@ router.put("/:projectId", projectMemberMiddleware, projectAdminMiddleware, async
   } catch (error) {
     console.error("projects:update", error);
     res.status(500).json({ success: false, error: "Failed to update project" });
+  }
+});
+
+// PUT /api/projects/:projectId/archive - toggle archive status
+router.put("/:projectId/archive", projectMemberMiddleware, projectAdminMiddleware, async (req: ProjectRequest, res) => {
+  try {
+    const [project] = await db.select().from(projects).where(eq(projects.id, req.projectId!));
+    if (!project) {
+      res.status(404).json({ success: false, error: "Not found" });
+      return;
+    }
+
+    const result = await db.update(projects)
+      .set({ archived: !project.archived, updatedAt: new Date().toISOString() })
+      .where(eq(projects.id, req.projectId!))
+      .returning();
+    res.json({ success: true, data: { ...result[0], archived: !project.archived } });
+  } catch (error) {
+    console.error("projects:archive", error);
+    res.status(500).json({ success: false, error: "Failed to toggle archive" });
   }
 });
 

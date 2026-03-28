@@ -355,6 +355,7 @@ export async function initDb() {
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date TEXT;
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS target_date TEXT;
       ALTER TABLE projects ADD COLUMN IF NOT EXISTS docs TEXT;
+      ALTER TABLE projects ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE project_tasks ADD COLUMN IF NOT EXISTS start_date TEXT;
 
       CREATE TABLE IF NOT EXISTS inbox_messages (
@@ -439,6 +440,7 @@ export async function initDb() {
 
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_by TEXT NOT NULL DEFAULT '[]';
 
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at);

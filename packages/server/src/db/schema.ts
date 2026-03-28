@@ -185,6 +185,7 @@ export const projects = pgTable("projects", {
   startDate: text("start_date"),
   targetDate: text("target_date"),
   docs: text("docs"),  // Markdown/text for project overview, specs, notes
+  archived: boolean("archived").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
   teamGroupId: integer("team_group_id"),
@@ -372,6 +373,7 @@ export const chatMessages = pgTable("chat_messages", {
   type: text("type").notNull().default("text"), // "text" | "system" | "image"
   replyTo: integer("reply_to"),
   deleted: boolean("deleted").notNull().default(false),
+  readBy: text("read_by").notNull().default("[]"),  // JSON array of userIds who read this
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
 

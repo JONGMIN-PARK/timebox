@@ -35,6 +35,7 @@ export default function CalendarView() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+  const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
   const { t } = useI18n();
@@ -134,9 +135,11 @@ export default function CalendarView() {
       endTime: `${dateStr}T${newEvent.endTime}:00`,
       allDay: false,
       categoryId: newEvent.categoryId || undefined,
+      recurrenceRule: recurrence || undefined,
       color: cat?.color || "#3b82f6",
     });
     setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+    setRecurrence("");
     setShowAddModal(false);
     const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
     const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
@@ -322,6 +325,19 @@ export default function CalendarView() {
                 <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
                 <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence") || "반복"}</label>
+              <select
+                value={recurrence}
+                onChange={(e) => setRecurrence(e.target.value)}
+                className="w-full text-xs bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none"
+              >
+                <option value="">반복 없음</option>
+                <option value="daily">매일</option>
+                <option value="weekly">매주</option>
+                <option value="monthly">매월</option>
+              </select>
             </div>
             <div className="flex gap-2">
               <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{t("common.add")}</button>

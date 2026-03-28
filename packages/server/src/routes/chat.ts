@@ -4,6 +4,7 @@ import { chatRooms, chatMembers, chatMessages, users } from "../db/schema.js";
 import { eq, and, desc, inArray, lt, sql } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getUserMap } from "../lib/userEnrichment.js";
+import { emitToUser } from "../socket/index.js";
 
 const router = Router();
 
@@ -317,6 +318,8 @@ router.get("/:roomId/messages", async (req: AuthRequest, res) => {
       ...m,
       content: m.deleted ? "" : m.content,
       senderName: m.deleted ? "" : (userMap.get(m.userId) || "Unknown"),
+      readBy: m.readBy || "[]",
+      readCount: (JSON.parse(m.readBy || "[]") as number[]).length,
     }));
 
     // Return in chronological order
@@ -362,6 +365,23 @@ router.post("/:roomId/messages", async (req: AuthRequest, res) => {
     // Enrich with sender name
     const userMap = await getUserMap([userId]);
 
+    // Parse @mentions and notify
+    const mentionRegex = /@(\w+)/g;
+    let match;
+    while ((match = mentionRegex.exec(content)) !== null) {
+      const mentionedUsername = match[1];
+      // Find user by username
+      const [mentioned] = await db.select().from(users)
+        .where(eq(users.username, mentionedUsername));
+      if (mentioned && mentioned.id !== userId) {
+        emitToUser(mentioned.id, "chat:mentioned", {
+          roomId, messageId: message.id, fromUserId: userId,
+          fromName: userMap.get(userId) || "Unknown",
+          content: content.slice(0, 100),
+        });
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -372,6 +392,34 @@ router.post("/:roomId/messages", async (req: AuthRequest, res) => {
   } catch (error) {
     console.error("chat:sendMessage", error);
     res.status(500).json({ success: false, error: "Failed to send message" });
+  }
+});
+
+// PUT /:roomId/read - Mark messages as read
+router.put("/:roomId/read", async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const roomId = safeParseId(req.params.roomId);
+    if (!roomId) { res.status(400).json({ success: false, error: "Invalid ID" }); return; }
+
+    // Get unread messages in this room
+    const msgs = await db.select().from(chatMessages)
+      .where(eq(chatMessages.roomId, roomId));
+
+    // Update readBy for messages not yet read by this user
+    for (const msg of msgs) {
+      const readBy = JSON.parse(msg.readBy || "[]") as number[];
+      if (!readBy.includes(userId) && msg.userId !== userId) {
+        readBy.push(userId);
+        await db.update(chatMessages).set({ readBy: JSON.stringify(readBy) })
+          .where(eq(chatMessages.id, msg.id));
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("chat:markRead", error);
+    res.status(500).json({ success: false, error: "Failed" });
   }
 });
 
