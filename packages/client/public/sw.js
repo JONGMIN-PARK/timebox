@@ -20,16 +20,22 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Skip non-GET requests and API calls
-  if (request.method !== "GET" || request.url.includes("/api/")) {
+  // Skip non-GET, API calls, and non-http(s) schemes (chrome-extension://, etc.)
+  if (
+    request.method !== "GET" ||
+    request.url.includes("/api/") ||
+    !request.url.startsWith("http")
+  ) {
     return;
   }
 
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
         return response;
       })
       .catch(() => caches.match(request).then((cached) => cached || new Response("Offline", { status: 503 })))
