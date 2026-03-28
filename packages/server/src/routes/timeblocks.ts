@@ -114,15 +114,11 @@ router.post("/templates/:id/apply", async (req: AuthRequest, res) => {
     if (!template) { res.status(404).json({ success: false, error: "Template not found" }); return; }
 
     const blockData = JSON.parse(template.blocks) as Array<{ startTime: string; endTime: string; title: string; category: string; color: string }>;
-    const created: any[] = [];
 
-    for (const b of blockData) {
-      const result = await db.insert(timeBlocks).values({
-        userId, date, startTime: b.startTime, endTime: b.endTime,
-        title: b.title, category: b.category || "other", color: b.color || null, completed: false,
-      }).returning();
-      created.push(result[0]);
-    }
+    const created = blockData.length > 0 ? await db.insert(timeBlocks).values(blockData.map(b => ({
+      userId, date, startTime: b.startTime, endTime: b.endTime,
+      title: b.title, category: b.category || "other", color: b.color || null, completed: false,
+    }))).returning() : [];
 
     res.json({ success: true, data: created });
   } catch (error) {

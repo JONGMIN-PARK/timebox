@@ -111,7 +111,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
-      notifyTaskViaTelegram(result[0].assigneeId, projectName, result[0].title, result[0].dueDate).catch(() => {});
+      notifyTaskViaTelegram(result[0].assigneeId, projectName, result[0].title, result[0].dueDate).catch(e => console.error("telegram-notify:", e));
     }
 
     res.status(201).json({ success: true, data: result[0] });
@@ -170,7 +170,7 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
         relatedProjectId: req.projectId!,
         relatedTaskId: result[0].id,
       });
-      notifyTaskViaTelegram(req.body.assigneeId, projectName, result[0].title, result[0].dueDate).catch(() => {});
+      notifyTaskViaTelegram(req.body.assigneeId, projectName, result[0].title, result[0].dueDate).catch(e => console.error("telegram-notify:", e));
     }
 
     res.json({ success: true, data: result[0] });

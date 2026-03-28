@@ -1,0 +1,11 @@
+export const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
+export const RATE_LIMIT_MAX = 300;
+export const AUTH_RATE_LIMIT_MAX = 20;
+export const TOKEN_EXPIRY = "30d";
+export const FILE_SIZE_LIMIT = 500 * 1024 * 1024; // 500MB
+export const TELEGRAM_PARSE_MODE = "Markdown" as const;
+export const TELEGRAM_POLL_INTERVAL = 300;
+export const TELEGRAM_POLL_TIMEOUT = 10;
+export const LINK_CODE_EXPIRY = 10 * 60 * 1000; // 10 minutes
+export const DEFAULT_COLOR = "#3b82f6";
+export const PAGINATION = { INBOX: 100, TIMELINE: 100, MESSAGES: 50 } as const;

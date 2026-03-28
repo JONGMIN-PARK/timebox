@@ -1,7 +1,6 @@
-/// <reference types="vite/client" />
 import { io, Socket } from "socket.io-client";
 
-const SERVER_URL = (import.meta as any).env?.DEV
+const SERVER_URL = import.meta.env?.DEV
   ? "http://localhost:3001"
   : window.location.origin;
 

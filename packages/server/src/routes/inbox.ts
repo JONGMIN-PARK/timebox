@@ -4,6 +4,8 @@ import { inboxMessages, users, telegramConfig } from "../db/schema.js";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getTelegramBot } from "../telegram/bot.js";
+import { getUserMap } from "../lib/userEnrichment.js";
+import { PAGINATION, TELEGRAM_PARSE_MODE } from "../lib/constants.js";
 
 // Send Telegram notification for inbox message
 async function notifyViaTelegram(toUserId: number, fromName: string, subject: string, content: string) {
@@ -14,7 +16,7 @@ async function notifyViaTelegram(toUserId: number, fromName: string, subject: st
     if (!conf[0]?.chatId || !conf[0]?.active) return;
     const preview = content.length > 100 ? content.slice(0, 100) + "..." : content;
     const msg = `📬 *새 메시지*\n\n👤 보낸 사람: *${fromName}*\n📌 제목: ${subject}\n\n${preview}`;
-    await bot.sendMessage(conf[0].chatId, msg, { parse_mode: "Markdown" });
+    await bot.sendMessage(conf[0].chatId, msg, { parse_mode: TELEGRAM_PARSE_MODE });
   } catch (e) {
     console.error("telegram-inbox-notify:", e);
   }
@@ -29,15 +31,11 @@ router.get("/", async (req: AuthRequest, res) => {
     const msgs = await db.select().from(inboxMessages)
       .where(eq(inboxMessages.toUserId, userId))
       .orderBy(desc(inboxMessages.createdAt))
-      .limit(100);
+      .limit(PAGINATION.INBOX);
 
     // Attach sender names
     const senderIds = [...new Set(msgs.map(m => m.fromUserId))];
-    const senders = senderIds.length > 0
-      ? await db.select({ id: users.id, username: users.username, displayName: users.displayName })
-          .from(users).where(inArray(users.id, senderIds))
-      : [];
-    const senderMap = new Map(senders.map(s => [s.id, s.displayName || s.username]));
+    const senderMap = await getUserMap(senderIds);
 
     const data = msgs.map(m => ({
       ...m,
@@ -58,14 +56,10 @@ router.get("/sent", async (req: AuthRequest, res) => {
     const msgs = await db.select().from(inboxMessages)
       .where(eq(inboxMessages.fromUserId, userId))
       .orderBy(desc(inboxMessages.createdAt))
-      .limit(100);
+      .limit(PAGINATION.INBOX);
 
     const recipientIds = [...new Set(msgs.map(m => m.toUserId))];
-    const recipients = recipientIds.length > 0
-      ? await db.select({ id: users.id, username: users.username, displayName: users.displayName })
-          .from(users).where(inArray(users.id, recipientIds))
-      : [];
-    const recipientMap = new Map(recipients.map(r => [r.id, r.displayName || r.username]));
+    const recipientMap = await getUserMap(recipientIds);
 
     const data = msgs.map(m => ({
       ...m,
@@ -118,7 +112,7 @@ router.post("/", async (req: AuthRequest, res) => {
     }).returning();
 
     // Send Telegram notification (async, non-blocking)
-    notifyViaTelegram(toUserId, fromName, subject.trim(), content.trim()).catch(() => {});
+    notifyViaTelegram(toUserId, fromName, subject.trim(), content.trim()).catch(e => console.error("telegram-notify:", e));
 
     res.status(201).json({ success: true, data: result[0] });
   } catch (error) {

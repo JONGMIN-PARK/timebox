@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { chatRooms, chatMembers, chatMessages, users } from "../db/schema.js";
-import { eq, and, desc, inArray, lt } from "drizzle-orm";
+import { eq, and, desc, inArray, lt, sql } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
+import { getUserMap } from "../lib/userEnrichment.js";
 
 const router = Router();
 
@@ -11,14 +12,6 @@ async function verifyMembership(roomId: number, userId: number) {
   const [membership] = await db.select().from(chatMembers)
     .where(and(eq(chatMembers.roomId, roomId), eq(chatMembers.userId, userId)));
   return membership || null;
-}
-
-// ── Helper: enrich users by IDs ──
-async function getUserMap(userIds: number[]) {
-  if (userIds.length === 0) return new Map<number, string>();
-  const result = await db.select({ id: users.id, displayName: users.displayName, username: users.username })
-    .from(users).where(inArray(users.id, userIds));
-  return new Map(result.map(u => [u.id, u.displayName || u.username]));
 }
 
 // GET / - List my chat rooms
@@ -46,20 +39,26 @@ router.get("/", async (req: AuthRequest, res) => {
       memberCountMap.set(m.roomId, (memberCountMap.get(m.roomId) || 0) + 1);
     }
 
-    // Get last message per room
-    const lastMessages = await Promise.all(
-      roomIds.map(async (roomId) => {
-        const [msg] = await db.select().from(chatMessages)
-          .where(eq(chatMessages.roomId, roomId))
-          .orderBy(desc(chatMessages.id))
-          .limit(1);
-        return { roomId, message: msg || null };
-      })
-    );
-    const lastMessageMap = new Map(lastMessages.map(lm => [lm.roomId, lm.message]));
+    // Get last message per room in ONE query
+    const lastMsgsResult = roomIds.length > 0 ? await db.execute(sql`
+      SELECT DISTINCT ON (room_id) room_id, id, content, type, user_id, created_at
+      FROM chat_messages
+      WHERE room_id = ANY(${roomIds})
+      ORDER BY room_id, id DESC
+    `) : { rows: [] };
+    const lastMessageMap = new Map<number, { id: number; content: string; type: string; userId: number; createdAt: string }>();
+    for (const row of lastMsgsResult.rows as any[]) {
+      lastMessageMap.set(row.room_id, {
+        id: row.id,
+        content: row.content,
+        type: row.type,
+        userId: row.user_id,
+        createdAt: row.created_at,
+      });
+    }
 
     // Enrich sender names for last messages
-    const senderIds = [...new Set(lastMessages.filter(lm => lm.message).map(lm => lm.message!.userId))];
+    const senderIds = [...new Set([...lastMessageMap.values()].map(m => m.userId))];
     const userMap = await getUserMap(senderIds);
 
     // For direct rooms, get the other user's name
@@ -74,7 +73,7 @@ router.get("/", async (req: AuthRequest, res) => {
     const directUserMap = await getUserMap([...directRoomMemberIds]);
 
     const data = rooms.map(room => {
-      const lastMsg = lastMessageMap.get(room.id);
+      const lastMsg = lastMessageMap.get(room.id) || null;
       // For direct rooms, show the other person's name
       let displayName = room.name;
       if (room.type === "direct") {

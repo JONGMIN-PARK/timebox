@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { userActivityLog, users } from "../db/schema.js";
 import { eq, desc, sql, and, gte, count } from "drizzle-orm";
 import type { AuthRequest } from "../middleware/auth.js";
+import { PAGINATION } from "../lib/constants.js";
 
 const router = Router();
 
@@ -118,7 +119,7 @@ router.get("/timeline", async (_req: AuthRequest, res) => {
       FROM ${userActivityLog} ual
       JOIN ${users} u ON ual.user_id = u.id
       ORDER BY ual.created_at DESC
-      LIMIT 100
+      LIMIT ${PAGINATION.TIMELINE}
     `);
 
     res.json({ success: true, data: results.rows });
@@ -207,7 +208,7 @@ router.get("/user/:userId", async (req: AuthRequest, res) => {
       .from(userActivityLog)
       .where(eq(userActivityLog.userId, userId))
       .orderBy(desc(userActivityLog.createdAt))
-      .limit(50);
+      .limit(PAGINATION.MESSAGES);
 
     // Action breakdown this month
     const actionBreakdown = await db

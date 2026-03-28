@@ -3,6 +3,7 @@ import { getSocket } from "@/lib/socket";
 import { api } from "@/lib/api";
 import { MessageCircle, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 
 interface ChatRequest {
   fromUserId: number;
@@ -17,6 +18,7 @@ interface ChatRequestPopupProps {
 const AUTO_DISMISS_MS = 30_000;
 
 export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
+  const { t } = useI18n();
   const [requests, setRequests] = useState<ChatRequest[]>([]);
   const [dismissing, setDismissing] = useState<Set<number>>(new Set());
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
@@ -157,7 +159,7 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
                 <MessageCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               </div>
               <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                채팅 요청
+                {t("chat.request")}
               </span>
             </div>
 
@@ -166,7 +168,7 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
               <span className="font-medium text-gray-900 dark:text-white">
                 {request.fromUserName}
               </span>
-              님이 채팅을 요청했습니다.
+              {" "}{t("chat.requestMessage")}.
             </p>
 
             {/* Actions */}
@@ -181,7 +183,7 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
                 )}
               >
                 <Check className="h-4 w-4" />
-                수락
+                {t("chat.accept")}
               </button>
               <button
                 onClick={() => handleDecline(request)}
@@ -193,7 +195,7 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
                 )}
               >
                 <X className="h-4 w-4" />
-                거절
+                {t("chat.decline")}
               </button>
             </div>
           </div>
