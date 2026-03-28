@@ -71,8 +71,11 @@ export default function MonthView({
               onTouchStart={(e) => {
                 const touch = e.touches[0];
                 touchTimer.current = setTimeout(() => {
+                  e.preventDefault();
                   setLongPressDate(dateKey);
                   setMenuPos({ x: touch.clientX, y: touch.clientY });
+                  // Clear text selection
+                  window.getSelection()?.removeAllRanges();
                 }, 500);
               }}
               onTouchEnd={() => {
@@ -89,7 +92,7 @@ export default function MonthView({
               onMouseEnter={(e) => onDayHover(e, dateKey)}
               onMouseLeave={onDayLeave}
               className={cn(
-                "relative flex flex-col items-start p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors overflow-hidden",
+                "relative flex flex-col items-start p-1 border-b border-r border-slate-100 dark:border-slate-700/50 transition-colors overflow-hidden select-none",
                 !isSameMonth(day, currentDate) && "opacity-30",
                 isSelected && "bg-blue-50 dark:bg-blue-900/20",
                 !isSelected && "hover:bg-slate-50 dark:hover:bg-slate-700/30",
