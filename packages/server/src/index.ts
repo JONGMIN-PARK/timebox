@@ -160,42 +160,35 @@ httpServer.listen(PORT, () => {
         const bot = getTelegramBot();
         if (!bot) return;
 
-        // Read version info from shared version.json
         const fs = await import("fs");
+
+        // Read version
         const versionPath = path.join(__dirname, "../../shared/version.json");
-        let versionData: { version: string; date: string; highlights: string[]; changes: { category: string; emoji: string; items: string[] }[] };
+        let version = "1.0.0";
         try {
-          versionData = JSON.parse(fs.readFileSync(versionPath, "utf-8"));
-        } catch {
-          versionData = { version: "1.0.0", date: new Date().toISOString().slice(0, 10), highlights: [], changes: [] };
-        }
+          version = JSON.parse(fs.readFileSync(versionPath, "utf-8")).version;
+        } catch {}
+
+        // Read deploy changes (current commit messages only)
+        const changesPath = path.join(__dirname, "../../shared/deploy-changes.txt");
+        let changes = "";
+        try {
+          changes = fs.readFileSync(changesPath, "utf-8").trim();
+        } catch {}
 
         const koTime = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
         const lines = [
-          `🚀 *TimeBox v${versionData.version} 배포 완료*`,
-          `📅 ${versionData.date}`,
+          `🚀 *TimeBox v${version} 배포 완료*`,
+          `⏰ ${koTime}`,
           "",
         ];
 
-        // Highlights
-        if (versionData.highlights.length > 0) {
-          lines.push("🔥 *주요 변경사항*");
-          for (const h of versionData.highlights) {
-            lines.push(`  • ${h}`);
-          }
+        if (changes) {
+          lines.push("📝 *변경사항*");
+          lines.push(changes);
           lines.push("");
         }
 
-        // Detailed changes
-        for (const change of versionData.changes) {
-          lines.push(`${change.emoji} *${change.category}*`);
-          for (const item of change.items) {
-            lines.push(`  • ${item}`);
-          }
-          lines.push("");
-        }
-
-        lines.push(`⏰ 배포 시간: ${koTime}`);
         lines.push("✅ 서버 정상 시작");
 
         const changelog = lines.join("\n");

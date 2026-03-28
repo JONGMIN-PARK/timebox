@@ -31,17 +31,14 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto version bump & notify Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Auto version bump
         run: |
           set -e
 
           # Determine version bump type from commit messages since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --oneline --format="%s")
+            COMMITS=$(git log --oneline --format="%s" -10)
           else
             COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --format="%s")
           fi
@@ -69,11 +66,11 @@ jobs:
 
           echo "Version bump: $CURRENT → $NEW_VERSION ($BUMP)"
 
-          # Collect commit messages for changelog
+          # Save current deploy changes for server to read
           if [ -z "$LAST_TAG" ]; then
-            CHANGES=$(git log --oneline --format="• %s" -10)
+            git log --oneline --format="• %s" -10 > packages/shared/deploy-changes.txt
           else
-            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --format="• %s")
+            git log ${LAST_TAG}..HEAD --oneline --format="• %s" > packages/shared/deploy-changes.txt
           fi
 
           # Update version.json
@@ -95,7 +92,7 @@ jobs:
             }
           "
 
-          # Commit version bump
+          # Commit version bump + deploy changes
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
@@ -104,25 +101,6 @@ jobs:
             git tag "v${NEW_VERSION}"
             git push origin main --tags
           }
-
-          # Send Telegram notification
-          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            MSG=$(cat <<EOF
-          🚀 *TimeBox v${NEW_VERSION} 배포*
-          📅 ${TODAY}
-          🔄 버전: ${CURRENT} → ${NEW_VERSION} (${BUMP})
-
-          📝 *변경사항*
-          ${CHANGES}
-
-          ⏰ $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
-          EOF
-            )
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="$MSG" \
-              -d parse_mode="Markdown" || echo "Telegram notification failed"
-          fi
 
       - name: Deploy to Render
         run: |
