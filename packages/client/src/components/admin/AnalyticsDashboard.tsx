@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
 import { cn } from "@/lib/utils";
-import { BarChart3, Users, Activity, TrendingUp, Clock, Trash2 } from "lucide-react";
+import { BarChart3, Users, Activity, TrendingUp, Clock, Trash2, Search, Filter, ChevronDown } from "lucide-react";
 
 interface Summary {
   today: { actions: number; activeUsers: number };
@@ -96,18 +96,58 @@ export default function AnalyticsDashboard() {
   const [deletedOnly, setDeletedOnly] = useState(true);
   const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
+  // Timeline filters
+  const [tlSearch, setTlSearch] = useState("");
+  const [tlUserId, setTlUserId] = useState("");
+  const [tlAction, setTlAction] = useState("");
+  const [tlCategory, setTlCategory] = useState("");
+  const [tlDateFrom, setTlDateFrom] = useState("");
+  const [tlDateTo, setTlDateTo] = useState("");
+  const [tlOffset, setTlOffset] = useState(0);
+  const [tlTotal, setTlTotal] = useState(0);
+  const [tlLoading, setTlLoading] = useState(false);
+  const [showTlFilters, setShowTlFilters] = useState(false);
+  const TL_LIMIT = 50;
+
   useEffect(() => {
     fetchAll();
   }, []);
 
+  const buildTimelineQuery = useCallback((offset = 0) => {
+    const params = new URLSearchParams();
+    params.set("limit", String(TL_LIMIT));
+    params.set("offset", String(offset));
+    if (tlSearch.trim()) params.set("search", tlSearch.trim());
+    if (tlUserId) params.set("userId", tlUserId);
+    if (tlAction.trim()) params.set("action", tlAction.trim());
+    if (tlCategory) params.set("category", tlCategory);
+    if (tlDateFrom) params.set("dateFrom", tlDateFrom);
+    if (tlDateTo) params.set("dateTo", tlDateTo);
+    return `/analytics/timeline?${params.toString()}`;
+  }, [tlSearch, tlUserId, tlAction, tlCategory, tlDateFrom, tlDateTo]);
+
+  const fetchTimeline = useCallback(async (offset = 0, append = false) => {
+    setTlLoading(true);
+    const res: any = await api.get<TimelineEntry[]>(buildTimelineQuery(offset));
+    if (res.success && res.data) {
+      setTlTotal(res.total ?? res.data.length);
+      if (append) {
+        setTimeline((prev) => [...prev, ...res.data!]);
+      } else {
+        setTimeline(res.data);
+      }
+      setTlOffset(offset + res.data.length);
+    }
+    setTlLoading(false);
+  }, [buildTimelineQuery]);
+
   const fetchAll = async () => {
     setLoading(true);
-    const [summaryRes, catRes, featRes, usersRes, timelineRes, messagesRes] = await Promise.all([
+    const [summaryRes, catRes, featRes, usersRes, messagesRes] = await Promise.all([
       api.get<Summary>("/analytics/summary"),
       api.get<CategoryStat[]>("/analytics/by-category"),
       api.get<FeatureStat[]>("/analytics/by-feature"),
       api.get<UserActivity[]>("/analytics/users"),
-      api.get<TimelineEntry[]>("/analytics/timeline"),
       api.get<AdminMessage[]>("/analytics/messages?limit=50&offset=0"),
     ]);
 
@@ -115,12 +155,12 @@ export default function AnalyticsDashboard() {
     if (catRes.success && catRes.data) setCategories(catRes.data);
     if (featRes.success && featRes.data) setFeatures(featRes.data);
     if (usersRes.success && usersRes.data) setUserActivity(usersRes.data);
-    if (timelineRes.success && timelineRes.data) setTimeline(timelineRes.data);
     if (messagesRes.success && messagesRes.data) {
       setAdminMessages(messagesRes.data);
       setMessagesOffset(messagesRes.data.length);
       setHasMoreMessages(messagesRes.data.length >= 50);
     }
+    await fetchTimeline(0);
     setLoading(false);
   };
 
@@ -413,13 +453,120 @@ export default function AnalyticsDashboard() {
 
       {/* Recent Activity Feed */}
       <section>
-        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Recent Activity
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            Recent Activity
+          </h2>
+          <div className="flex items-center gap-2">
+            {tlTotal > 0 && (
+              <span className="text-[10px] text-slate-400 tabular-nums">{tlTotal} total</span>
+            )}
+            <button
+              onClick={() => setShowTlFilters(!showTlFilters)}
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg transition-colors",
+                showTlFilters
+                  ? "bg-blue-100 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50"
+              )}
+            >
+              <Filter className="w-3 h-3" />
+              Filter
+              <ChevronDown className={cn("w-3 h-3 transition-transform", showTlFilters && "rotate-180")} />
+            </button>
+          </div>
+        </div>
+
+        {/* Search & Filter Controls */}
+        {showTlFilters && (
+          <div className="card p-3 mb-3 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by user or action..."
+                  value={tlSearch}
+                  onChange={(e) => setTlSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                onClick={() => { fetchTimeline(0); }}
+                disabled={tlLoading}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {tlLoading ? "..." : "Search"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <select
+                value={tlUserId}
+                onChange={(e) => setTlUserId(e.target.value)}
+                className="text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">All Users</option>
+                {userActivity.map((u) => (
+                  <option key={u.user_id} value={u.user_id}>
+                    {u.display_name || u.username}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={tlCategory}
+                onChange={(e) => setTlCategory(e.target.value)}
+                className="text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">All Categories</option>
+                <option value="personal">Personal</option>
+                <option value="project">Project</option>
+                <option value="general">General</option>
+              </select>
+              <input
+                type="date"
+                value={tlDateFrom}
+                onChange={(e) => setTlDateFrom(e.target.value)}
+                placeholder="From"
+                className="text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <input
+                type="date"
+                value={tlDateTo}
+                onChange={(e) => setTlDateTo(e.target.value)}
+                placeholder="To"
+                className="text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Action filter (e.g. auth, todo, event...)"
+                value={tlAction}
+                onChange={(e) => setTlAction(e.target.value)}
+                className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-2.5 py-1.5 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                onClick={() => {
+                  setTlSearch(""); setTlUserId(""); setTlAction(""); setTlCategory(""); setTlDateFrom(""); setTlDateTo("");
+                  setTimeout(() => fetchTimeline(0), 0);
+                }}
+                className="px-2.5 py-1.5 text-[10px] font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="card overflow-hidden">
-          {timeline.length === 0 && (
+          {timeline.length === 0 && !tlLoading && (
             <div className="px-4 py-6 text-center text-xs text-slate-400">
               No recent activity
+            </div>
+          )}
+          {tlLoading && timeline.length === 0 && (
+            <div className="px-4 py-6 text-center text-xs text-slate-400">
+              Loading...
             </div>
           )}
           {timeline.map((entry) => (
@@ -452,6 +599,17 @@ export default function AnalyticsDashboard() {
               </div>
             </div>
           ))}
+          {timeline.length > 0 && tlOffset < tlTotal && (
+            <div className="px-4 py-3 border-t border-slate-200/60 dark:border-slate-700/40">
+              <button
+                onClick={() => fetchTimeline(tlOffset, true)}
+                disabled={tlLoading}
+                className="w-full text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+              >
+                {tlLoading ? "Loading..." : `Load more (${timeline.length} / ${tlTotal})`}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

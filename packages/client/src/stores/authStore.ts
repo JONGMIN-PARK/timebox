@@ -54,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    api.post("/auth/logout", {}).catch(() => {});
     clearToken();
     updateAppBadge(0);
     if ('caches' in window) {

@@ -100,29 +100,51 @@ router.get("/users", async (_req: AuthRequest, res) => {
 });
 
 // ── GET /timeline ──
-// Recent activity feed (last 100 actions with user names)
-router.get("/timeline", async (_req: AuthRequest, res) => {
+// Activity feed with search, filter, pagination
+router.get("/timeline", async (req: AuthRequest, res) => {
   try {
-    const results = await db.execute(sql`
-      SELECT
-        ual.id,
-        ual.user_id,
-        u.username,
-        u.display_name,
-        ual.action,
-        ual.category,
-        ual.target_type,
-        ual.target_id,
-        ual.project_id,
-        ual.ip_address,
-        ual.created_at
-      FROM ${userActivityLog} ual
-      JOIN ${users} u ON ual.user_id = u.id
-      ORDER BY ual.created_at DESC
-      LIMIT ${PAGINATION.TIMELINE}
-    `);
+    const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+    const action = (req.query.action as string) || null;
+    const category = (req.query.category as string) || null;
+    const search = (req.query.search as string) || null;
+    const dateFrom = (req.query.dateFrom as string) || null;
+    const dateTo = (req.query.dateTo as string) || null;
 
-    res.json({ success: true, data: results.rows });
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let paramIdx = 1;
+
+    if (userId) { conditions.push(`ual.user_id = $${paramIdx++}`); params.push(userId); }
+    if (action) { conditions.push(`ual.action ILIKE $${paramIdx++}`); params.push(`%${action}%`); }
+    if (category) { conditions.push(`ual.category = $${paramIdx++}`); params.push(category); }
+    if (dateFrom) { conditions.push(`ual.created_at >= $${paramIdx++}`); params.push(dateFrom); }
+    if (dateTo) { conditions.push(`ual.created_at <= $${paramIdx++}`); params.push(dateTo + "T23:59:59"); }
+    if (search) { conditions.push(`(ual.action ILIKE $${paramIdx} OR u.username ILIKE $${paramIdx} OR u.display_name ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const results = await db.execute(sql.raw(`
+      SELECT
+        ual.id, ual.user_id, u.username, u.display_name,
+        ual.action, ual.category, ual.target_type, ual.target_id,
+        ual.project_id, ual.ip_address, ual.user_agent, ual.created_at
+      FROM user_activity_log ual
+      JOIN users u ON ual.user_id = u.id
+      ${whereClause}
+      ORDER BY ual.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `, params));
+
+    const [countResult] = await db.execute(sql.raw(`
+      SELECT COUNT(*)::int AS total
+      FROM user_activity_log ual
+      JOIN users u ON ual.user_id = u.id
+      ${whereClause}
+    `, params)) as any;
+
+    res.json({ success: true, data: results.rows, total: countResult?.total || results.rows.length });
   } catch (err) {
     console.error("[analytics/timeline]", err);
     res.status(500).json({ success: false, error: "Failed to fetch timeline" });

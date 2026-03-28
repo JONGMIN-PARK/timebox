@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers } from "../db/schema.js";
+import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers, userActivityLog } from "../db/schema.js";
 import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";
 import { eq } from "drizzle-orm";
 
@@ -56,6 +56,15 @@ router.post("/login", async (req, res) => {
       getUserTeamGroups(user.id),
       hasProjectMembership(user.id),
     ]);
+
+    // Log login
+    db.insert(userActivityLog).values({
+      userId: user.id, action: "auth.login", category: "general", targetType: "auth",
+      ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "",
+      userAgent: req.headers["user-agent"] || "",
+      metadata: JSON.stringify({ method: "POST", path: "/api/auth/login" }),
+    }).catch(() => {});
+
     res.json({
       success: true,
       data: {
@@ -233,6 +242,56 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error("auth:me", error);
     res.status(500).json({ success: false, error: "Failed to get user info" });
+  }
+});
+
+// POST /api/auth/logout — log logout event
+router.post("/logout", authMiddleware, async (req: AuthRequest, res) => {
+  db.insert(userActivityLog).values({
+    userId: req.userId!, action: "auth.logout", category: "general", targetType: "auth",
+    ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "",
+    userAgent: req.headers["user-agent"] || "",
+    metadata: JSON.stringify({ method: "POST", path: "/api/auth/logout" }),
+  }).catch(() => {});
+  res.json({ success: true });
+});
+
+// PUT /api/auth/me — update own settings
+router.put("/me", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const rows = await db.select().from(users).where(eq(users.id, userId));
+    const user = rows[0];
+    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+
+    const updates: Record<string, unknown> = {};
+
+    if (req.body.aiModel !== undefined) {
+      const allowed: string[] = JSON.parse(user.allowedModels || "[]");
+      if (user.role === "admin" || allowed.includes(req.body.aiModel)) {
+        updates.aiModel = req.body.aiModel;
+      } else {
+        res.status(403).json({ success: false, error: "Model not allowed" });
+        return;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.update(users).set(updates).where(eq(users.id, userId));
+    }
+
+    const [updated] = await db.select().from(users).where(eq(users.id, userId));
+    const [teamGroupsList, hasProjects] = await Promise.all([
+      getUserTeamGroups(userId),
+      hasProjectMembership(userId),
+    ]);
+    res.json({
+      success: true,
+      data: { id: updated.id, username: updated.username, displayName: updated.displayName, role: updated.role, aiModel: updated.aiModel, allowedModels: JSON.parse(updated.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+    });
+  } catch (error) {
+    console.error("auth:updateMe", error);
+    res.status(500).json({ success: false, error: "Failed to update" });
   }
 });
 
