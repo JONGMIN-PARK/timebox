@@ -919,14 +919,14 @@ export default function FloatingChat() {
           }
         }}
         className={cn(
-          "fixed right-16 bottom-20 w-14 h-14 rounded-full shadow-lg",
+          "fixed right-4 bottom-[4.5rem] md:right-6 md:bottom-6 w-14 h-14 rounded-full shadow-lg",
           "flex items-center justify-center transition-all duration-300",
           "hover:shadow-xl hover:scale-105 active:scale-95",
-          // Mobile positioning
-          "max-md:right-4 max-md:bottom-20",
           open
-            ? "bg-slate-600 dark:bg-slate-700 rotate-0"
-            : "bg-blue-500 hover:bg-blue-600",
+            ? "bg-slate-600 dark:bg-slate-700 ring-2 ring-slate-400/50"
+            : unreadCount > 0
+              ? "bg-blue-500 hover:bg-blue-600 ring-2 ring-blue-400/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
+              : "bg-slate-400 dark:bg-slate-600 hover:bg-blue-500 dark:hover:bg-blue-600",
         )}
         style={{ zIndex: 45 }}
       >
@@ -934,7 +934,10 @@ export default function FloatingChat() {
           <X className="w-6 h-6 text-white" />
         ) : (
           <>
-            <MessageCircle className="w-6 h-6 text-white" />
+            <MessageCircle className={cn(
+              "w-6 h-6 transition-colors",
+              unreadCount > 0 ? "text-white" : "text-white/70",
+            )} />
             {/* Pulse animation for unread */}
             {unreadCount > 0 && (
               <span className="absolute inset-0 rounded-full bg-blue-400 animate-ping opacity-30" />
@@ -944,7 +947,7 @@ export default function FloatingChat() {
 
         {/* Unread badge */}
         {!open && unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">
+          <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm animate-bounce">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
