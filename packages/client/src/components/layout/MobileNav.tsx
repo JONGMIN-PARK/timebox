@@ -59,7 +59,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
   const isTeamActive = activeTab.startsWith("project-") || activeTab === "team";
 
   return (
-    <nav className="md:hidden flex-shrink-0 bg-white/90 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200/60 dark:border-slate-700/40 z-40 safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200/60 dark:border-slate-700/40 z-40 safe-bottom">
       <div className="flex justify-around py-1">
         {tabs.map((tab) => {
           const isActive = tab.id === "team" ? isTeamActive : activeTab === tab.id;
