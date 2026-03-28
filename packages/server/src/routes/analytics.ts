@@ -249,26 +249,27 @@ router.get("/user/:userId", async (req: AuthRequest, res) => {
 });
 
 // GET /api/analytics/messages — admin: view all messages (including deleted)
-router.get("/messages", async (_req: AuthRequest, res) => {
+router.get("/messages", async (req: AuthRequest, res) => {
   try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const offset = parseInt(req.query.offset as string) || 0;
+
     const results = await db.execute(sql`
       SELECT
         cm.id,
-        cm.room_id,
+        cm.user_id,
+        u.username,
+        u.display_name,
         cr.name AS room_name,
-        cm.user_id AS sender_id,
-        u.username AS sender_username,
-        u.display_name AS sender_display_name,
         cm.content,
         cm.type,
-        cm.reply_to,
         cm.deleted,
         cm.created_at
       FROM ${chatMessages} cm
       JOIN ${users} u ON cm.user_id = u.id
       JOIN ${chatRooms} cr ON cm.room_id = cr.id
       ORDER BY cm.created_at DESC
-      LIMIT 200
+      LIMIT ${limit} OFFSET ${offset}
     `);
 
     res.json({ success: true, data: results.rows });

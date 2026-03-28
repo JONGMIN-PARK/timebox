@@ -374,7 +374,7 @@ export default function AnalyticsDashboard() {
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0">
-                            {(u.display_name || u.username)[0].toUpperCase()}
+                            {(u.display_name || u.username || "?")[0].toUpperCase()}
                           </div>
                           <div>
                             <p className="text-[13px] font-medium text-slate-900 dark:text-white leading-tight">
@@ -428,7 +428,7 @@ export default function AnalyticsDashboard() {
               className="flex items-start gap-3 px-4 py-3 border-b border-slate-100/80 dark:border-slate-700/40 last:border-0"
             >
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0 mt-0.5">
-                {(entry.display_name || entry.username)[0].toUpperCase()}
+                {(entry.display_name || entry.username || "?")[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] text-slate-700 dark:text-slate-300 leading-snug">
@@ -546,7 +546,7 @@ export default function AnalyticsDashboard() {
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0">
-                          {(msg.display_name || msg.username)[0].toUpperCase()}
+                          {(msg.display_name || msg.username || "?")[0].toUpperCase()}
                         </div>
                         <span className="text-[13px] font-medium text-slate-900 dark:text-white truncate max-w-[100px]">
                           {msg.display_name || msg.username}
