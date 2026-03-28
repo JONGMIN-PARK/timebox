@@ -113,10 +113,10 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
   return (
     <li ref={setNodeRef} style={style}
       className={cn("group flex items-start gap-1.5 px-3 sm:px-4 py-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors", isDragging && "opacity-40 shadow-lg rounded-xl bg-white dark:bg-slate-800")}>
-      <button {...attributes} {...listeners} className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none mt-0.5 p-0.5">
+      <button {...attributes} {...listeners} className="flex-shrink-0 w-7 h-8 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none rounded-lg">
         <GripVertical className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
       </button>
-      <button onClick={() => onToggle(todo.id)} className="flex-shrink-0 mt-0.5">
+      <button onClick={() => onToggle(todo.id)} className="flex-shrink-0 w-8 h-8 flex items-center justify-center -ml-1 rounded-lg active:bg-blue-50 dark:active:bg-blue-900/20 transition-colors">
         <Circle className="w-[18px] h-[18px] text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors" />
       </button>
       <div className="flex-1 min-w-0">
@@ -178,12 +178,12 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
       <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
         {!isEditing && (
           <button onClick={() => { setIsEditing(true); setEditTitle(todo.title); }}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <Pencil className="w-3 h-3" />
           </button>
         )}
         <button onClick={() => onDelete(todo.id)}
-          className="w-6 h-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <Trash2 className="w-3 h-3" />
         </button>
       </div>
@@ -363,14 +363,14 @@ export default function TodoList() {
                   return (
                     <li key={todo.id} className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
                       <div className="w-4" />
-                      <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0">
+                      <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors">
                         <CheckCircle2 className="w-[18px] h-[18px] text-green-500" />
                       </button>
                       <div className="flex-1 min-w-0">
                         <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
                         <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
                       </div>
-                      <button onClick={() => deleteTodo(todo.id)} className="flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => deleteTodo(todo.id)} className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
                       </button>
                     </li>

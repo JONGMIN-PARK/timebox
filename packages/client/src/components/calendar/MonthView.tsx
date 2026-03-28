@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { Plus, X, CheckSquare, Calendar } from "lucide-react";
@@ -21,6 +22,7 @@ interface MonthViewProps {
   onDayLeave: () => void;
   onShowAddModal: () => void;
   onDeleteEvent: (id: number) => void;
+  onLongPressDate?: (date: Date, type: string) => void;
 }
 
 export default function MonthView({
@@ -39,7 +41,12 @@ export default function MonthView({
   onDayLeave,
   onShowAddModal,
   onDeleteEvent,
+  onLongPressDate,
 }: MonthViewProps) {
+  const [longPressDate, setLongPressDate] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   return (
     <>
       <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700">
@@ -61,6 +68,24 @@ export default function MonthView({
               key={dateKey}
               onClick={() => onSelectDate(day)}
               onDoubleClick={() => onDoubleClickDate(day)}
+              onTouchStart={(e) => {
+                const touch = e.touches[0];
+                touchTimer.current = setTimeout(() => {
+                  setLongPressDate(dateKey);
+                  setMenuPos({ x: touch.clientX, y: touch.clientY });
+                }, 500);
+              }}
+              onTouchEnd={() => {
+                if (touchTimer.current) clearTimeout(touchTimer.current);
+              }}
+              onTouchMove={() => {
+                if (touchTimer.current) clearTimeout(touchTimer.current);
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setLongPressDate(dateKey);
+                setMenuPos({ x: e.clientX, y: e.clientY });
+              }}
               onMouseEnter={(e) => onDayHover(e, dateKey)}
               onMouseLeave={onDayLeave}
               className={cn(
@@ -104,6 +129,41 @@ export default function MonthView({
           );
         })}
       </div>
+      {/* Long-press quick-add menu */}
+      {longPressDate && menuPos && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setLongPressDate(null)} />
+          <div
+            className="fixed z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 min-w-[180px] animate-in"
+            style={{
+              left: Math.min(menuPos.x, window.innerWidth - 200),
+              top: Math.min(menuPos.y, window.innerHeight - 250),
+            }}
+          >
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase">
+              {longPressDate.slice(5)} 추가
+            </p>
+            {[
+              { type: "event", icon: "\u{1F4C5}", label: "일정 추가" },
+              { type: "todo", icon: "\u2705", label: "할일 추가" },
+              { type: "reminder", icon: "\u23F0", label: "리마인더 추가" },
+            ].map((item) => (
+              <button
+                key={item.type}
+                onClick={() => {
+                  onLongPressDate?.(new Date(longPressDate), item.type);
+                  setLongPressDate(null);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* Selected date detail - events + todos */}
       {selectedDate && (
         <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">

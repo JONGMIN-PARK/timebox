@@ -29,7 +29,7 @@ import DayView from "./DayView";
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent } = useEventStore();
   const { categories, fetchCategories } = useCategoryStore();
-  const { todos, fetchTodos } = useTodoStore();
+  const { todos, fetchTodos, addTodo } = useTodoStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -240,6 +240,23 @@ export default function CalendarView() {
           onDayLeave={() => setHoverDateKey(null)}
           onShowAddModal={() => setShowAddModal(true)}
           onDeleteEvent={deleteEvent}
+          onLongPressDate={(date, type) => {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+            if (type === "event") {
+              setSelectedDate(date);
+              setShowAddModal(true);
+            } else if (type === "todo") {
+              const title = prompt("할일 제목:");
+              if (title?.trim()) {
+                addTodo(title.trim(), "medium", dateStr, "personal");
+              }
+            } else if (type === "reminder") {
+              const title = prompt("리마인더 제목:");
+              if (title?.trim()) {
+                addTodo(title.trim(), "low", dateStr, "personal");
+              }
+            }
+          }}
         />
       )}
 
