@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api, setToken, clearToken, isAuthenticated } from "@/lib/api";
+import { updateAppBadge } from "@/lib/badge";
 
 interface TeamGroupInfo {
   id: number;
@@ -47,7 +48,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     clearToken();
+    updateAppBadge(0);
     set({ authenticated: false, user: null });
+    window.location.href = "/";
   },
 
   checkAuth: () => {
@@ -57,7 +60,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchMe: async () => {
     const res = await api.get<User>("/auth/me");
     if (res.success && res.data) {
-      set({ user: res.data });
+      set({ user: res.data, authenticated: true });
+    } else {
+      // Token expired or invalid - clear auth state
+      clearToken();
+      updateAppBadge(0);
+      set({ authenticated: false, user: null });
     }
   },
 }));

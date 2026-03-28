@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
 import { getSocket } from "@/lib/socket";
+import { updateAppBadge } from "@/lib/badge";
 import DDayChips from "@/components/dday/DDayChips";
 import { APP_VERSION } from "@/lib/version";
 
@@ -29,7 +30,10 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
 
   const fetchUnread = async () => {
     const res = await api.get<{ count: number }>("/inbox/unread-count");
-    if (res.success && res.data) setUnreadCount(res.data.count);
+    if (res.success && res.data) {
+      setUnreadCount(res.data.count);
+      updateAppBadge(res.data.count);
+    }
   };
 
   useEffect(() => {

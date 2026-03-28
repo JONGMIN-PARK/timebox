@@ -115,13 +115,22 @@ self.addEventListener("push", (event) => {
     data: data.url ? { url: data.url } : {},
     vibrate: [100, 50, 100],
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).then(() => {
+      // Update PWA badge count
+      if (data.badgeCount && navigator.setAppBadge) {
+        navigator.setAppBadge(data.badgeCount);
+      }
+    })
+  );
 });
 
 // Handle notification click
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  // Clear badge on notification click
+  if (navigator.clearAppBadge) navigator.clearAppBadge();
+  const url = event.notification.data?.url || "/app";
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then((clients) => {
       for (const client of clients) {
