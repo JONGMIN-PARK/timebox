@@ -111,20 +111,20 @@ export default function MonthView({
               </span>
               {/* Event & todo titles */}
               <div className="w-full mt-0.5 space-y-0.5 overflow-hidden flex-1 min-h-0">
-                {dayEvents.slice(0, 2).map((ev) => (
+                {dayEvents.slice(0, 3).map((ev) => (
                   <div key={`e-${ev.id}`} className="flex items-center gap-0.5 px-0.5">
                     <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
                     <p className="text-[10px] leading-tight truncate text-slate-700 dark:text-slate-300">{ev.title}</p>
                   </div>
                 ))}
-                {dayTodos.slice(0, 2).map((t) => (
+                {dayTodos.slice(0, 3).map((t) => (
                   <div key={`t-${t.id}`} className="flex items-center gap-0.5 px-0.5">
                     <div className={cn("w-1 h-1 rounded-sm shrink-0", t.completed ? "bg-green-400" : "bg-amber-400")} />
                     <p className={cn("text-[10px] leading-tight truncate", t.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{t.title}</p>
                   </div>
                 ))}
-                {(dayEvents.length + dayTodos.length) > 4 && (
-                  <span className="text-[9px] text-slate-400 px-0.5">+{dayEvents.length + dayTodos.length - 4} more</span>
+                {(dayEvents.length + dayTodos.length) > 6 && (
+                  <span className="text-[9px] text-slate-400 px-0.5">+{dayEvents.length + dayTodos.length - 6} more</span>
                 )}
               </div>
               {hoverDateKey === dateKey && (dayEvents.length > 0 || dayTodos.length > 0) && (

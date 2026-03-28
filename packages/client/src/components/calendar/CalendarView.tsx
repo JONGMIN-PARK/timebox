@@ -92,9 +92,10 @@ export default function CalendarView() {
     const map = new Map<string, typeof todos>();
     todos.forEach((t) => {
       if (t.dueDate) {
-        const existing = map.get(t.dueDate) || [];
+        const dateKey = t.dueDate.slice(0, 10); // normalize to yyyy-MM-dd
+        const existing = map.get(dateKey) || [];
         existing.push(t);
-        map.set(t.dueDate, existing);
+        map.set(dateKey, existing);
       }
     });
     return map;
