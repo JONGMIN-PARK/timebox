@@ -186,7 +186,7 @@ export default function DashboardPage() {
           {activeProjectId && hasTeamAccess ? (
             <main className="flex-1 overflow-hidden animate-in">
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
-                <ProjectView projectId={activeProjectId} />
+                <ProjectView projectId={activeProjectId} initialTab={activeTab.startsWith("project-") ? activeTab.replace("project-", "") as any : "dashboard"} />
               </Suspense>
             </main>
           ) : (

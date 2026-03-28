@@ -48,6 +48,14 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   const { t } = useI18n();
   const pageVisible = usePageVisible();
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+
+  // Sync with external tab changes (from Sidebar)
+  useEffect(() => {
+    if (initialTab && initialTab !== activeTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [transferCount, setTransferCount] = useState(0);

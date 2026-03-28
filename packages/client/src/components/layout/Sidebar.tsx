@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3 } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3, FolderOpen, FileText, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -26,6 +26,10 @@ const tabs = [
 const projectTabs = [
   { id: "project-dashboard", labelKey: "project.dashboard", icon: LayoutDashboard },
   { id: "project-tasks", labelKey: "project.tasks", icon: ListTodo },
+  { id: "project-gantt", labelKey: "project.gantt", icon: BarChart2 },
+  { id: "project-board", labelKey: "post.title", icon: FileText },
+  { id: "project-files", labelKey: "nav.files", icon: FolderOpen },
+  { id: "project-chat", labelKey: "nav.chat", icon: MessageCircle },
   { id: "project-members", labelKey: "project.members", icon: Users },
 ];
 
