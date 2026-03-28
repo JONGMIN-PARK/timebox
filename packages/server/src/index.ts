@@ -150,7 +150,7 @@ httpServer.listen(PORT, () => {
       console.log("Telegram bot init skipped:", (err as Error).message);
     }
 
-    // Notify admins of deployment via Telegram
+    // Notify admins that server started (deploy notification is handled by CI)
     setTimeout(async () => {
       try {
         const { db } = await import("./db/index.js");
@@ -164,48 +164,27 @@ httpServer.listen(PORT, () => {
 
         // Read version
         const versionPath = path.join(__dirname, "../../shared/version.json");
-        let version = "1.0.0";
+        let version = "unknown";
         try {
           version = JSON.parse(fs.readFileSync(versionPath, "utf-8")).version;
         } catch {}
 
-        // Read deploy changes (current commit messages only)
-        const changesPath = path.join(__dirname, "../../shared/deploy-changes.txt");
-        let changes = "";
-        try {
-          changes = fs.readFileSync(changesPath, "utf-8").trim();
-        } catch {}
-
         const koTime = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
-        const lines = [
-          `🚀 *TimeBox v${version} 배포 완료*`,
-          `⏰ ${koTime}`,
-          "",
-        ];
-
-        if (changes) {
-          lines.push("📝 *변경사항*");
-          lines.push(changes);
-          lines.push("");
-        }
-
-        lines.push("✅ 서버 정상 시작");
-
-        const changelog = lines.join("\n");
+        const msg = `✅ *TimeBox v${version}* 서버 시작 완료\n⏰ ${koTime}`;
 
         const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
         for (const admin of admins) {
           const [conf] = await db.select().from(telegramConfig)
             .where(and(eq(telegramConfig.userId, admin.id), eq(telegramConfig.active, true)));
           if (conf?.chatId) {
-            await bot.sendMessage(conf.chatId, changelog, { parse_mode: "Markdown" });
+            await bot.sendMessage(conf.chatId, msg, { parse_mode: "Markdown" });
           }
         }
-        console.log("[deploy] Admin notification sent");
+        console.log("[deploy] Server start notification sent");
       } catch (e) {
         console.error("[deploy] Failed to notify admins:", e);
       }
-    }, 5000); // 5초 후 (봇 초기화 대기)
+    }, 5000);
   } else {
     console.log("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
   }
