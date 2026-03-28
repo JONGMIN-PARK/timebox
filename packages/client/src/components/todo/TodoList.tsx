@@ -275,7 +275,7 @@ export default function TodoList() {
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">{t("todo.title")}</h2>
-          <span className="text-[11px] text-slate-400 tabular-nums">{completedTodos.length}/{filtered.length}</span>
+          <span className="text-[11px] text-slate-400 tabular-nums">{completionRate}% · {completedTodos.length}/{filtered.length}</span>
         </div>
         <div className="h-1 bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
           <div className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out" style={{ width: `${completionRate}%` }} />
