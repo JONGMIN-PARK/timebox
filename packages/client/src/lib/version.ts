@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.1.0";
 export const APP_BUILD_DATE = "2026-03-28";
 
 export interface VersionEntry {
@@ -9,6 +9,21 @@ export interface VersionEntry {
 }
 
 export const VERSION_HISTORY: VersionEntry[] = [
+  {
+    version: "1.1.0",
+    date: "2026-03-28",
+    highlights: [
+      "랜딩 페이지 & 온보딩",
+      "PWA 아이콘 뱃지",
+      "한국 시간 전체 적용",
+    ],
+    changes: [
+      { category: "신규 기능", items: ["랜딩 페이지 (기능 소개, 비교표, 가격)", "온보딩 가이드 (6단계)", "간트 차트", "파일 버전 관리", "반복 이벤트 UI", "프로젝트 아카이브"] },
+      { category: "채팅", items: ["@멘션 하이라이트 + 알림", "읽음 표시 (✓/✓✓)", "메시지 삭제"] },
+      { category: "모바일 & UX", items: ["PWA 아이콘 뱃지 (읽지않은 수)", "모바일 레이아웃 안정화", "스플래시 인트로", "알림 설정 UI", "오프라인 표시", "브라우저 푸시 알림"] },
+      { category: "기타", items: ["한국 시간 (Asia/Seoul) 전체 적용", "배포 시 텔레그램 상세 알림", "버전 관리 시스템 (version.json)"] },
+    ],
+  },
   {
     version: "1.0.0",
     date: "2026-03-28",
