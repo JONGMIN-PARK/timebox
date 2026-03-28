@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { inboxMessages, users, telegramConfig } from "../db/schema.js";
+import { inboxMessages, users, telegramConfig, teamGroupMembers } from "../db/schema.js";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getTelegramBot } from "../telegram/bot.js";
@@ -152,17 +152,52 @@ router.put("/read-all", async (req: AuthRequest, res) => {
   }
 });
 
-// GET /users — list all active users (for compose recipient selection)
+// GET /users — list users I can communicate with (filtered by team group)
 router.get("/users", async (req: AuthRequest, res) => {
   try {
-    const allUsers = await db.select({
-      id: users.id,
-      username: users.username,
-      displayName: users.displayName,
-      role: users.role,
-    }).from(users).where(eq(users.active, true));
-    const data = allUsers.filter(u => u.id !== req.userId!);
-    res.json({ success: true, data });
+    const userId = req.userId!;
+
+    // Get current user's role
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+
+    if (me?.role === "admin") {
+      // Admins can see all active users
+      const allUsers = await db.select({
+        id: users.id, username: users.username, displayName: users.displayName, role: users.role,
+      }).from(users).where(eq(users.active, true));
+      res.json({ success: true, data: allUsers.filter(u => u.id !== userId) });
+      return;
+    }
+
+    // Get my group IDs
+    const myGroups = await db.select({ groupId: teamGroupMembers.groupId })
+      .from(teamGroupMembers).where(eq(teamGroupMembers.userId, userId));
+    const myGroupIds = myGroups.map(g => g.groupId);
+
+    if (myGroupIds.length === 0) {
+      // Not in any group - can only see admins
+      const admins = await db.select({
+        id: users.id, username: users.username, displayName: users.displayName, role: users.role,
+      }).from(users).where(and(eq(users.active, true), eq(users.role, "admin")));
+      res.json({ success: true, data: admins.filter(u => u.id !== userId) });
+      return;
+    }
+
+    // Get all users in my groups
+    const groupMembers = await db.select({ userId: teamGroupMembers.userId })
+      .from(teamGroupMembers).where(inArray(teamGroupMembers.groupId, myGroupIds));
+    const memberIds = [...new Set(groupMembers.map(m => m.userId))];
+
+    // Also include all admins
+    const adminUsers = await db.select({ id: users.id }).from(users)
+      .where(and(eq(users.active, true), eq(users.role, "admin")));
+    const allIds = [...new Set([...memberIds, ...adminUsers.map(a => a.id)])];
+
+    const contactableUsers = await db.select({
+      id: users.id, username: users.username, displayName: users.displayName, role: users.role,
+    }).from(users).where(and(eq(users.active, true), inArray(users.id, allIds)));
+
+    res.json({ success: true, data: contactableUsers.filter(u => u.id !== userId) });
   } catch (error) {
     console.error("inbox:users", error);
     res.status(500).json({ success: false, error: "Failed to fetch users" });
