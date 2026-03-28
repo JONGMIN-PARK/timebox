@@ -270,7 +270,7 @@ export default function TodoList() {
   const draggedTodo = dragActiveId ? activeTodos.find((t) => t.id === dragActiveId) : null;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-auto lg:h-full">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <div className="flex items-center justify-between mb-2">
@@ -335,7 +335,7 @@ export default function TodoList() {
       </div>
 
       {/* Todo items */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 lg:overflow-y-auto">
         {filter !== "completed" && (
           <DndContext sensors={sensors} collisionDetection={closestCenter}
             onDragStart={(e) => setDragActiveId(e.active.id as number)}

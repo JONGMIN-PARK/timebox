@@ -705,6 +705,9 @@ export async function initTelegramBot() {
 
       const chatKey = msg.chat.id.toString();
 
+      // Show typing indicator
+      bot!.sendChatAction(msg.chat.id, "typing").catch(() => {});
+
       try {
         // Get user info and model
         const [userRow] = await db.select().from(users).where(eq(users.id, userId));
@@ -796,6 +799,11 @@ ${contextLines.filter(Boolean).join("\n")}
         const result = await chat.sendMessage(msg.text);
         const reply = result.response.text();
 
+        if (!reply || !reply.trim()) {
+          bot!.sendMessage(msg.chat.id, "⚠️ AI가 빈 응답을 반환했습니다. 다시 질문해주세요.");
+          return;
+        }
+
         // Save to history (keep last 20 turns)
         history.push({ role: "user", parts: [{ text: msg.text }] });
         history.push({ role: "model", parts: [{ text: reply }] });
@@ -808,7 +816,8 @@ ${contextLines.filter(Boolean).join("\n")}
       } catch (e: any) {
         const errMsg = e?.message || e?.toString() || "unknown error";
         console.error("[gemini] Error:", errMsg, e?.status, e?.statusText);
-        bot!.sendMessage(msg.chat.id, `⚠️ AI 오류: ${errMsg.slice(0, 200)}`);
+        const modelInfo = e?.message?.includes("404") ? "\n모델을 찾을 수 없습니다. 설정에서 AI 모델을 변경해주세요." : "";
+        bot!.sendMessage(msg.chat.id, `⚠️ AI 오류: ${errMsg.slice(0, 200)}${modelInfo}`);
       }
     });
 
