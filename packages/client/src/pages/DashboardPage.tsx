@@ -26,6 +26,7 @@ import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
 import VersionModal from "@/components/VersionModal";
 import ChatRequestPopup from "@/components/chat/ChatRequestPopup";
+import FloatingChat from "@/components/chat/FloatingChat";
 
 const ProjectView = lazy(() => import("@/components/project/ProjectView"));
 const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
@@ -222,6 +223,7 @@ export default function DashboardPage() {
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <VersionModal open={showVersion} onClose={() => setShowVersion(false)} />
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
+      <FloatingChat />
       <ToastContainer />
       {showOnboarding && (
         <OnboardingGuide onComplete={() => {

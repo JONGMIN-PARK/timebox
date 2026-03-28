@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "../../../uploads");
-export const MAX_STORAGE = 500 * 1024 * 1024; // 500MB
+export const MAX_STORAGE = 1024 * 1024 * 1024; // 1GB
 
 // Ensure upload dir
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });

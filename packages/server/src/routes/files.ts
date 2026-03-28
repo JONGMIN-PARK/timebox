@@ -57,7 +57,7 @@ router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
     const currentUsage = currentFiles.reduce((s, f) => s + f.size, 0);
     if (currentUsage + file.size > MAX_STORAGE) {
       await safeUnlink(file.path);
-      res.status(413).json({ success: false, error: "Storage limit exceeded (500MB)" });
+      res.status(413).json({ success: false, error: "Storage limit exceeded (1GB)" });
       return;
     }
 
