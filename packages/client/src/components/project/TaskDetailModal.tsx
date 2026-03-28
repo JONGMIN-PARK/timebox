@@ -146,13 +146,13 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Task details">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Task details">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg mx-4 bg-white dark:bg-slate-800 rounded-xl shadow-xl max-h-[85vh] flex flex-col"
+        className="w-full max-w-lg sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl shadow-xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
           <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Task #{task.id}</span>
           <button onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <X className="w-4 h-4 text-slate-500" />
@@ -160,7 +160,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-3 sm:space-y-4">
           {/* Title */}
           <input
             type="text"
@@ -257,8 +257,8 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add a description..."
-              rows={4}
-              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+              rows={3}
+              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-y min-h-[60px]"
             />
           </div>
 
@@ -381,7 +381,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
           <button
             onClick={handleDelete}
             className={cn(
