@@ -5,42 +5,41 @@ import { cn } from "@/lib/utils";
 import { BarChart3, Users, Activity, TrendingUp, Clock } from "lucide-react";
 
 interface Summary {
-  today: number;
-  thisWeek: number;
-  thisMonth: number;
-  activeUsersToday: number;
-  mostUsedFeature: string;
+  today: { actions: number; activeUsers: number };
+  week: { actions: number; activeUsers: number };
+  month: { actions: number };
+  topFeatures: { action: string; count: number }[];
 }
 
 interface CategoryStat {
   category: string;
   count: number;
-  percentage: number;
 }
 
 interface FeatureStat {
   feature: string;
+  action: string;
   count: number;
 }
 
 interface UserActivity {
-  userId: number;
+  user_id: number;
   username: string;
-  displayName: string | null;
-  today: number;
-  thisWeek: number;
-  lastActive: string | null;
+  display_name: string | null;
+  actions_today: string;
+  actions_this_week: string;
+  last_active: string | null;
 }
 
 interface TimelineEntry {
   id: number;
-  userId: number;
+  user_id: number;
   username: string;
-  displayName: string | null;
+  display_name: string | null;
   action: string;
   category: string;
-  feature: string;
-  createdAt: string;
+  target_type: string | null;
+  created_at: string;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -75,7 +74,7 @@ export default function AnalyticsDashboard() {
   const [features, setFeatures] = useState<FeatureStat[]>([]);
   const [userActivity, setUserActivity] = useState<UserActivity[]>([]);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
-  const [sortField, setSortField] = useState<"today" | "thisWeek">("today");
+  const [sortField, setSortField] = useState<"actions_today" | "actions_this_week">("actions_today");
   const [sortAsc, setSortAsc] = useState(false);
 
   useEffect(() => {
@@ -101,11 +100,14 @@ export default function AnalyticsDashboard() {
   };
 
   const sortedUsers = [...userActivity].sort((a, b) => {
-    const diff = sortAsc ? a[sortField] - b[sortField] : b[sortField] - a[sortField];
-    return diff;
+    const aVal = parseInt(a[sortField] as string) || 0;
+    const bVal = parseInt(b[sortField] as string) || 0;
+    return sortAsc ? aVal - bVal : bVal - aVal;
   });
 
-  const handleSort = (field: "today" | "thisWeek") => {
+  const totalCategoryCount = categories.reduce((sum, c) => sum + (typeof c.count === 'number' ? c.count : parseInt(String(c.count)) || 0), 0);
+
+  const handleSort = (field: "actions_today" | "actions_this_week") => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
@@ -128,7 +130,7 @@ export default function AnalyticsDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full overflow-y-auto p-4 sm:p-6 space-y-6 max-w-4xl">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div className="card p-4">
@@ -139,7 +141,7 @@ export default function AnalyticsDashboard() {
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Today</span>
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {summary?.today ?? 0}
+            {summary?.today?.actions ?? 0}
           </p>
         </div>
 
@@ -151,7 +153,7 @@ export default function AnalyticsDashboard() {
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">This Week</span>
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {summary?.thisWeek ?? 0}
+            {summary?.week?.actions ?? 0}
           </p>
         </div>
 
@@ -163,7 +165,7 @@ export default function AnalyticsDashboard() {
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">This Month</span>
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {summary?.thisMonth ?? 0}
+            {summary?.month?.actions ?? 0}
           </p>
         </div>
 
@@ -175,7 +177,7 @@ export default function AnalyticsDashboard() {
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Active Users</span>
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {summary?.activeUsersToday ?? 0}
+            {summary?.today?.activeUsers ?? 0}
           </p>
         </div>
 
@@ -187,7 +189,7 @@ export default function AnalyticsDashboard() {
             <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Top Feature</span>
           </div>
           <p className="text-lg font-bold text-slate-900 dark:text-white capitalize truncate">
-            {summary?.mostUsedFeature ?? "-"}
+            {summary?.topFeatures?.[0]?.action ?? "-"}
           </p>
         </div>
       </div>
@@ -201,31 +203,35 @@ export default function AnalyticsDashboard() {
           {categories.length === 0 && (
             <p className="text-xs text-slate-400">No data available</p>
           )}
-          {categories.map((cat) => (
-            <div key={cat.category}>
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full", CATEGORY_BG[cat.category] || "bg-slate-100 dark:bg-slate-700 text-slate-500")}>
-                    {cat.category}
-                  </span>
+          {categories.map((cat) => {
+            const catCount = typeof cat.count === 'number' ? cat.count : parseInt(String(cat.count)) || 0;
+            const pct = totalCategoryCount > 0 ? Math.round((catCount / totalCategoryCount) * 100) : 0;
+            return (
+              <div key={cat.category}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full", CATEGORY_BG[cat.category] || "bg-slate-100 dark:bg-slate-700 text-slate-500")}>
+                      {cat.category}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300 tabular-nums">
+                      {catCount}
+                    </span>
+                    <span className="text-[10px] text-slate-400 tabular-nums w-10 text-right">
+                      {pct}%
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300 tabular-nums">
-                    {cat.count}
-                  </span>
-                  <span className="text-[10px] text-slate-400 tabular-nums w-10 text-right">
-                    {cat.percentage}%
-                  </span>
+                <div className="h-2 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", CATEGORY_COLORS[cat.category] || "bg-slate-400")}
+                    style={{ width: `${pct}%` }}
+                  />
                 </div>
               </div>
-              <div className="h-2 bg-slate-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full transition-all duration-500", CATEGORY_COLORS[cat.category] || "bg-slate-400")}
-                  style={{ width: `${cat.percentage}%` }}
-                />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -273,15 +279,15 @@ export default function AnalyticsDashboard() {
                   </th>
                   <th
                     className="text-right px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 select-none"
-                    onClick={() => handleSort("today")}
+                    onClick={() => handleSort("actions_today")}
                   >
-                    Today {sortField === "today" && (sortAsc ? "\u2191" : "\u2193")}
+                    Today {sortField === "actions_today" && (sortAsc ? "\u2191" : "\u2193")}
                   </th>
                   <th
                     className="text-right px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 dark:hover:text-slate-300 select-none"
-                    onClick={() => handleSort("thisWeek")}
+                    onClick={() => handleSort("actions_this_week")}
                   >
-                    This Week {sortField === "thisWeek" && (sortAsc ? "\u2191" : "\u2193")}
+                    This Week {sortField === "actions_this_week" && (sortAsc ? "\u2191" : "\u2193")}
                   </th>
                   <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                     Last Active
@@ -296,44 +302,48 @@ export default function AnalyticsDashboard() {
                     </td>
                   </tr>
                 )}
-                {sortedUsers.map((u) => (
-                  <tr
-                    key={u.userId}
-                    className="border-b border-slate-100/80 dark:border-slate-700/40 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
-                  >
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0">
-                          {(u.displayName || u.username)[0].toUpperCase()}
+                {sortedUsers.map((u) => {
+                  const todayCount = parseInt(u.actions_today as string) || 0;
+                  const weekCount = parseInt(u.actions_this_week as string) || 0;
+                  return (
+                    <tr
+                      key={u.user_id}
+                      className="border-b border-slate-100/80 dark:border-slate-700/40 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                    >
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0">
+                            {(u.display_name || u.username)[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-medium text-slate-900 dark:text-white leading-tight">
+                              {u.display_name || u.username}
+                            </p>
+                            <p className="text-[10px] text-slate-400">@{u.username}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[13px] font-medium text-slate-900 dark:text-white leading-tight">
-                            {u.displayName || u.username}
-                          </p>
-                          <p className="text-[10px] text-slate-400">@{u.username}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <span className={cn(
-                        "text-[13px] font-medium tabular-nums",
-                        u.today > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600",
-                      )}>
-                        {u.today}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <span className="text-[13px] font-medium text-slate-900 dark:text-white tabular-nums">
-                        {u.thisWeek}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <span className="text-[11px] text-slate-400 tabular-nums">
-                        {u.lastActive ? timeAgo(u.lastActive) : "-"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className={cn(
+                          "text-[13px] font-medium tabular-nums",
+                          todayCount > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600",
+                        )}>
+                          {todayCount}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className="text-[13px] font-medium text-slate-900 dark:text-white tabular-nums">
+                          {weekCount}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className="text-[11px] text-slate-400 tabular-nums">
+                          {u.last_active ? timeAgo(u.last_active) : "-"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -357,12 +367,12 @@ export default function AnalyticsDashboard() {
               className="flex items-start gap-3 px-4 py-3 border-b border-slate-100/80 dark:border-slate-700/40 last:border-0"
             >
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0 mt-0.5">
-                {(entry.displayName || entry.username)[0].toUpperCase()}
+                {(entry.display_name || entry.username)[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] text-slate-700 dark:text-slate-300 leading-snug">
                   <span className="font-medium text-slate-900 dark:text-white">
-                    {entry.displayName || entry.username}
+                    {entry.display_name || entry.username}
                   </span>{" "}
                   {entry.action}
                 </p>
@@ -371,11 +381,11 @@ export default function AnalyticsDashboard() {
                     "text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full",
                     CATEGORY_BG[entry.category] || "bg-slate-100 dark:bg-slate-700 text-slate-500",
                   )}>
-                    {entry.feature}
+                    {entry.target_type || entry.category}
                   </span>
                   <span className="text-[10px] text-slate-400 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {timeAgo(entry.createdAt)}
+                    {timeAgo(entry.created_at)}
                   </span>
                 </div>
               </div>
