@@ -118,11 +118,18 @@ app.use("/api/analytics", authMiddleware, adminMiddleware, analyticsRoutes);
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
   const clientDist = path.join(__dirname, "../../client/dist");
+  // Hashed assets (js, css, images) can be cached long-term
+  app.use("/assets", express.static(path.join(clientDist, "assets"), {
+    maxAge: "30d",
+    immutable: true,
+  }));
+  // Everything else (index.html, manifest, icons) - no cache
   app.use(express.static(clientDist, {
-    maxAge: "7d",
+    maxAge: 0,
     etag: true,
   }));
   app.get("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.join(clientDist, "index.html"));
   });
 }

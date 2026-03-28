@@ -1,10 +1,6 @@
-const CACHE_NAME = "timebox-v1";
-const STATIC_ASSETS = ["/", "/index.html"];
+const CACHE_NAME = "timebox-v2";
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
   self.skipWaiting();
 });
 
@@ -20,7 +16,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
-  // Skip non-GET, API calls, and non-http(s) schemes (chrome-extension://, etc.)
+  // Skip non-GET, API calls, and non-http(s) schemes
   if (
     request.method !== "GET" ||
     request.url.includes("/api/") ||
@@ -29,6 +25,34 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // HTML pages: network-first, never cache stale HTML
+  if (request.mode === "navigate" || request.destination === "document") {
+    event.respondWith(
+      fetch(request).catch(() =>
+        caches.match(request).then((cached) => cached || new Response("Offline", { status: 503 }))
+      )
+    );
+    return;
+  }
+
+  // Hashed assets (/assets/): cache-first (immutable filenames)
+  if (request.url.includes("/assets/")) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // Everything else: network-first with short cache
   event.respondWith(
     fetch(request)
       .then((response) => {
