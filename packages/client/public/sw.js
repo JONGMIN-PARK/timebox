@@ -1,7 +1,12 @@
-const CACHE_NAME = "timebox-v2";
+const CACHE_NAME = "timebox-v3";
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
+  // Clear all old caches on install, then activate immediately
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((k) => caches.delete(k)))
+    ).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -35,19 +40,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Hashed assets (/assets/): cache-first (immutable filenames)
+  // Hashed assets (/assets/): network-first with cache fallback
   if (request.url.includes("/assets/")) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
+      fetch(request)
+        .then((response) => {
           if (response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
-        });
-      })
+        })
+        .catch(() => caches.match(request).then((cached) => cached || new Response("Asset not found", { status: 404 })))
     );
     return;
   }
