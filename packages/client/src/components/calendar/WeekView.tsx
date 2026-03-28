@@ -1,4 +1,3 @@
-import React from "react";
 import { format, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { X } from "lucide-react";
@@ -9,9 +8,6 @@ interface WeekViewProps {
   days: Date[];
   eventsByDate: Map<string, CalendarEvent[]>;
   todosByDate: Map<string, Todo[]>;
-  currentTimeTop: number;
-  currentMinutes: number;
-  timelineRef: React.RefObject<HTMLDivElement>;
   onDayClick: (day: Date) => void;
   onCellClick: (day: Date) => void;
   onDeleteEvent: (id: number) => void;

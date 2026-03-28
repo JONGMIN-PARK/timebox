@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import {
-  ChevronLeft, ChevronRight, Plus, X, Check, Trash2, ArrowRight,
+  ChevronLeft, ChevronRight, Plus, X, Check, Trash2,
   GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -27,15 +27,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-// ── Brain/Priority items (localStorage per date) ──
-interface BrainItem {
-  id: string;
-  text: string;
-  category: TimeBlockCategory;
-  duration: number;
-  promoted: boolean;
-}
+import { timeToMinutes } from "../calendar/calendarTypes";
 
 interface PriorityItem {
   id: string;
@@ -46,28 +38,23 @@ interface PriorityItem {
   scheduled: boolean;
 }
 
-function loadBrainItems(date: string): BrainItem[] {
-  try { return JSON.parse(localStorage.getItem(`tb_brain_${date}`) || "[]"); } catch { return []; }
-}
-function saveBrainItems(date: string, items: BrainItem[]) {
-  localStorage.setItem(`tb_brain_${date}`, JSON.stringify(items));
-}
 function loadPriorityItems(date: string): PriorityItem[] {
   try { return JSON.parse(localStorage.getItem(`tb_priority_${date}`) || "[]"); } catch { return []; }
 }
+function safeSave(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* quota exceeded */ }
+}
 function savePriorityItems(date: string, items: PriorityItem[]) {
-  localStorage.setItem(`tb_priority_${date}`, JSON.stringify(items));
+  safeSave(`tb_priority_${date}`, JSON.stringify(items));
 }
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
-const TASK_HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 ~ 22:00
 const TIMETABLE_HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as TimeBlockCategory[];
+const EMPTY_SLOT_COLOR_LIGHT = "#f1f5f9";
+const EMPTY_SLOT_COLOR_DARK = "#1e293b";
 
-function timeToMinutes(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m; }
-
-// ── Sortable Priority Item ──
 function SortableTaskItem({ item, onRemove, onToggle }: {
   item: PriorityItem; onRemove: () => void; onToggle: () => void;
 }) {
@@ -105,18 +92,17 @@ export default function ElonScheduler() {
   const { blocks, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
 
-  const [brainItems, setBrainItems] = useState<BrainItem[]>([]);
   const [priorityItems, setPriorityItems] = useState<PriorityItem[]>([]);
   const [memoText, setMemoText] = useState("");
   const [brainInput, setBrainInput] = useState("");
   const [brainCategory, setBrainCategory] = useState<TimeBlockCategory>("deep_work");
   const [brainDuration, setBrainDuration] = useState(30);
+  const isDark = useMemo(() => document.documentElement.classList.contains("dark"), []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 3 } }));
 
   useEffect(() => {
     fetchBlocks(selectedDate);
-    setBrainItems(loadBrainItems(selectedDate));
     setPriorityItems(loadPriorityItems(selectedDate));
     try {
       setMemoText(localStorage.getItem(`tb_memo_${selectedDate}`) || "");
@@ -154,12 +140,9 @@ export default function ElonScheduler() {
 
   const goToday = () => setSelectedDate(format(new Date(), "yyyy-MM-dd"));
 
-  // ── Brain/Priority handlers ──
   const handleBrainAdd = () => {
     if (!brainInput.trim()) return;
-    const item: BrainItem = { id: uid(), text: brainInput.trim(), category: brainCategory, duration: brainDuration, promoted: false };
-    // Add directly to priority list
-    const newPri = [...priorityItems, { id: uid(), text: item.text, category: item.category, duration: item.duration, rank: priorityItems.length, scheduled: false }];
+    const newPri = [...priorityItems, { id: uid(), text: brainInput.trim(), category: brainCategory, duration: brainDuration, rank: priorityItems.length, scheduled: false }];
     setPriorityItems(newPri);
     savePriorityItems(selectedDate, newPri);
     setBrainInput("");
@@ -189,10 +172,10 @@ export default function ElonScheduler() {
 
   const handleMemoChange = (val: string) => {
     setMemoText(val);
-    localStorage.setItem(`tb_memo_${selectedDate}`, val);
+    safeSave(`tb_memo_${selectedDate}`, val);
   };
 
-  const completedCount = priorityItems.filter((i) => i.scheduled).length;
+  const completedCount = useMemo(() => priorityItems.filter((i) => i.scheduled).length, [priorityItems]);
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-900">
@@ -318,9 +301,7 @@ export default function ElonScheduler() {
                         key={i}
                         className="flex-1 h-3 rounded-[2px]"
                         style={{
-                          backgroundColor: color || (
-                            document.documentElement.classList.contains('dark') ? '#1e293b' : '#f1f5f9'
-                          ),
+                          backgroundColor: color || (isDark ? EMPTY_SLOT_COLOR_DARK : EMPTY_SLOT_COLOR_LIGHT),
                         }}
                       />
                     ))}

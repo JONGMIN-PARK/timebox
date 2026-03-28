@@ -266,9 +266,6 @@ export default function CalendarView() {
           days={days}
           eventsByDate={eventsByDate}
           todosByDate={todosByDate}
-          currentTimeTop={currentTimeTop}
-          currentMinutes={currentMinutes}
-          timelineRef={timelineRef}
           onDayClick={(day) => { setViewMode("day"); setCurrentDate(day); }}
           onCellClick={(day) => { setSelectedDate(day); setShowAddModal(true); }}
           onDeleteEvent={deleteEvent}
