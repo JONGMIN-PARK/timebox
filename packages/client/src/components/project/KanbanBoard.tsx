@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { Plus, GripVertical, CalendarDays, Loader2, Clock } from "lucide-react";
+import { Plus, GripVertical, CalendarDays, Loader2, Clock, Pencil, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -51,6 +51,10 @@ function stableSort(tasks: ProjectTask[]) {
   return [...tasks].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 }
 
+const PRIORITY_LABEL: Record<string, string> = {
+  urgent: "긴급", high: "높음", medium: "보통", low: "낮음",
+};
+
 // ── Draggable task card ──
 const TaskCard = React.memo(function TaskCard({
   task,
@@ -65,6 +69,9 @@ const TaskCard = React.memo(function TaskCard({
 }) {
   const currentUserId = useAuthStore(s => s.user?.id);
   const isMyTask = task.assigneeId === currentUserId;
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout>>();
+  const cardRef = useRef<HTMLDivElement>(null);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -87,14 +94,33 @@ const TaskCard = React.memo(function TaskCard({
   const isOverdue =
     task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "done";
 
+  const handleMouseEnter = () => {
+    tooltipTimer.current = setTimeout(() => setShowTooltip(true), 400);
+  };
+  const handleMouseLeave = () => {
+    clearTimeout(tooltipTimer.current);
+    setShowTooltip(false);
+  };
+  const handleTouchStart = () => {
+    tooltipTimer.current = setTimeout(() => setShowTooltip(true), 500);
+  };
+  const handleTouchEnd = () => {
+    clearTimeout(tooltipTimer.current);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClick();
+  };
+
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => { setNodeRef(node); (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = node; }}
       style={style}
       {...attributes}
       {...(readOnly ? {} : listeners)}
       className={cn(
-        "group bg-white dark:bg-slate-800 rounded-lg border p-3 touch-none hover:shadow-sm transition-colors",
+        "group bg-white dark:bg-slate-800 rounded-lg border p-2.5 touch-none hover:shadow-sm transition-colors",
         readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
         isDragging
           ? "border-blue-400 dark:border-blue-500 shadow-xl"
@@ -103,6 +129,10 @@ const TaskCard = React.memo(function TaskCard({
           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600",
       )}
       onClick={isDragging ? undefined : onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="flex items-start gap-1">
         {!readOnly && (
@@ -110,20 +140,26 @@ const TaskCard = React.memo(function TaskCard({
         )}
 
         <div className="flex-1 min-w-0">
-          {/* Title row */}
+          {/* Row 1: Title + Edit button */}
           <div className="flex items-center gap-1.5">
             <div
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: priorityColor(task.priority) }}
             />
-            <span className="text-[13px] text-slate-900 dark:text-white font-medium truncate">
+            <span className="text-[13px] text-slate-900 dark:text-white font-medium truncate flex-1">
               {task.title}
             </span>
+            <button
+              onClick={handleEditClick}
+              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-opacity flex-shrink-0"
+              title="수정"
+            >
+              <Pencil className="w-3 h-3 text-slate-400 hover:text-blue-500" />
+            </button>
           </div>
 
-          {/* Meta row */}
-          <div className="flex items-center gap-2 mt-2">
-            {/* Due date */}
+          {/* Row 2: Due date + Tags + Reactions */}
+          <div className="flex items-center gap-1.5 mt-1.5">
             {task.dueDate && (
               <span
                 className={cn(
@@ -138,7 +174,6 @@ const TaskCard = React.memo(function TaskCard({
               </span>
             )}
 
-            {/* Tags */}
             {task.tags &&
               task.tags.split(",").filter(Boolean).slice(0, 2).map((tag) => (
                 <span
@@ -149,36 +184,60 @@ const TaskCard = React.memo(function TaskCard({
                 </span>
               ))}
 
-            {/* Updated time */}
-            <span className="text-[9px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5 tabular-nums">
+            <div className="flex-1" />
+
+            {task.reactions && Object.keys(task.reactions).length > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px]">
+                {Object.entries(task.reactions).slice(0, 3).map(([emoji, count]) => (
+                  <span key={emoji} title={`${emoji} ${count}`}>{emoji}{(count as number) > 1 ? count : ""}</span>
+                ))}
+              </span>
+            )}
+          </div>
+
+          {/* Row 3: Updated time + Assignee */}
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5 tabular-nums">
               <Clock className="w-2.5 h-2.5" />
               {fmtDateTime(task.updatedAt)}
             </span>
 
-            {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Reactions summary */}
-            {task.reactions && Object.keys(task.reactions).length > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px]">
-                {Object.entries(task.reactions).slice(0, 3).map(([emoji, count]) => (
-                  <span key={emoji} title={`${emoji} ${count}`}>{emoji}{count > 1 ? count : ""}</span>
-                ))}
-              </span>
-            )}
-
-            {/* Assignee name */}
             {assignee && (
               <span className={cn(
-                "text-[10px] font-medium truncate max-w-[80px]",
+                "text-[10px] font-medium truncate max-w-[80px] flex items-center gap-0.5",
                 isMyTask ? "text-blue-600 dark:text-blue-400" : "text-indigo-500 dark:text-indigo-400"
               )}>
-                {isMyTask ? "✓ " : ""}{assignee.displayName || assignee.username || "?"}
+                {isMyTask ? "✓" : <User className="w-2.5 h-2.5" />}
+                {assignee.displayName || assignee.username || "?"}
               </span>
             )}
           </div>
         </div>
       </div>
+
+      {/* Hover tooltip with details */}
+      {showTooltip && !isDragging && (
+        <div
+          className="absolute z-50 left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-3 space-y-1.5 pointer-events-none"
+          style={{ minWidth: 200 }}
+        >
+          <p className="text-[13px] font-semibold text-slate-900 dark:text-white">{task.title}</p>
+          {task.description && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-pre-wrap line-clamp-4">
+              {task.description}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-700">
+            <span>우선순위: <strong className="text-slate-700 dark:text-slate-300">{PRIORITY_LABEL[task.priority] || task.priority}</strong></span>
+            {task.dueDate && <span>마감: <strong className="text-slate-700 dark:text-slate-300">{task.dueDate}</strong></span>}
+            {task.startDate && <span>시작: <strong className="text-slate-700 dark:text-slate-300">{task.startDate}</strong></span>}
+            {assignee && <span>담당: <strong className="text-slate-700 dark:text-slate-300">{assignee.displayName || assignee.username}</strong></span>}
+            <span>수정: <strong className="text-slate-700 dark:text-slate-300">{fmtDateTime(task.updatedAt)}</strong></span>
+          </div>
+        </div>
+      )}
     </div>
   );
 });
