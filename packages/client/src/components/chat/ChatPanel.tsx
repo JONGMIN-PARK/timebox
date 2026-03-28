@@ -80,7 +80,7 @@ export default function ChatPanel() {
   // ── Fetch rooms ──
 
   const fetchRooms = useCallback(async () => {
-    const res = await api.get<ChatRoom[]>("/chat/rooms");
+    const res = await api.get<ChatRoom[]>("/chat");
     if (res.success && res.data) setRooms(res.data);
     setRoomsLoading(false);
   }, []);
@@ -94,22 +94,26 @@ export default function ChatPanel() {
   useEffect(() => {
     const socket = getSocket();
 
-    const handleNewMessage = (msg: ChatMessage) => {
+    const handleNewMessage = (data: { userId: number; roomId: string; message: ChatMessage }) => {
+      const msg = data.message;
+      if (!msg) return;
+      // Skip own messages (already added via REST response)
+      if (msg.userId === user?.id) return;
       // If we're in the active room, append message
-      if (activeRoom && msg.roomId === activeRoom.id) {
+      if (activeRoom && String(activeRoom.id) === data.roomId) {
         setMessages((prev) => [...prev, msg]);
       }
       // Update room list with latest message
+      const roomId = parseInt(data.roomId);
       setRooms((prev) =>
         prev.map((r) => {
-          if (r.id === msg.roomId) {
+          if (r.id === roomId) {
             return {
               ...r,
-              lastMessage:
-                msg.type === "system" ? msg.content : msg.content,
+              lastMessage: msg.content,
               lastMessageAt: msg.createdAt,
               unreadCount:
-                activeRoom?.id === msg.roomId
+                activeRoom?.id === roomId
                   ? r.unreadCount
                   : r.unreadCount + 1,
             };
@@ -141,14 +145,14 @@ export default function ChatPanel() {
     setMessages([]);
 
     const socket = getSocket();
-    socket.emit("chat:join", { roomId: room.id });
+    socket.emit("chat:join", String(room.id));
 
-    const res = await api.get<ChatMessage[]>(`/chat/rooms/${room.id}/messages`);
+    const res = await api.get<ChatMessage[]>(`/chat/${room.id}/messages`);
     if (res.success && res.data) setMessages(res.data);
     setMessagesLoading(false);
 
     // Mark as read
-    await api.put(`/chat/rooms/${room.id}/read`, {});
+    // read tracking handled by opening the room
     setRooms((prev) =>
       prev.map((r) => (r.id === room.id ? { ...r, unreadCount: 0 } : r)),
     );
@@ -159,7 +163,7 @@ export default function ChatPanel() {
   const leaveRoom = () => {
     if (activeRoom) {
       const socket = getSocket();
-      socket.emit("chat:leave", { roomId: activeRoom.id });
+      socket.emit("chat:leave", String(activeRoom.id));
     }
     setActiveRoom(null);
     setMessages([]);
@@ -170,15 +174,21 @@ export default function ChatPanel() {
 
   // ── Send message ──
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const text = inputText.trim();
     if (!text || !activeRoom) return;
 
     const socket = getSocket();
-    socket.emit("chat:message", {
-      roomId: activeRoom.id,
-      content: text,
-    });
+    // Save message via REST API, then socket broadcasts it
+    const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, { content: text });
+    if (res.success && res.data) {
+      setMessages(prev => [...prev, res.data!]);
+      // Notify others via socket
+      socket.emit("chat:message", {
+        roomId: String(activeRoom.id),
+        message: res.data,
+      });
+    }
 
     setInputText("");
   };
@@ -198,7 +208,7 @@ export default function ChatPanel() {
     setRoomDescription("");
     setSelectedUserIds(new Set());
 
-    const res = await api.get<ChatUser[]>("/chat/users");
+    const res = await api.get<ChatUser[]>("/inbox/users");
     if (res.success && res.data) {
       setAllUsers(res.data.filter((u) => u.id !== user?.id));
     }
@@ -217,7 +227,7 @@ export default function ChatPanel() {
     if (!roomName.trim() || selectedUserIds.size === 0) return;
     setCreating(true);
 
-    const res = await api.post<ChatRoom>("/chat/rooms", {
+    const res = await api.post<ChatRoom>("/chat", {
       name: roomName.trim(),
       description: roomDescription.trim() || null,
       memberIds: Array.from(selectedUserIds),
