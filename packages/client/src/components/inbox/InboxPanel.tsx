@@ -56,12 +56,15 @@ export default function InboxPanel() {
     fetchMessages();
   }, [fetchMessages]);
 
+  const notifyInboxUpdated = () => window.dispatchEvent(new Event("inbox-updated"));
+
   const handleOpenMsg = async (msg: InboxMessage) => {
     setSelectedMsg(msg);
     setView("detail");
     if (!msg.read && tab === "inbox") {
       await api.put(`/inbox/${msg.id}/read`, {});
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m));
+      notifyInboxUpdated();
     }
   };
 
@@ -69,11 +72,13 @@ export default function InboxPanel() {
     await api.delete(`/inbox/${id}`);
     setMessages(prev => prev.filter(m => m.id !== id));
     if (selectedMsg?.id === id) { setView("list"); setSelectedMsg(null); }
+    notifyInboxUpdated();
   };
 
   const handleMarkAllRead = async () => {
     await api.put("/inbox/read-all", {});
     setMessages(prev => prev.map(m => ({ ...m, read: true })));
+    notifyInboxUpdated();
   };
 
   const openCompose = async () => {

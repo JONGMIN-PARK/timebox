@@ -12,16 +12,24 @@ export default function Header({ onInboxClick }: HeaderProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const pageVisible = usePageVisible();
 
+  const fetchUnread = async () => {
+    const res = await api.get<{ count: number }>("/inbox/unread-count");
+    if (res.success && res.data) setUnreadCount(res.data.count);
+  };
+
   useEffect(() => {
     if (!pageVisible) return;
-    const fetchUnread = async () => {
-      const res = await api.get<{ count: number }>("/inbox/unread-count");
-      if (res.success && res.data) setUnreadCount(res.data.count);
-    };
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, [pageVisible]);
+
+  // Listen for inbox read events to refresh count immediately
+  useEffect(() => {
+    const handler = () => fetchUnread();
+    window.addEventListener("inbox-updated", handler);
+    return () => window.removeEventListener("inbox-updated", handler);
+  }, []);
 
   return (
     <header className="h-12 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">
