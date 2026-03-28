@@ -16,26 +16,31 @@ import {
 
 // ── Types ──
 
+interface LastMessage {
+  id: number;
+  content: string;
+  type: string;
+  senderName: string;
+  createdAt: string;
+}
+
 interface ChatRoom {
   id: number;
   name: string;
+  displayName?: string;
   description: string | null;
   type: "direct" | "group";
-  lastMessage?: string;
-  lastMessageAt?: string;
-  unreadCount: number;
+  lastMessage?: LastMessage | null;
   memberCount: number;
-  /** For direct rooms, the other user's display name */
-  directName?: string;
 }
 
 interface ChatMessage {
   id: number;
   roomId: number;
   userId: number;
-  displayName: string;
+  senderName: string;
   content: string;
-  type: "message" | "system";
+  type: string;
   createdAt: string;
 }
 
@@ -110,12 +115,7 @@ export default function ChatPanel() {
           if (r.id === roomId) {
             return {
               ...r,
-              lastMessage: msg.content,
-              lastMessageAt: msg.createdAt,
-              unreadCount:
-                activeRoom?.id === roomId
-                  ? r.unreadCount
-                  : r.unreadCount + 1,
+              lastMessage: { id: msg.id, content: msg.content, type: msg.type, senderName: msg.senderName, createdAt: msg.createdAt },
             };
           }
           return r;
@@ -265,8 +265,7 @@ export default function ChatPanel() {
   };
 
   const getRoomDisplayName = (room: ChatRoom) => {
-    if (room.type === "direct" && room.directName) return room.directName;
-    return room.name;
+    return room.displayName || room.name;
   };
 
   // ── Helper: group consecutive messages by same sender ──
@@ -291,11 +290,6 @@ export default function ChatPanel() {
           <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white">
             Chat
           </h2>
-          {rooms.reduce((sum, r) => sum + r.unreadCount, 0) > 0 && (
-            <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">
-              {rooms.reduce((sum, r) => sum + r.unreadCount, 0)}
-            </span>
-          )}
         </div>
         <button
           onClick={openCreateRoom}
@@ -324,10 +318,7 @@ export default function ChatPanel() {
             <button
               key={room.id}
               onClick={() => openRoom(room)}
-              className={cn(
-                "w-full text-left px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
-                room.unreadCount > 0 && "bg-blue-50/50 dark:bg-blue-500/5",
-              )}
+              className="w-full text-left px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 {/* Avatar */}
@@ -349,29 +340,17 @@ export default function ChatPanel() {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span
-                      className={cn(
-                        "text-[13px] truncate",
-                        room.unreadCount > 0
-                          ? "font-semibold text-slate-900 dark:text-white"
-                          : "font-medium text-slate-700 dark:text-slate-300",
-                      )}
-                    >
+                    <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">
                       {getRoomDisplayName(room)}
                     </span>
                     <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
-                      {formatRoomTime(room.lastMessageAt)}
+                      {formatRoomTime(room.lastMessage?.createdAt)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mt-0.5">
                     <span className="text-[11px] text-slate-400 truncate">
-                      {room.lastMessage || "No messages yet"}
+                      {room.lastMessage?.content || "No messages yet"}
                     </span>
-                    {room.unreadCount > 0 && (
-                      <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded-full font-bold flex-shrink-0 ml-2">
-                        {room.unreadCount}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
@@ -460,11 +439,11 @@ export default function ChatPanel() {
                     <div className="flex items-center gap-1.5 mb-1 ml-1">
                       <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
                         <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">
-                          {getInitial(msg.displayName)}
+                          {getInitial(msg.senderName)}
                         </span>
                       </div>
                       <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                        {msg.displayName}
+                        {msg.senderName}
                       </span>
                     </div>
                   )}
