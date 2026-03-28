@@ -141,9 +141,27 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
+// Also update badge on periodic sync
+async function updateBadge() {
+  try {
+    const token = await getStoredToken();
+    if (!token) return;
+    const res = await fetch("/api/inbox/unread-count", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.success && data.data && navigator.setAppBadge) {
+      const count = data.data.count || 0;
+      if (count > 0) navigator.setAppBadge(count);
+      else navigator.clearAppBadge();
+    }
+  } catch {}
+}
+
 // Periodic background sync (if supported)
 self.addEventListener("periodicsync", (event) => {
   if (event.tag === "check-reminders") {
-    event.waitUntil(checkReminders());
+    event.waitUntil(Promise.all([checkReminders(), updateBadge()]));
   }
 });

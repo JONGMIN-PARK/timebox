@@ -39,6 +39,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     const res = await api.post<{ token: string; user: User }>("/auth/login", { username, password });
     if (res.success && res.data) {
       setToken(res.data.token);
+      // Cache token for service worker
+      const token = res.data.token;
+      if ('caches' in window) {
+        caches.open('timebox-auth').then(cache => {
+          cache.put('/auth-token', new Response(token));
+        });
+      }
       set({ authenticated: true, user: res.data.user, loading: false });
       return true;
     }
@@ -49,6 +56,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     clearToken();
     updateAppBadge(0);
+    if ('caches' in window) {
+      caches.open('timebox-auth').then(cache => cache.delete('/auth-token'));
+    }
     set({ authenticated: false, user: null });
     window.location.href = "/";
   },

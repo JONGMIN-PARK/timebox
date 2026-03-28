@@ -21,7 +21,7 @@ const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashbo
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
-import ToastContainer from "@/components/ui/Toast";
+import ToastContainer, { showToast } from "@/components/ui/Toast";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
 import VersionModal from "@/components/VersionModal";
@@ -87,14 +87,26 @@ export default function DashboardPage() {
       if (prefs.tasks !== false) showNotif("태스크 할당", "새로운 태스크가 할당되었습니다");
     };
 
+    // Handle missed messages on reconnect
+    const handleMissed = (data: { count: number }) => {
+      if (data.count > 0) {
+        // Refresh inbox unread count
+        window.dispatchEvent(new Event("inbox-updated"));
+        // Show toast
+        showToast("info", `${data.count}개의 새 메시지가 있습니다`);
+      }
+    };
+
     socket.on("inbox:new-message", handleInbox);
     socket.on("chat:message", handleChat);
     socket.on("task:assigned", handleTask);
+    socket.on("sync:messages", handleMissed);
 
     return () => {
       socket.off("inbox:new-message", handleInbox);
       socket.off("chat:message", handleChat);
       socket.off("task:assigned", handleTask);
+      socket.off("sync:messages", handleMissed);
     };
   }, []);
 

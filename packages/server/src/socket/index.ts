@@ -194,6 +194,38 @@ export function initSocket(httpServer: HttpServer): Server {
       socket.leave(`project-${projectId}`);
     });
 
+    // ── Missed message sync ───────────────────────────────────────
+
+    socket.on("sync:missed", async (data: { since: string }) => {
+      if (!data?.since) return;
+      try {
+        const { db } = await import("../db/index.js");
+        const { chatMessages, chatMembers } = await import("../db/schema.js");
+        const { eq, and, gte, inArray } = await import("drizzle-orm");
+
+        // Get rooms this user is in
+        const memberships = await db.select({ roomId: chatMembers.roomId })
+          .from(chatMembers).where(eq(chatMembers.userId, userId));
+        const roomIds = memberships.map(m => m.roomId);
+
+        if (roomIds.length === 0) return;
+
+        // Get messages since last seen
+        const missed = await db.select().from(chatMessages)
+          .where(and(
+            inArray(chatMessages.roomId, roomIds),
+            gte(chatMessages.createdAt, data.since)
+          ))
+          .limit(100);
+
+        if (missed.length > 0) {
+          socket.emit("sync:messages", { messages: missed, count: missed.length });
+        }
+      } catch (e) {
+        console.error("[socket] sync:missed error:", e);
+      }
+    });
+
     // ── Disconnection ─────────────────────────────────────────────
 
     socket.on("disconnect", (reason: string) => {
