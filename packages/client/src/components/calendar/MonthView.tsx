@@ -69,11 +69,12 @@ export default function MonthView({
               onClick={() => onSelectDate(day)}
               onDoubleClick={() => onDoubleClickDate(day)}
               onTouchStart={(e) => {
-                const touch = e.touches[0];
+                const target = e.currentTarget;
                 touchTimer.current = setTimeout(() => {
                   e.preventDefault();
+                  const rect = target.getBoundingClientRect();
                   setLongPressDate(dateKey);
-                  setMenuPos({ x: touch.clientX, y: touch.clientY });
+                  setMenuPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
                   // Clear text selection
                   window.getSelection()?.removeAllRanges();
                 }, 500);
@@ -86,8 +87,9 @@ export default function MonthView({
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
                 setLongPressDate(dateKey);
-                setMenuPos({ x: e.clientX, y: e.clientY });
+                setMenuPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
               }}
               onMouseEnter={(e) => onDayHover(e, dateKey)}
               onMouseLeave={onDayLeave}
@@ -139,8 +141,9 @@ export default function MonthView({
           <div
             className="fixed z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 min-w-[180px] animate-in"
             style={{
-              left: Math.min(menuPos.x, window.innerWidth - 200),
-              top: Math.min(menuPos.y, window.innerHeight - 250),
+              left: Math.max(8, Math.min(menuPos.x, window.innerWidth - 188)),
+              top: Math.max(8, Math.min(menuPos.y, window.innerHeight - 200)),
+              transform: "translate(-50%, -50%)",
             }}
           >
             <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase">
