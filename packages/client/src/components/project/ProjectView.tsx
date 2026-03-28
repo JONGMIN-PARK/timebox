@@ -1,10 +1,10 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
 import { getSocket } from "@/lib/socket";
-import { CalendarDays, Users, Target } from "lucide-react";
+import { CalendarDays, Users } from "lucide-react";
 import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
 import MemberManager from "./MemberManager";
@@ -62,6 +62,18 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   const [editingDates, setEditingDates] = useState(false);
   const [editStartDate, setEditStartDate] = useState("");
   const [editTargetDate, setEditTargetDate] = useState("");
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [totalTasks, setTotalTasks] = useState(0);
+  const [completedTasks, setCompletedTasks] = useState(0);
+
+  const fetchStats = useCallback(async () => {
+    const res = await api.get<{ progressPercent: number; total: number; completed: number }>(`/projects/${projectId}/stats`);
+    if (res.data) {
+      setProgressPercent(res.data.progressPercent);
+      setTotalTasks(res.data.total);
+      setCompletedTasks(res.data.completed);
+    }
+  }, [projectId]);
 
   const handleSaveDates = async () => {
     await api.put(`/projects/${projectId}`, {
@@ -79,9 +91,10 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
       if (res.success && res.data) setTransferCount(res.data.length);
     };
     fetchTransferCount();
-    const interval = setInterval(fetchTransferCount, 30000);
+    fetchStats();
+    const interval = setInterval(() => { fetchTransferCount(); fetchStats(); }, 30000);
     return () => clearInterval(interval);
-  }, [projectId, pageVisible]);
+  }, [projectId, pageVisible, fetchStats]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,21 +147,27 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2 gap-2 border-b border-slate-200/60 dark:border-slate-700/40">
-        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 py-2.5 gap-2 border-b border-slate-200/60 dark:border-slate-700/40">
+        <div className="flex items-center gap-3 min-w-0 flex-wrap">
           {/* Project name */}
           <div className="flex items-center gap-2 min-w-0">
             <div
-              className="w-3 h-3 rounded-full shrink-0"
+              className="w-3.5 h-3.5 rounded-full shrink-0"
               style={{ backgroundColor: project.color || "#3b82f6" }}
             />
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white truncate">
               {project.name}
             </h2>
           </div>
 
-          {/* Info badges */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Progress + D-Day + Info */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Progress */}
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 dark:text-blue-400">
+              <span className="tabular-nums">{progressPercent}%</span>
+              <span className="text-xs font-normal text-slate-400">({completedTasks}/{totalTasks})</span>
+            </span>
+
             {/* D-Day */}
             {project.targetDate && (() => {
               const target = new Date(project.targetDate);
@@ -156,7 +175,7 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
               const dDay = Math.ceil((target.getTime() - today.getTime()) / (1000*60*60*24));
               return (
                 <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                  "text-sm font-bold px-2 py-0.5 rounded-md",
                   dDay < 0 ? "bg-red-100 dark:bg-red-500/15 text-red-600"
                     : dDay <= 7 ? "bg-orange-100 dark:bg-orange-500/15 text-orange-600"
                     : "bg-blue-100 dark:bg-blue-500/15 text-blue-600"
@@ -166,16 +185,18 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
               );
             })()}
 
+            <span className="w-px h-4 bg-slate-200 dark:bg-slate-600 hidden sm:block" />
+
             {/* Date range — clickable for admin */}
             {editingDates ? (
               <span className="flex items-center gap-1">
                 <input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)}
-                  className="text-[10px] bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-white outline-none w-[110px]" />
-                <span className="text-[10px] text-slate-400">~</span>
+                  className="text-xs bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-white outline-none w-[120px]" />
+                <span className="text-xs text-slate-400">~</span>
                 <input type="date" value={editTargetDate} onChange={(e) => setEditTargetDate(e.target.value)}
-                  className="text-[10px] bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-white outline-none w-[110px]" />
-                <button onClick={handleSaveDates} className="text-[10px] text-blue-500 hover:text-blue-600 font-medium px-1">✓</button>
-                <button onClick={() => setEditingDates(false)} className="text-[10px] text-slate-400 hover:text-slate-600 px-1">✕</button>
+                  className="text-xs bg-slate-100 dark:bg-slate-700 rounded px-1.5 py-0.5 text-slate-700 dark:text-white outline-none w-[120px]" />
+                <button onClick={handleSaveDates} className="text-xs text-blue-500 hover:text-blue-600 font-medium px-1">✓</button>
+                <button onClick={() => setEditingDates(false)} className="text-xs text-slate-400 hover:text-slate-600 px-1">✕</button>
               </span>
             ) : (
               <button
@@ -187,12 +208,12 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-0.5 text-[10px] text-slate-400",
+                  "flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400",
                   (project.myRole === "owner" || project.myRole === "admin") && "hover:text-blue-500 cursor-pointer"
                 )}
                 title={project.myRole === "owner" || project.myRole === "admin" ? "Click to edit dates" : undefined}
               >
-                <CalendarDays className="w-3 h-3" />
+                <CalendarDays className="w-3.5 h-3.5" />
                 {project.startDate || project.targetDate
                   ? `${project.startDate?.slice(5) || "?"} ~ ${project.targetDate?.slice(5) || "?"}`
                   : (project.myRole === "owner" || project.myRole === "admin") ? "날짜 설정" : ""}
@@ -201,15 +222,15 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
 
             {/* Member count */}
             {project.memberCount != null && (
-              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
-                <Users className="w-3 h-3" />
+              <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                <Users className="w-3.5 h-3.5" />
                 {project.memberCount}
               </span>
             )}
 
             {/* Transfer badge */}
             {transferCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full">
+              <span className="px-1.5 py-0.5 text-[11px] font-bold bg-red-500 text-white rounded-full">
                 {transferCount}
               </span>
             )}
