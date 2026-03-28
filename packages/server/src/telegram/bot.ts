@@ -778,13 +778,16 @@ ${contextLines.filter(Boolean).join("\n")}
         await bot!.sendMessage(msg.chat.id, reply, { parse_mode: "Markdown" }).catch(() =>
           bot!.sendMessage(msg.chat.id, reply)
         );
-      } catch (e) {
-        console.error("[gemini]", e);
-        bot!.sendMessage(msg.chat.id, "⚠️ AI 응답 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      } catch (e: any) {
+        const errMsg = e?.message || e?.toString() || "unknown error";
+        console.error("[gemini] Error:", errMsg, e?.status, e?.statusText);
+        bot!.sendMessage(msg.chat.id, `⚠️ AI 오류: ${errMsg.slice(0, 200)}`);
       }
     });
 
-    console.log("[telegram] Gemini AI Q&A enabled");
+    console.log(`[telegram] Gemini AI Q&A enabled (key: ${geminiKey.slice(0, 6)}...)`);
+  } else {
+    console.log("[telegram] Gemini AI disabled - GEMINI_API_KEY not set");
   }
 
   await setupDailyBriefing();
