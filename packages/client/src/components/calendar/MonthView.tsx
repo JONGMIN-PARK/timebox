@@ -141,9 +141,9 @@ export default function MonthView({
           <div
             className="fixed z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 min-w-[180px] animate-in"
             style={{
-              left: Math.max(8, Math.min(menuPos.x, window.innerWidth - 188)),
-              top: Math.max(8, Math.min(menuPos.y, window.innerHeight - 200)),
-              transform: "translate(-50%, -100%)",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
             }}
           >
             <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase">
