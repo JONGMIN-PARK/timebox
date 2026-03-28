@@ -186,10 +186,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right pb-[calc(48px+env(safe-area-inset-bottom,0px))] md:pb-0">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-
-      <div className="flex-1 flex flex-col min-w-0">
+    <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right">
+      <div className="flex-1 flex min-h-0">
+        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex-1 flex flex-col min-w-0">
         <Header onInboxClick={() => {
           useProjectStore.getState().setActiveProject(null);
           setActiveTab("inbox");
@@ -227,6 +227,7 @@ export default function DashboardPage() {
               )}
             </>
           )}
+        </div>
         </div>
       </div>
 

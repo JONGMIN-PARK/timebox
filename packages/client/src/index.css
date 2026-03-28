@@ -17,6 +17,16 @@
     overscroll-behavior: none;
   }
 
+  /* Prevent iOS auto-zoom on input focus */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  @media (min-width: 640px) {
+    input, textarea, select {
+      font-size: inherit !important;
+    }
+  }
+
   ::selection {
     background-color: rgba(59, 130, 246, 0.2);
   }
