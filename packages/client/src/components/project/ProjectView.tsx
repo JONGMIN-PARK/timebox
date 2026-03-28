@@ -244,7 +244,7 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           <ProjectDashboard projectId={projectId} />
         </div>
         <div className={cn("absolute inset-0 overflow-hidden", activeTab === "tasks" ? "block" : "hidden")}>
-          <KanbanBoard projectId={projectId} />
+          <KanbanBoard projectId={projectId} myRole={project?.myRole} />
         </div>
         <div className={cn("absolute inset-0 overflow-hidden", activeTab === "gantt" ? "block" : "hidden")}>
           <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>

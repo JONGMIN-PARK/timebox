@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "../db/index.js";
 import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages, telegramConfig, taskReactions } from "../db/schema.js";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
-import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
+import { projectMemberMiddleware, projectEditorMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { getTelegramBot } from "../telegram/bot.js";
 import { emitToUser, getIO } from "../socket/index.js";
 
@@ -67,7 +67,7 @@ router.get("/:projectId/tasks", async (req: ProjectRequest, res) => {
 });
 
 // POST /api/projects/:projectId/tasks
-router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
+router.post("/:projectId/tasks", projectEditorMiddleware, async (req: ProjectRequest, res) => {
   try {
     const { title, description, status, priority, assigneeId, startDate, dueDate, tags, parentId } = req.body;
     if (!title?.trim()) {
@@ -132,7 +132,7 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
 });
 
 // PUT /api/projects/:projectId/tasks/:taskId
-router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
+router.put("/:projectId/tasks/:taskId", projectEditorMiddleware, async (req: ProjectRequest, res) => {
   try {
     const taskId = parseInt(req.params.taskId as string);
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
@@ -195,7 +195,7 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
 });
 
 // PUT /api/projects/:projectId/tasks/reorder - bulk reorder
-router.put("/:projectId/tasks/reorder", async (req: ProjectRequest, res) => {
+router.put("/:projectId/tasks/reorder", projectEditorMiddleware, async (req: ProjectRequest, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) {
@@ -221,7 +221,7 @@ router.put("/:projectId/tasks/reorder", async (req: ProjectRequest, res) => {
 });
 
 // DELETE /api/projects/:projectId/tasks/:taskId
-router.delete("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
+router.delete("/:projectId/tasks/:taskId", projectEditorMiddleware, async (req: ProjectRequest, res) => {
   try {
     const taskId = parseInt(req.params.taskId as string);
     const result = await db.delete(projectTasks)
@@ -295,7 +295,7 @@ router.post("/:projectId/tasks/:taskId/reactions", async (req: ProjectRequest, r
 });
 
 // POST /api/projects/:projectId/tasks/:taskId/transfer - request transfer
-router.post("/:projectId/tasks/:taskId/transfer", async (req: ProjectRequest, res) => {
+router.post("/:projectId/tasks/:taskId/transfer", projectEditorMiddleware, async (req: ProjectRequest, res) => {
   try {
     const taskId = parseInt(req.params.taskId as string);
     const { toUserId, message } = req.body;

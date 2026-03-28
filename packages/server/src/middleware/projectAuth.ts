@@ -53,3 +53,12 @@ export async function projectAdminMiddleware(req: ProjectRequest, res: Response,
   }
   next();
 }
+
+// Verify user can edit (not a viewer)
+export async function projectEditorMiddleware(req: ProjectRequest, res: Response, next: NextFunction) {
+  if (req.projectRole === "viewer") {
+    res.status(403).json({ success: false, error: "Viewer cannot modify tasks" });
+    return;
+  }
+  next();
+}

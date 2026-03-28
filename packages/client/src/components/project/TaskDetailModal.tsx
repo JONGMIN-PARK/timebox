@@ -27,9 +27,10 @@ interface TaskDetailModalProps {
   onClose: () => void;
   onUpdate: (taskId: number, data: Partial<ProjectTask>) => Promise<void>;
   onDelete: (taskId: number) => Promise<void>;
+  readOnly?: boolean;
 }
 
-export default function TaskDetailModal({ projectId, task, members, onClose, onUpdate, onDelete }: TaskDetailModalProps) {
+export default function TaskDetailModal({ projectId, task, members, onClose, onUpdate, onDelete, readOnly }: TaskDetailModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -166,7 +167,8 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full text-lg font-semibold bg-transparent text-slate-900 dark:text-white outline-none placeholder-slate-400 focus:ring-2 focus:ring-blue-500/30 rounded-lg px-2 py-1 -mx-2"
+            readOnly={readOnly}
+            className={cn("w-full text-lg font-semibold bg-transparent text-slate-900 dark:text-white outline-none placeholder-slate-400 rounded-lg px-2 py-1 -mx-2", !readOnly && "focus:ring-2 focus:ring-blue-500/30")}
             placeholder="Task title"
           />
 
@@ -177,7 +179,8 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+                disabled={readOnly}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s.key} value={s.key}>{s.label}</option>
@@ -191,7 +194,8 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
                   <button
                     key={p.key}
                     type="button"
-                    onClick={() => setPriority(p.key)}
+                    onClick={() => !readOnly && setPriority(p.key)}
+                    disabled={readOnly}
                     className={cn(
                       "flex-1 text-xs py-2 rounded-lg border-2 transition-colors text-center font-medium",
                       priority === p.key
@@ -213,7 +217,8 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
             <select
               value={assigneeId ?? ""}
               onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+              disabled={readOnly}
+              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
             >
               <option value="">Unassigned</option>
               {members.map((m) => (
@@ -234,6 +239,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                readOnly={readOnly}
                 className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
               />
             </div>
@@ -245,6 +251,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
+                readOnly={readOnly}
                 className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
               />
             </div>
@@ -256,6 +263,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              readOnly={readOnly}
               placeholder="Add a description..."
               rows={3}
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-y min-h-[60px]"
@@ -310,7 +318,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
           </div>
 
           {/* Transfer section */}
-          <div>
+          {!readOnly && <div>
             {!showTransfer ? (
               <button
                 onClick={() => setShowTransfer(true)}
@@ -371,7 +379,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
                 </button>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Meta info */}
           <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
@@ -382,32 +390,34 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-          <button
-            onClick={handleDelete}
-            className={cn(
-              "flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors",
-              confirmDelete
-                ? "bg-red-500 text-white hover:bg-red-600"
-                : "text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10",
-            )}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            {confirmDelete ? "Confirm Delete" : "Delete"}
-          </button>
+          {readOnly ? <div /> : (
+            <button
+              onClick={handleDelete}
+              className={cn(
+                "flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors",
+                confirmDelete
+                  ? "bg-red-500 text-white hover:bg-red-600"
+                  : "text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10",
+              )}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {confirmDelete ? "Confirm Delete" : "Delete"}
+            </button>
+          )}
           <div className="flex gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500"
             >
-              Cancel
+              {readOnly ? "Close" : "Cancel"}
             </button>
-            <button
+            {!readOnly && <button
               onClick={handleSave}
               disabled={!hasChanges || !title.trim() || saving}
               className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? "Saving..." : "Save"}
-            </button>
+            </button>}
           </div>
         </div>
       </div>

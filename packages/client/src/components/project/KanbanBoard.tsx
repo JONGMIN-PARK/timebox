@@ -34,15 +34,22 @@ const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
 const priorityColor = (p: string) =>
   p === "high" ? "#ef4444" : p === "medium" ? "#f59e0b" : "#94a3b8";
 
+/** Stable sort: by sortOrder, then by id as tiebreaker */
+function stableSort(tasks: ProjectTask[]) {
+  return [...tasks].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+}
+
 // ── Draggable task card ──
 const TaskCard = React.memo(function TaskCard({
   task,
   members,
   onClick,
+  readOnly,
 }: {
   task: ProjectTask;
   members: ProjectMember[];
   onClick: () => void;
+  readOnly?: boolean;
 }) {
   const currentUserId = useAuthStore(s => s.user?.id);
   const isMyTask = task.assigneeId === currentUserId;
@@ -50,6 +57,7 @@ const TaskCard = React.memo(function TaskCard({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { task, status: task.status },
+    disabled: readOnly,
   });
 
   const style: React.CSSProperties = {
@@ -72,9 +80,10 @@ const TaskCard = React.memo(function TaskCard({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
+      {...(readOnly ? {} : listeners)}
       className={cn(
-        "group bg-white dark:bg-slate-800 rounded-lg border p-3 cursor-grab active:cursor-grabbing touch-none hover:shadow-sm transition-colors",
+        "group bg-white dark:bg-slate-800 rounded-lg border p-3 touch-none hover:shadow-sm transition-colors",
+        readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
         isDragging
           ? "border-blue-400 dark:border-blue-500 shadow-xl"
           : isMyTask
@@ -84,7 +93,9 @@ const TaskCard = React.memo(function TaskCard({
       onClick={isDragging ? undefined : onClick}
     >
       <div className="flex items-start gap-1">
-        <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        {!readOnly && (
+          <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        )}
 
         <div className="flex-1 min-w-0">
           {/* Title row */}
@@ -162,6 +173,7 @@ function KanbanColumn({
   onClickTask,
   onAddTask,
   isDraggingAny,
+  readOnly,
 }: {
   column: (typeof COLUMNS)[number];
   tasks: ProjectTask[];
@@ -169,6 +181,7 @@ function KanbanColumn({
   onClickTask: (task: ProjectTask) => void;
   onAddTask: (status: TaskStatus, title: string) => void;
   isDraggingAny: boolean;
+  readOnly?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.key });
   const [adding, setAdding] = useState(false);
@@ -185,12 +198,14 @@ function KanbanColumn({
     setAdding(false);
   };
 
+  const sorted = stableSort(tasks);
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
         "flex flex-col w-[80vw] sm:w-[240px] md:w-[260px] min-w-[200px] flex-shrink-0 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/40 transition-colors",
-        isOver && "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-500/5",
+        isOver && !readOnly && "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-500/5",
       )}
     >
       {/* Column header */}
@@ -206,50 +221,51 @@ function KanbanColumn({
 
       {/* Cards */}
       <div className={cn("flex-1 px-2 py-2 space-y-2 min-h-[100px]", isDraggingAny ? "overflow-visible" : "overflow-y-auto")}>
-        <SortableContext items={tasks.sort((a, b) => a.sortOrder - b.sortOrder).map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {tasks
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map((task) => (
+        <SortableContext items={sorted.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          {sorted.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
                 members={members}
                 onClick={() => onClickTask(task)}
+                readOnly={readOnly}
               />
             ))}
         </SortableContext>
       </div>
 
-      {/* Add task */}
-      <div className="px-2 pb-2">
-        {adding ? (
-          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAdd();
-                if (e.key === "Escape") { setAdding(false); setNewTitle(""); }
-              }}
-              onBlur={handleAdd}
-              placeholder="Task title..."
-              className="w-full text-sm bg-transparent text-slate-900 dark:text-white placeholder-slate-400 outline-none"
-              autoFocus
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
-            aria-label={`Add task to ${column.label}`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add task
-          </button>
-        )}
-      </div>
+      {/* Add task — hidden for viewers */}
+      {!readOnly && (
+        <div className="px-2 pb-2">
+          {adding ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAdd();
+                  if (e.key === "Escape") { setAdding(false); setNewTitle(""); }
+                }}
+                onBlur={handleAdd}
+                placeholder="Task title..."
+                className="w-full text-sm bg-transparent text-slate-900 dark:text-white placeholder-slate-400 outline-none"
+                autoFocus
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setAdding(true)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
+              aria-label={`Add task to ${column.label}`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add task
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -257,9 +273,10 @@ function KanbanColumn({
 // ── Main KanbanBoard ──
 interface KanbanBoardProps {
   projectId: number;
+  myRole?: string;
 }
 
-export default function KanbanBoard({ projectId }: KanbanBoardProps) {
+export default function KanbanBoard({ projectId, myRole }: KanbanBoardProps) {
   const { tasks, loading, error, fetchTasks, addTask, updateTask, deleteTask, reorderTasks } =
     useProjectTaskStore();
   const { fetchMembers } = useProjectStore();
@@ -267,6 +284,8 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null);
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+
+  const readOnly = myRole === "viewer";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -421,7 +440,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
       {/* Board */}
       <div className={cn("flex-1 px-2 sm:px-4 py-2 sm:py-4", dragActiveId ? "overflow-visible" : "overflow-x-auto overflow-y-hidden")}>
         <DndContext
-          sensors={sensors}
+          sensors={readOnly ? [] : sensors}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={() => setDragActiveId(null)}
@@ -436,6 +455,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
                 onClickTask={setSelectedTask}
                 onAddTask={handleAddTask}
                 isDraggingAny={dragActiveId !== null}
+                readOnly={readOnly}
               />
             ))}
           </div>
@@ -453,6 +473,7 @@ export default function KanbanBoard({ projectId }: KanbanBoardProps) {
           onClose={() => setSelectedTask(null)}
           onUpdate={handleUpdateTask}
           onDelete={handleDeleteTask}
+          readOnly={readOnly}
         />
       )}
     </div>
