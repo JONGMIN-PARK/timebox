@@ -4,6 +4,7 @@ import { useI18n } from "@/lib/useI18n";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { Mail, Send, Trash2, Check, CheckCheck, ArrowLeft, Plus, X } from "lucide-react";
+import { formatDateTime } from "@/lib/dateUtils";
 
 interface InboxMessage {
   id: number;
@@ -216,7 +217,7 @@ export default function InboxPanel() {
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span>{tab === "inbox" ? `${t("inbox.from")}: ${selectedMsg.fromName}` : `${t("inbox.to")}: ${selectedMsg.toName}`}</span>
             <span>&middot;</span>
-            <span>{new Date(selectedMsg.createdAt).toLocaleString("ko-KR")}</span>
+            <span>{formatDateTime(selectedMsg.createdAt)}</span>
           </div>
           <div className="card p-4">
             <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{selectedMsg.content}</p>

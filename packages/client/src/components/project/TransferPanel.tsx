@@ -165,7 +165,7 @@ export default function TransferPanel({ projectId }: TransferPanelProps) {
                   {t("transfer.reject")}
                 </button>
                 <span className="text-[10px] text-slate-400 ml-auto">
-                  {new Date(transfer.createdAt).toLocaleDateString()}
+                  {new Date(transfer.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}
                 </span>
               </div>
             </div>

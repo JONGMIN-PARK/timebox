@@ -161,12 +161,47 @@ httpServer.listen(PORT, () => {
         if (!bot) return;
 
         const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+        const koTime = new Date().toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+        const changelog = [
+          "📦 *v1.0.0 업데이트 내용*",
+          "",
+          "💬 *채팅*",
+          "• Socket.io 실시간 채팅",
+          "• 그룹/1:1 채팅방, 이모지, 이미지",
+          "• @멘션, 읽음 표시 (✓✓)",
+          "• 메시지 삭제 (소프트)",
+          "",
+          "📊 *분석 & 관리*",
+          "• 사용자 행동 트래킹 대시보드",
+          "• 메시지 관리/정리/자동삭제",
+          "• 전체 시스템 백업",
+          "",
+          "⚡ *성능*",
+          "• API compression (60-70% 압축)",
+          "• JWT 캐시, DB 인덱스 최적화",
+          "• Optimistic UI, Toast 알림",
+          "",
+          "📱 *모바일 & UX*",
+          "• PWA 아이콘 뱃지 (읽지않은 수)",
+          "• 모바일 레이아웃 안정화",
+          "• 스플래시 인트로, 온보딩 가이드",
+          "• 랜딩 페이지",
+          "",
+          "🔧 *기타*",
+          "• 텔레그램 QR 연동, 알림 3초 이내",
+          "• 간트 차트, 파일 버전 관리",
+          "• 반복 이벤트, 프로젝트 아카이브",
+          "• 알림 설정 UI, 오프라인 표시",
+          "",
+          `⏰ 배포 시간: ${koTime}`,
+          "✅ 서버 정상 시작",
+        ].join("\n");
+
         for (const admin of admins) {
           const [conf] = await db.select().from(telegramConfig)
             .where(and(eq(telegramConfig.userId, admin.id), eq(telegramConfig.active, true)));
           if (conf?.chatId) {
-            const msg = `🚀 *TimeBox 배포 완료*\n\n📦 버전: v1.0.0\n⏰ ${new Date().toLocaleString("ko-KR")}\n✅ 서버가 정상 시작되었습니다.`;
-            await bot.sendMessage(conf.chatId, msg, { parse_mode: "Markdown" });
+            await bot.sendMessage(conf.chatId, `🚀 *TimeBox 배포 완료*\n\n${changelog}`, { parse_mode: "Markdown" });
           }
         }
         console.log("[deploy] Admin notification sent");
@@ -205,7 +240,7 @@ httpServer.listen(PORT, () => {
             const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, r.userId));
             const chatId = conf[0]?.chatId;
             if (chatId && conf[0]?.active) {
-              const msg = `🔔 *리마인더*\n\n⏰ *${r.title}*${r.message ? `\n${r.message}` : ""}\n\n_${new Date(r.remindAt).toLocaleString("ko-KR")}_`;
+              const msg = `🔔 *리마인더*\n\n⏰ *${r.title}*${r.message ? `\n${r.message}` : ""}\n\n_${new Date(r.remindAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}_`;
               try {
                 await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
               } catch (e) {

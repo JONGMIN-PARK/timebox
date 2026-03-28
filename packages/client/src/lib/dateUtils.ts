@@ -1,29 +1,44 @@
+const TZ = "Asia/Seoul";
+const LOCALE = "ko-KR";
+
 export function formatDateTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day} ${h}:${min}`;
+  return new Date(dateStr).toLocaleString(LOCALE, {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  });
 }
 
 export function formatDate(dateStr: string): string {
-  return dateStr.slice(0, 10);
+  return new Date(dateStr).toLocaleDateString(LOCALE, {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  });
 }
 
 export function formatTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  return new Date(dateStr).toLocaleTimeString(LOCALE, {
+    timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
+export function formatShortDateTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleString(LOCALE, {
+    timeZone: TZ, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 export function formatRelativeDate(dateStr: string): string {
   const d = new Date(dateStr);
   const now = new Date();
-  if (d.toDateString() === now.toDateString()) {
+  const koNow = new Date(now.toLocaleString("en-US", { timeZone: TZ }));
+  const koDate = new Date(d.toLocaleString("en-US", { timeZone: TZ }));
+  if (koDate.toDateString() === koNow.toDateString()) {
     return formatTime(dateStr);
   }
   return dateStr.slice(0, 10);
+}
+
+export function koNow(): Date {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
 }
 
 export function getDaysUntil(dateStr: string): number {

@@ -51,7 +51,7 @@ export default function ReminderPanel() {
         // Open a small popup window for attention (desktop)
         try {
           const popupContent = encodeURIComponent(
-            `<html><head><title>⏰ 리마인더</title><style>body{font-family:system-ui;margin:0;padding:20px;background:#fef3c7;text-align:center}h2{color:#92400e;margin:0 0 8px}p{color:#78350f;margin:4px 0}button{margin:8px 4px;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px}button.ok{background:#f59e0b;color:white}button.snooze{background:white;color:#92400e;border:1px solid #fbbf24}</style></head><body><h2>⏰ ${r.title}</h2>${r.message ? `<p>${r.message}</p>` : ""}<p style="font-size:12px;color:#a16207">${new Date(r.remindAt).toLocaleString("ko-KR")}</p><br><button class="ok" onclick="window.close()">확인</button><button class="snooze" onclick="window.opener?.postMessage({type:'snooze-reminder',id:${r.id},mins:15},'*');window.close()">15분 후</button></body></html>`
+            `<html><head><title>⏰ 리마인더</title><style>body{font-family:system-ui;margin:0;padding:20px;background:#fef3c7;text-align:center}h2{color:#92400e;margin:0 0 8px}p{color:#78350f;margin:4px 0}button{margin:8px 4px;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px}button.ok{background:#f59e0b;color:white}button.snooze{background:white;color:#92400e;border:1px solid #fbbf24}</style></head><body><h2>⏰ ${r.title}</h2>${r.message ? `<p>${r.message}</p>` : ""}<p style="font-size:12px;color:#a16207">${new Date(r.remindAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</p><br><button class="ok" onclick="window.close()">확인</button><button class="snooze" onclick="window.opener?.postMessage({type:'snooze-reminder',id:${r.id},mins:15},'*');window.close()">15분 후</button></body></html>`
           );
           const popup = window.open(
             `data:text/html,${popupContent}`,
@@ -152,7 +152,7 @@ export default function ReminderPanel() {
 
     if (mins > 0 && mins < 60) return `${mins}분 후`;
     if (mins >= 60 && mins < 1440) return `${Math.round(mins / 60)}시간 후`;
-    return d.toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -170,7 +170,7 @@ export default function ReminderPanel() {
               {alertReminder.message && (
                 <p className="text-sm text-slate-500 dark:text-slate-400">{alertReminder.message}</p>
               )}
-              <p className="text-xs text-slate-400">{new Date(alertReminder.remindAt).toLocaleString("ko-KR")}</p>
+              <p className="text-xs text-slate-400">{new Date(alertReminder.remindAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</p>
             </div>
             <div className="flex border-t border-slate-200 dark:border-slate-700">
               <button onClick={() => handleSnooze(alertReminder.id, 15)}

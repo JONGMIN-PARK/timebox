@@ -375,8 +375,8 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
 
           {/* Meta info */}
           <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
-            <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
-            <span>Updated: {new Date(task.updatedAt).toLocaleDateString()}</span>
+            <span>Created: {new Date(task.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</span>
+            <span>Updated: {new Date(task.updatedAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</span>
           </div>
         </div>
 
