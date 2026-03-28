@@ -151,8 +151,6 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
               <span className={cn("font-semibold shrink-0", daysLeftColor(daysLeft))}>{daysLeftLabel(daysLeft)}</span>
             </>
           )}
-          <span className="text-slate-300 dark:text-slate-600">·</span>
-          <span className="tabular-nums">{todo.progress ?? 0}%</span>
         </div>
         {/* Progress bar */}
         <div className="flex items-center gap-1.5 mt-1 ml-3">
