@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { projects, projectMembers, projectTasks, users, teamGroupMembers } from "../db/schema.js";
-import { eq, and, desc, inArray, sql, count } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, count, or, ilike, notInArray } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { projectMemberMiddleware, projectAdminMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 
@@ -298,6 +298,41 @@ router.get("/:projectId/members", projectMemberMiddleware, async (req: ProjectRe
   } catch (error) {
     console.error("projects:listMembers", error);
     res.status(500).json({ success: false, error: "Failed to fetch members" });
+  }
+});
+
+// GET /api/projects/:projectId/members/search?q=keyword - search users to invite
+router.get("/:projectId/members/search", projectMemberMiddleware, projectAdminMiddleware, async (req: ProjectRequest, res) => {
+  try {
+    const q = (req.query.q as string || "").trim();
+    if (q.length < 1) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+
+    // Get existing member user IDs
+    const existingMembers = await db.select({ userId: projectMembers.userId })
+      .from(projectMembers).where(eq(projectMembers.projectId, req.projectId!));
+    const existingIds = existingMembers.map(m => m.userId);
+
+    const pattern = `%${q}%`;
+    const conditions = [
+      or(ilike(users.username, pattern), ilike(users.displayName, pattern)),
+    ];
+    if (existingIds.length > 0) {
+      conditions.push(notInArray(users.id, existingIds));
+    }
+
+    const results = await db.select({
+      id: users.id,
+      username: users.username,
+      displayName: users.displayName,
+    }).from(users).where(and(...conditions)).limit(10);
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    console.error("projects:searchUsers", error);
+    res.status(500).json({ success: false, error: "Failed to search users" });
   }
 });
 
