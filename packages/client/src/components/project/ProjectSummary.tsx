@@ -41,6 +41,13 @@ export default function ProjectSummary() {
     fetchSummary(showArchived);
   }, [showArchived]);
 
+  // Refresh on task changes across any project
+  useEffect(() => {
+    const handler = () => fetchSummary(showArchived);
+    window.addEventListener("project-tasks-updated", handler);
+    return () => window.removeEventListener("project-tasks-updated", handler);
+  }, [showArchived]);
+
   const handleArchiveToggle = async (e: React.MouseEvent, projectId: number) => {
     e.stopPropagation();
     await api.put(`/projects/${projectId}/archive`, {});

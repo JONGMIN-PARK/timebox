@@ -113,20 +113,27 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
     socket.emit("project:join", projectId);
 
     const handleTaskUpdate = () => {
-      // Dispatch a custom event that child components (KanbanBoard etc.) can listen for
       window.dispatchEvent(new CustomEvent("project-tasks-updated", { detail: { projectId } }));
     };
     socket.on("task:created", handleTaskUpdate);
     socket.on("task:updated", handleTaskUpdate);
     socket.on("task:deleted", handleTaskUpdate);
 
+    // Refresh header stats on any task change (socket or local kanban drag)
+    const handleStatsRefresh = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.projectId === projectId) fetchStats();
+    };
+    window.addEventListener("project-tasks-updated", handleStatsRefresh);
+
     return () => {
       socket.emit("project:leave", projectId);
       socket.off("task:created", handleTaskUpdate);
       socket.off("task:updated", handleTaskUpdate);
       socket.off("task:deleted", handleTaskUpdate);
+      window.removeEventListener("project-tasks-updated", handleStatsRefresh);
     };
-  }, [projectId]);
+  }, [projectId, fetchStats]);
 
   if (loading) {
     return (

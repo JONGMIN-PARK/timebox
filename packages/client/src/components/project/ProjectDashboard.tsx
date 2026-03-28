@@ -113,6 +113,16 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
     fetchData().finally(() => setLoading(false));
   }, [fetchData]);
 
+  // Refresh on task changes (kanban drag, add, update, delete)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.projectId === projectId) fetchData();
+    };
+    window.addEventListener("project-tasks-updated", handler);
+    return () => window.removeEventListener("project-tasks-updated", handler);
+  }, [projectId, fetchData]);
+
   // Auto-refresh every 30 seconds
   useEffect(() => {
     if (!pageVisible) return;

@@ -364,6 +364,10 @@ export default function KanbanBoard({ projectId, myRole }: KanbanBoardProps) {
 
   const readOnly = myRole === "viewer";
 
+  const notifyTaskChange = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("project-tasks-updated", { detail: { projectId } }));
+  }, [projectId]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
@@ -471,7 +475,9 @@ export default function KanbanBoard({ projectId, myRole }: KanbanBoardProps) {
         reorderTasks(projectId, targetTasks.map((t, i) => ({ id: t.id, sortOrder: i, status: targetStatus })));
       }
     }
-  }, [tasks, projectId, updateTask, reorderTasks]);
+    // Notify stats refresh on any status change
+    notifyTaskChange();
+  }, [tasks, projectId, updateTask, reorderTasks, notifyTaskChange]);
 
   const currentUserId = useAuthStore(s => s.user?.id);
 
@@ -487,15 +493,18 @@ export default function KanbanBoard({ projectId, myRole }: KanbanBoardProps) {
       sortOrder: maxSort + 1,
       assigneeId: currentUserId || undefined,
     });
-  }, [projectId, addTask, tasksByStatus, currentUserId]);
+    notifyTaskChange();
+  }, [projectId, addTask, tasksByStatus, currentUserId, notifyTaskChange]);
 
   const handleUpdateTask = useCallback(async (taskId: number, data: Partial<ProjectTask>) => {
     await updateTask(projectId, taskId, data);
-  }, [projectId, updateTask]);
+    notifyTaskChange();
+  }, [projectId, updateTask, notifyTaskChange]);
 
   const handleDeleteTask = useCallback(async (taskId: number) => {
     await deleteTask(projectId, taskId);
-  }, [projectId, deleteTask]);
+    notifyTaskChange();
+  }, [projectId, deleteTask, notifyTaskChange]);
 
   if (loading && tasks.length === 0) {
     return (
