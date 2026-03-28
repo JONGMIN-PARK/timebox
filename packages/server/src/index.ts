@@ -149,6 +149,31 @@ httpServer.listen(PORT, () => {
     } catch (err) {
       console.log("Telegram bot init skipped:", (err as Error).message);
     }
+
+    // Notify admins of deployment via Telegram
+    setTimeout(async () => {
+      try {
+        const { db } = await import("./db/index.js");
+        const { users, telegramConfig } = await import("./db/schema.js");
+        const { eq, and } = await import("drizzle-orm");
+        const { getTelegramBot } = await import("./telegram/bot.js");
+        const bot = getTelegramBot();
+        if (!bot) return;
+
+        const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+        for (const admin of admins) {
+          const [conf] = await db.select().from(telegramConfig)
+            .where(and(eq(telegramConfig.userId, admin.id), eq(telegramConfig.active, true)));
+          if (conf?.chatId) {
+            const msg = `🚀 *TimeBox 배포 완료*\n\n📦 버전: v1.0.0\n⏰ ${new Date().toLocaleString("ko-KR")}\n✅ 서버가 정상 시작되었습니다.`;
+            await bot.sendMessage(conf.chatId, msg, { parse_mode: "Markdown" });
+          }
+        }
+        console.log("[deploy] Admin notification sent");
+      } catch (e) {
+        console.error("[deploy] Failed to notify admins:", e);
+      }
+    }, 5000); // 5초 후 (봇 초기화 대기)
   } else {
     console.log("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
   }

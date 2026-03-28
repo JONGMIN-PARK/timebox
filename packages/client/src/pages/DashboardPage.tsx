@@ -1,4 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import OnboardingGuide from "@/components/OnboardingGuide";
+import { seedSampleData } from "@/lib/sampleData";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import Header from "@/components/layout/Header";
@@ -37,6 +39,7 @@ export default function DashboardPage() {
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showVersion, setShowVersion] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     if (splashShownRef.current) return false;
     splashShownRef.current = true;
@@ -50,6 +53,10 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchMe();
     connectSocket();
+    // Check if first-time user
+    if (!localStorage.getItem("timebox_onboarding_done")) {
+      seedSampleData().then(() => setShowOnboarding(true));
+    }
     return () => disconnectSocket();
   }, []);
 
@@ -216,6 +223,12 @@ export default function DashboardPage() {
       <VersionModal open={showVersion} onClose={() => setShowVersion(false)} />
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
       <ToastContainer />
+      {showOnboarding && (
+        <OnboardingGuide onComplete={() => {
+          setShowOnboarding(false);
+          localStorage.setItem("timebox_onboarding_done", "true");
+        }} />
+      )}
     </div>
   );
 }

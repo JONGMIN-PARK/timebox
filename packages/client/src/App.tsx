@@ -3,12 +3,13 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import LoginPage from "@/pages/LoginPage";
+import LandingPage from "@/pages/LandingPage";
 import DashboardPage from "@/pages/DashboardPage";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authenticated } = useAuthStore();
-  if (!authenticated) return <Navigate to="/login" replace />;
+  if (!authenticated) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -25,11 +26,15 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route
-          path="/login"
-          element={authenticated ? <Navigate to="/" replace /> : <LoginPage />}
+          path="/"
+          element={authenticated ? <Navigate to="/app" replace /> : <LandingPage />}
         />
         <Route
-          path="/*"
+          path="/login"
+          element={authenticated ? <Navigate to="/app" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/app/*"
           element={
             <ProtectedRoute>
               <DashboardPage />
