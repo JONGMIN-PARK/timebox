@@ -107,33 +107,37 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   },
 
   addTodo: async (title, priority = "medium", dueDate?, category = "personal") => {
-    set({ error: null });
+    // Optimistic: add temp item
+    const tempId = -Date.now();
+    const date = dueDate || new Date().toISOString().slice(0, 10);
+    const tempTodo = { id: tempId, title, completed: false, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString() };
+    set({ todos: [tempTodo as Todo, ...get().todos] });
+
     try {
-      const date = dueDate || new Date().toISOString().slice(0, 10);
-      const res = await api.post<Todo>("/todos", { title, priority, dueDate: date, category });
+      const res = await api.post<Todo>('/todos', { title, priority, dueDate: date, category });
       if (res.success && res.data) {
-        set({ todos: [...get().todos, res.data] });
+        set({ todos: get().todos.map(t => t.id === tempId ? res.data! : t) });
       } else {
-        set({ error: res.error || "Failed to add todo" });
+        set({ todos: get().todos.filter(t => t.id !== tempId) });
       }
     } catch {
-      set({ error: "Failed to add todo" });
+      set({ todos: get().todos.filter(t => t.id !== tempId) });
     }
   },
 
   toggleTodo: async (id) => {
-    set({ error: null });
+    // Optimistic update
+    const prev = get().todos;
+    set({ todos: prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t) });
+
     try {
-      const todo = get().todos.find((t) => t.id === id);
-      if (!todo) return;
-      const res = await api.put<Todo>(`/todos/${id}`, { completed: !todo.completed });
-      if (res.success && res.data) {
-        set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
-      } else {
-        set({ error: res.error || "Failed to toggle todo" });
+      const res = await api.put(`/todos/${id}/toggle`, {});
+      if (!res.success) {
+        // Revert on failure
+        set({ todos: prev });
       }
     } catch {
-      set({ error: "Failed to toggle todo" });
+      set({ todos: prev });
     }
   },
 

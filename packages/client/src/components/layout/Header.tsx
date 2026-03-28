@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
+import { getSocket } from "@/lib/socket";
 import DDayChips from "@/components/dday/DDayChips";
 
 interface HeaderProps {
@@ -29,6 +30,14 @@ export default function Header({ onInboxClick }: HeaderProps) {
     const handler = () => fetchUnread();
     window.addEventListener("inbox-updated", handler);
     return () => window.removeEventListener("inbox-updated", handler);
+  }, []);
+
+  // Listen for socket events for instant inbox updates
+  useEffect(() => {
+    const socket = getSocket();
+    const handler = () => fetchUnread();
+    socket.on("inbox:new-message", handler);
+    return () => { socket.off("inbox:new-message", handler); };
   }, []);
 
   return (

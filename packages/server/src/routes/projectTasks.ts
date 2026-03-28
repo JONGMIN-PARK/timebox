@@ -4,6 +4,7 @@ import { projectTasks, projectMembers, taskComments, activityLog, users, taskTra
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { getTelegramBot } from "../telegram/bot.js";
+import { emitToUser, getIO } from "../socket/index.js";
 
 async function notifyTaskViaTelegram(toUserId: number, projectName: string, taskTitle: string, dueDate: string | null) {
   try {
@@ -98,6 +99,15 @@ router.post("/:projectId/tasks", async (req: ProjectRequest, res) => {
       metadata: JSON.stringify({ title: result[0].title }),
     });
 
+    // Notify project members via socket
+    const io = getIO();
+    if (io) io.to(`project-${req.projectId}`).emit("task:created", { projectId: req.projectId, task: result[0] });
+
+    // Notify assignee directly
+    if (result[0].assigneeId) {
+      emitToUser(result[0].assigneeId, "task:assigned", { projectId: req.projectId, task: result[0] });
+    }
+
     // Send inbox + Telegram notification to assignee
     if (result[0].assigneeId && result[0].assigneeId !== req.userId) {
       const project = await db.select().from(projects).where(eq(projects.id, req.projectId!));
@@ -144,6 +154,10 @@ router.put("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
       res.status(404).json({ success: false, error: "Task not found" });
       return;
     }
+
+    // Notify project members via socket
+    const io = getIO();
+    if (io) io.to(`project-${req.projectId}`).emit("task:updated", { projectId: req.projectId, task: result[0] });
 
     // Log status changes
     if (req.body.status) {
@@ -217,6 +231,10 @@ router.delete("/:projectId/tasks/:taskId", async (req: ProjectRequest, res) => {
       res.status(404).json({ success: false, error: "Task not found" });
       return;
     }
+
+    // Notify project members via socket
+    const io = getIO();
+    if (io) io.to(`project-${req.projectId}`).emit("task:deleted", { projectId: req.projectId, taskId });
 
     res.json({ success: true });
   } catch (error) {

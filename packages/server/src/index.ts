@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "path";
@@ -45,6 +46,7 @@ const PORT = process.env.PORT || 3001;
 await initDb();
 
 // Middleware
+app.use(compression());
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
   : undefined;

@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
+import { getSocket } from "@/lib/socket";
 import { CalendarDays, Users, Target } from "lucide-react";
 import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
@@ -80,6 +81,27 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
       setLoading(false);
     });
     return () => { cancelled = true; };
+  }, [projectId]);
+
+  // Join/leave socket room and listen for task updates
+  useEffect(() => {
+    const socket = getSocket();
+    socket.emit("project:join", projectId);
+
+    const handleTaskUpdate = () => {
+      // Dispatch a custom event that child components (KanbanBoard etc.) can listen for
+      window.dispatchEvent(new CustomEvent("project-tasks-updated", { detail: { projectId } }));
+    };
+    socket.on("task:created", handleTaskUpdate);
+    socket.on("task:updated", handleTaskUpdate);
+    socket.on("task:deleted", handleTaskUpdate);
+
+    return () => {
+      socket.emit("project:leave", projectId);
+      socket.off("task:created", handleTaskUpdate);
+      socket.off("task:updated", handleTaskUpdate);
+      socket.off("task:deleted", handleTaskUpdate);
+    };
   }, [projectId]);
 
   if (loading) {

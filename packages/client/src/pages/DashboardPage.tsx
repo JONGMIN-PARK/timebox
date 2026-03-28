@@ -18,6 +18,7 @@ const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashbo
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { connectSocket, disconnectSocket } from "@/lib/socket";
+import ToastContainer from "@/components/ui/Toast";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
 import ChatRequestPopup from "@/components/chat/ChatRequestPopup";
@@ -161,6 +162,7 @@ export default function DashboardPage() {
       <ChatRequestPopup onAccept={() => setActiveTab("chat")} />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
+      <ToastContainer />
     </div>
   );
 }

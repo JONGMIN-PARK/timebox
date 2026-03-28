@@ -182,6 +182,18 @@ export function initSocket(httpServer: HttpServer): Server {
       }
     );
 
+    // ── Project room events ──────────────────────────────────────
+
+    socket.on("project:join", (projectId: number) => {
+      if (typeof projectId !== "number") return;
+      socket.join(`project-${projectId}`);
+    });
+
+    socket.on("project:leave", (projectId: number) => {
+      if (typeof projectId !== "number") return;
+      socket.leave(`project-${projectId}`);
+    });
+
     // ── Disconnection ─────────────────────────────────────────────
 
     socket.on("disconnect", (reason: string) => {

@@ -51,7 +51,7 @@ router.post("/login", async (req, res) => {
       return;
     }
 
-    const token = signToken(user.id);
+    const token = signToken(user.id, user.role);
     const [teamGroupsList, hasProjects] = await Promise.all([
       getUserTeamGroups(user.id),
       hasProjectMembership(user.id),

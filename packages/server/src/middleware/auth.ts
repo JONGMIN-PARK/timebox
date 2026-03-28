@@ -13,6 +13,7 @@ if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
 
 export interface AuthRequest extends Request {
   userId?: number;
+  userRole?: string;
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
@@ -23,8 +24,9 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   }
 
   try {
-    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: number };
+    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: number; role?: string };
     req.userId = payload.userId;
+    req.userRole = payload.role;
     next();
   } catch {
     res.status(401).json({ success: false, error: "Invalid token" });
@@ -32,17 +34,18 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 }
 
 export async function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.userRole === "admin") { next(); return; }
+  // Fallback for old tokens without role
   const rows = await db.select().from(users).where(eq(users.id, req.userId!));
-  const user = rows[0];
-  if (!user || user.role !== "admin") {
+  if (!rows[0] || rows[0].role !== "admin") {
     res.status(403).json({ success: false, error: "Admin access required" });
     return;
   }
   next();
 }
 
-export function signToken(userId: number): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
+export function signToken(userId: number, role?: string): string {
+  return jwt.sign({ userId, role: role || "user" }, JWT_SECRET, { expiresIn: "30d" });
 }
 
 export function safeParseId(id: string | string[]): number | null {

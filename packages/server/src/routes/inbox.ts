@@ -4,6 +4,7 @@ import { inboxMessages, users, telegramConfig } from "../db/schema.js";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getTelegramBot } from "../telegram/bot.js";
+import { emitToUser } from "../socket/index.js";
 import { getUserMap } from "../lib/userEnrichment.js";
 import { PAGINATION, TELEGRAM_PARSE_MODE } from "../lib/constants.js";
 
@@ -110,6 +111,9 @@ router.post("/", async (req: AuthRequest, res) => {
       relatedProjectId: relatedProjectId || null,
       relatedTaskId: relatedTaskId || null,
     }).returning();
+
+    // Notify recipient via socket
+    emitToUser(toUserId, "inbox:new-message", { message: result[0], fromName });
 
     // Send Telegram notification (async, non-blocking)
     notifyViaTelegram(toUserId, fromName, subject.trim(), content.trim()).catch(e => console.error("telegram-notify:", e));

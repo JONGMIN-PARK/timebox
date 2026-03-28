@@ -439,6 +439,11 @@ export async function initDb() {
 
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
+
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+      CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at);
+      CREATE INDEX IF NOT EXISTS idx_messages_project_deleted ON messages(project_id, deleted);
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_deleted ON chat_messages(deleted, created_at);
     `);
 
     // Seed default categories if empty

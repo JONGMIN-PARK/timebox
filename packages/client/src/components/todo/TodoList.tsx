@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag } from "lucide-react";
@@ -209,20 +209,32 @@ export default function TodoList() {
   useEffect(() => { fetchTodos(); }, [fetchTodos]);
 
   // Apply filters
-  const filtered = todos.filter((t) => {
-    if (categoryFilter && !t.category.startsWith(categoryFilter)) return false;
-    return true;
-  });
-  const activeTodos = filtered.filter((t) => !t.completed).sort((a, b) => a.sortOrder - b.sortOrder);
-  const completedTodos = filtered.filter((t) => t.completed);
-  const completionRate = filtered.length > 0 ? Math.round((completedTodos.length / filtered.length) * 100) : 0;
+  const filtered = useMemo(() =>
+    todos.filter((t) => {
+      if (categoryFilter && !t.category.startsWith(categoryFilter)) return false;
+      return true;
+    }), [todos, categoryFilter]);
+
+  const activeTodos = useMemo(() =>
+    filtered.filter((t) => !t.completed).sort((a, b) => a.sortOrder - b.sortOrder),
+    [filtered]);
+
+  const completedTodos = useMemo(() =>
+    filtered.filter((t) => t.completed),
+    [filtered]);
+
+  const completionRate = useMemo(() =>
+    filtered.length > 0 ? Math.round((completedTodos.length / filtered.length) * 100) : 0,
+    [filtered, completedTodos]);
 
   // Category counts for filter
-  const categoryCounts = todos.reduce((acc, t) => {
-    const root = t.category.split(".")[0];
-    acc[root] = (acc[root] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const categoryCounts = useMemo(() =>
+    todos.reduce((acc, t) => {
+      const root = t.category.split(".")[0];
+      acc[root] = (acc[root] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>),
+    [todos]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
