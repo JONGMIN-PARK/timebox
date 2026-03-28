@@ -697,65 +697,74 @@ export async function initTelegramBot() {
     // Per-chat conversation history (max 20 turns)
     const chatHistories = new Map<string, { role: string; parts: { text: string }[] }[]>();
 
-    bot.on("message", async (msg) => {
-      // Skip commands, photos, and non-text messages
-      if (!msg.text || msg.text.startsWith("/")) return;
-      const userId = await getUserIdFromChat(msg.chat.id.toString());
-      if (!userId) return;
+    // Cache user info to avoid repeated DB lookups (TTL: 5 min)
+    const userCache = new Map<string, { userId: number; user: any; ts: number }>();
+    const USER_CACHE_TTL = 5 * 60 * 1000;
 
+    // Map deprecated preview model IDs to current stable ones
+    const DEPRECATED_MODELS: Record<string, string> = {
+      "gemini-2.5-pro-preview-05-06": "gemini-2.5-pro",
+      "gemini-2.5-flash-preview-05-20": "gemini-2.5-flash",
+      "gemini-3-pro-preview": "gemini-3.1-pro-preview",
+    };
+
+    bot.on("message", async (msg) => {
+      if (!msg.text || msg.text.startsWith("/")) return;
       const chatKey = msg.chat.id.toString();
 
-      // Show typing indicator
-      bot!.sendChatAction(msg.chat.id, "typing").catch(() => {});
+      // Cached user lookup
+      let cached = userCache.get(chatKey);
+      if (!cached || Date.now() - cached.ts > USER_CACHE_TTL) {
+        const uid = await getUserIdFromChat(chatKey);
+        if (!uid) return;
+        const [userRow] = await db.select().from(users).where(eq(users.id, uid));
+        if (!userRow) return;
+        cached = { userId: uid, user: userRow, ts: Date.now() };
+        userCache.set(chatKey, cached);
+      }
+      const { userId, user: userRow } = cached;
+      const isAdmin = userRow.role === "admin";
+
+      // Show typing + fetch data in parallel
+      const typingPromise = bot!.sendChatAction(msg.chat.id, "typing").catch(() => {});
 
       try {
-        // Get user info and model
-        const [userRow] = await db.select().from(users).where(eq(users.id, userId));
-        if (!userRow) return;
-        const isAdmin = userRow.role === "admin";
-        // Map deprecated preview model IDs to current stable ones
-        const DEPRECATED_MODELS: Record<string, string> = {
-          "gemini-2.5-pro-preview-05-06": "gemini-2.5-pro",
-          "gemini-2.5-flash-preview-05-20": "gemini-2.5-flash",
-          "gemini-3-pro-preview": "gemini-3.1-pro-preview",
-        };
         const rawModel = userRow.aiModel || "gemini-2.0-flash";
         const modelName = DEPRECATED_MODELS[rawModel] || rawModel;
         const model = genAI.getGenerativeModel({ model: modelName });
 
         const today = new Date().toISOString().slice(0, 10);
-        let contextLines: string[] = [`오늘 날짜: ${today}`, `사용자: ${userRow.displayName || userRow.username} (${userRow.role})`];
+        let contextLines: string[] = [`오늘: ${today}`, `사용자: ${userRow.displayName || userRow.username}(${userRow.role})`];
 
+        // Fetch context data — all queries run in parallel
         if (isAdmin) {
-          // Admin: full app data — include own todos separately + all todos with owner info
-          const [allUsers, myTodos, allTodos, allEvents, myEvents, allBlocks, allDdays, allProjects, allTasks] = await Promise.all([
+          const [allUsers, allTodos, allEvents, allBlocks, allDdays, allProjects, allTasks] = await Promise.all([
             db.select({ id: users.id, username: users.username, displayName: users.displayName, role: users.role, active: users.active }).from(users),
-            db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))),
             db.select().from(todos).where(eq(todos.completed, false)),
             db.select().from(events).where(and(gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
-            db.select().from(events).where(and(eq(events.userId, userId), gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
             db.select().from(timeBlocks).where(eq(timeBlocks.date, today)),
             db.select().from(ddays),
             db.select().from(projects),
             db.select().from(projectTasks),
           ]);
 
-          // Build user ID → name map for labeling
           const nameMap = new Map(allUsers.map(u => [u.id, u.displayName || u.username]));
+          const myTodos = allTodos.filter(t => t.userId === userId);
+          const otherTodos = allTodos.filter(t => t.userId !== userId);
+          const myEvents = allEvents.filter(e => e.userId === userId);
 
           contextLines.push(
-            `\n[전체 사용자 ${allUsers.length}명]: ${allUsers.map(u => `${u.displayName || u.username}(${u.role}${u.active ? "" : ",비활성"})`).join(", ")}`,
-            `\n[내 할일 ${myTodos.length}개]: ${myTodos.slice(0, 10).map(t => `${t.title}(우선순위:${t.priority},진행:${t.progress}%${t.dueDate ? ",마감:" + t.dueDate : ""})`).join(", ")}${myTodos.length > 10 ? ` ...외 ${myTodos.length - 10}개` : ""}`,
-            `\n[전체 미완료 할일 ${allTodos.length}개]: ${allTodos.slice(0, 15).map(t => `${t.title}(담당:${nameMap.get(t.userId) || t.userId},${t.priority},${t.progress}%${t.dueDate ? ",마감:" + t.dueDate : ""})`).join(", ")}${allTodos.length > 15 ? ` ...외 ${allTodos.length - 15}개` : ""}`,
-            `\n[내 오늘 일정 ${myEvents.length}개]: ${myEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}`,
-            `\n[전체 오늘 일정 ${allEvents.length}개]: ${allEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}(${nameMap.get(e.userId) || e.userId})`).join(", ")}`,
-            `\n[오늘 타임블록 ${allBlocks.length}개]: ${allBlocks.slice(0, 10).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(", ")}`,
-            `\n[D-Day ${allDdays.length}개]: ${allDdays.slice(0, 10).map(d => `${d.title}(${d.targetDate})`).join(", ")}`,
-            `\n[프로젝트 ${allProjects.length}개]: ${allProjects.map(p => `${p.name}(${p.archived ? "보관됨" : "진행중"})`).join(", ")}`,
-            `\n[프로젝트 태스크 ${allTasks.length}개]: ${allTasks.slice(0, 10).map(t => `${t.title}(${t.status},${t.priority})`).join(", ")}${allTasks.length > 10 ? ` ...외 ${allTasks.length - 10}개` : ""}`,
+            `\n[사용자 ${allUsers.length}명]: ${allUsers.map(u => `${u.displayName || u.username}(${u.role})`).join(",")}`,
+            `\n[내 할일 ${myTodos.length}개]: ${myTodos.slice(0, 10).map(t => `${t.title}(${t.priority},${t.progress}%${t.dueDate ? ",~" + t.dueDate : ""})`).join(",")}`,
+            otherTodos.length > 0 ? `\n[타인 할일 ${otherTodos.length}개]: ${otherTodos.slice(0, 10).map(t => `${t.title}(${nameMap.get(t.userId)},${t.priority})`).join(",")}` : "",
+            `\n[내 일정 ${myEvents.length}개]: ${myEvents.slice(0, 8).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(",")}`,
+            allEvents.length > myEvents.length ? `\n[전체 일정 ${allEvents.length}개]: ${allEvents.slice(0, 8).map(e => `${e.startTime.slice(11, 16)} ${e.title}(${nameMap.get(e.userId)})`).join(",")}` : "",
+            allBlocks.length > 0 ? `\n[타임블록 ${allBlocks.length}개]: ${allBlocks.slice(0, 8).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(",")}` : "",
+            allDdays.length > 0 ? `\n[D-Day]: ${allDdays.slice(0, 8).map(d => `${d.title}(${d.targetDate})`).join(",")}` : "",
+            allProjects.length > 0 ? `\n[프로젝트]: ${allProjects.map(p => `${p.name}(${p.archived ? "보관" : "진행"})`).join(",")}` : "",
+            allTasks.length > 0 ? `\n[태스크 ${allTasks.length}개]: ${allTasks.slice(0, 8).map(t => `${t.title}(${t.status})`).join(",")}` : "",
           );
         } else {
-          // Regular user: own data + assigned projects
           const [userTodos, userEvents, userBlocks, userDdays, memberOf] = await Promise.all([
             db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))),
             db.select().from(events).where(and(eq(events.userId, userId), gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
@@ -765,10 +774,10 @@ export async function initTelegramBot() {
           ]);
 
           contextLines.push(
-            userTodos.length > 0 ? `\n[내 할일 ${userTodos.length}개]: ${userTodos.slice(0, 10).map(t => `${t.title}(${t.priority},${t.progress}%)`).join(", ")}` : "\n할일 없음",
-            userEvents.length > 0 ? `\n[오늘 일정 ${userEvents.length}개]: ${userEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}` : "\n오늘 일정 없음",
-            userBlocks.length > 0 ? `\n[타임블록 ${userBlocks.length}개]: ${userBlocks.slice(0, 10).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(", ")}` : "\n타임블록 없음",
-            userDdays.length > 0 ? `\n[D-Day ${userDdays.length}개]: ${userDdays.map(d => `${d.title}(${d.targetDate})`).join(", ")}` : "",
+            userTodos.length > 0 ? `\n[내 할일 ${userTodos.length}개]: ${userTodos.slice(0, 10).map(t => `${t.title}(${t.priority},${t.progress}%)`).join(",")}` : "\n할일 없음",
+            userEvents.length > 0 ? `\n[일정 ${userEvents.length}개]: ${userEvents.slice(0, 8).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(",")}` : "\n오늘 일정 없음",
+            userBlocks.length > 0 ? `\n[타임블록]: ${userBlocks.slice(0, 8).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(",")}` : "",
+            userDdays.length > 0 ? `\n[D-Day]: ${userDdays.map(d => `${d.title}(${d.targetDate})`).join(",")}` : "",
           );
 
           if (memberOf.length > 0) {
@@ -778,44 +787,47 @@ export async function initTelegramBot() {
               db.select().from(projectTasks).where(inArray(projectTasks.projectId, projectIds)),
             ]);
             contextLines.push(
-              `\n[내 프로젝트 ${myProjects.length}개]: ${myProjects.map(p => `${p.name}(${p.archived ? "보관됨" : "진행중"})`).join(", ")}`,
-              myTasks.length > 0 ? `\n[프로젝트 태스크 ${myTasks.length}개]: ${myTasks.slice(0, 10).map(t => `${t.title}(${t.status})`).join(", ")}` : "",
+              `\n[프로젝트]: ${myProjects.map(p => `${p.name}(${p.archived ? "보관" : "진행"})`).join(",")}`,
+              myTasks.length > 0 ? `\n[태스크]: ${myTasks.slice(0, 8).map(t => `${t.title}(${t.status})`).join(",")}` : "",
             );
           }
         }
 
-        const systemPrompt = `너는 TimeBox 일정관리 앱의 AI 비서야. ${isAdmin ? "관리자로서 앱의 모든 데이터에 접근 가능하다. '내 할일'과 '전체 할일'이 구분되어 있다." : "사용자 본인의 데이터만 접근 가능하다."}
-앱 기능: 할일관리, 캘린더, 타임블록 스케줄러, D-Day, 프로젝트 관리, 파일 보관함, 팀 채팅.
-사용자가 "내 할일", "내 일정" 등을 물으면 해당 사용자의 데이터만 보여줘.
+        await typingPromise;
 
-현재 데이터:
-${contextLines.filter(Boolean).join("\n")}
+        const systemPrompt = `너는 TimeBox 앱 AI 비서. ${isAdmin ? "관리자-전체 데이터 접근 가능. '내 할일'과 '타인 할일' 구분됨." : "본인 데이터만 접근."}
+기능:할일,캘린더,타임블록,D-Day,프로젝트,파일,채팅.
+"내 할일/일정" 요청시 본인것만 보여줘. 답변은 짧고 핵심적으로.
+${contextLines.filter(Boolean).join("\n")}`;
 
-답변은 텔레그램에서 보기 좋게 짧고 핵심적으로. 일반 질문에도 자유롭게 답변해.`;
-
-        // Get or create chat history
         let history = chatHistories.get(chatKey) || [];
 
+        // Use streaming for faster first-byte response
         const chat = model.startChat({
           history: [
             { role: "user", parts: [{ text: systemPrompt }] },
-            { role: "model", parts: [{ text: "네, TimeBox AI 비서로서 도움드리겠습니다!" }] },
+            { role: "model", parts: [{ text: "네, 도움드리겠습니다!" }] },
             ...history,
           ],
         });
 
-        const result = await chat.sendMessage(msg.text);
-        const reply = result.response.text();
+        const streamResult = await chat.sendMessageStream(msg.text);
 
-        if (!reply || !reply.trim()) {
+        // Collect streamed chunks
+        let reply = "";
+        for await (const chunk of streamResult.stream) {
+          reply += chunk.text();
+        }
+
+        if (!reply?.trim()) {
           bot!.sendMessage(msg.chat.id, "⚠️ AI가 빈 응답을 반환했습니다. 다시 질문해주세요.");
           return;
         }
 
-        // Save to history (keep last 20 turns)
+        // Save to history (keep last 10 turns = 20 entries for speed)
         history.push({ role: "user", parts: [{ text: msg.text }] });
         history.push({ role: "model", parts: [{ text: reply }] });
-        if (history.length > 40) history = history.slice(-40);
+        if (history.length > 20) history = history.slice(-20);
         chatHistories.set(chatKey, history);
 
         await bot!.sendMessage(msg.chat.id, reply, { parse_mode: "Markdown" }).catch(() =>
@@ -824,7 +836,7 @@ ${contextLines.filter(Boolean).join("\n")}
       } catch (e: any) {
         const errMsg = e?.message || e?.toString() || "unknown error";
         console.error("[gemini] Error:", errMsg, e?.status, e?.statusText);
-        const modelInfo = e?.message?.includes("404") ? "\n모델을 찾을 수 없습니다. 설정에서 AI 모델을 변경해주세요." : "";
+        const modelInfo = errMsg.includes("404") ? "\n모델을 찾을 수 없습니다. 설정에서 AI 모델을 변경해주세요." : "";
         bot!.sendMessage(msg.chat.id, `⚠️ AI 오류: ${errMsg.slice(0, 200)}${modelInfo}`);
       }
     });
