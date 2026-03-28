@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { userActivityLog, users } from "../db/schema.js";
-import { eq, desc, sql, and, gte, count } from "drizzle-orm";
+import { userActivityLog, users, chatMessages, chatRooms, messages } from "../db/schema.js";
+import { eq, desc, sql, and, gte, lte, count } from "drizzle-orm";
 import type { AuthRequest } from "../middleware/auth.js";
 import { PAGINATION } from "../lib/constants.js";
 
@@ -245,6 +245,127 @@ router.get("/user/:userId", async (req: AuthRequest, res) => {
   } catch (err) {
     console.error("[analytics/user]", err);
     res.status(500).json({ success: false, error: "Failed to fetch user details" });
+  }
+});
+
+// GET /api/analytics/messages — admin: view all messages (including deleted)
+router.get("/messages", async (_req: AuthRequest, res) => {
+  try {
+    const results = await db.execute(sql`
+      SELECT
+        cm.id,
+        cm.room_id,
+        cr.name AS room_name,
+        cm.user_id AS sender_id,
+        u.username AS sender_username,
+        u.display_name AS sender_display_name,
+        cm.content,
+        cm.type,
+        cm.reply_to,
+        cm.deleted,
+        cm.created_at
+      FROM ${chatMessages} cm
+      JOIN ${users} u ON cm.user_id = u.id
+      JOIN ${chatRooms} cr ON cm.room_id = cr.id
+      ORDER BY cm.created_at DESC
+      LIMIT 200
+    `);
+
+    res.json({ success: true, data: results.rows });
+  } catch (err) {
+    console.error("[analytics/messages]", err);
+    res.status(500).json({ success: false, error: "Failed to fetch messages" });
+  }
+});
+
+// GET /api/analytics/messages/project/:projectId — admin: view project messages (including deleted)
+router.get("/messages/project/:projectId", async (req: AuthRequest, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId as string);
+    if (isNaN(projectId)) {
+      res.status(400).json({ success: false, error: "Invalid project ID" });
+      return;
+    }
+
+    const results = await db.execute(sql`
+      SELECT
+        m.id,
+        m.project_id,
+        m.channel,
+        m.sender_id,
+        u.username AS sender_username,
+        u.display_name AS sender_display_name,
+        m.content,
+        m.type,
+        m.reply_to,
+        m.deleted,
+        m.created_at
+      FROM ${messages} m
+      JOIN ${users} u ON m.sender_id = u.id
+      WHERE m.project_id = ${projectId}
+      ORDER BY m.created_at DESC
+      LIMIT 200
+    `);
+
+    res.json({ success: true, data: results.rows });
+  } catch (err) {
+    console.error("[analytics/messages/project]", err);
+    res.status(500).json({ success: false, error: "Failed to fetch project messages" });
+  }
+});
+
+// DELETE /api/analytics/messages/cleanup — admin: permanently delete old messages
+router.delete("/messages/cleanup", async (req: AuthRequest, res) => {
+  try {
+    const { olderThanDays, deletedOnly } = req.body;
+
+    if (typeof olderThanDays !== "number" || olderThanDays <= 0) {
+      res.status(400).json({ success: false, error: "olderThanDays must be a positive number" });
+      return;
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+    const cutoff = cutoffDate.toISOString();
+
+    let chatMessagesDeleted = 0;
+    let projectMessagesDeleted = 0;
+
+    if (deletedOnly) {
+      // Only permanently delete soft-deleted messages older than N days
+      const chatResult = await db
+        .delete(chatMessages)
+        .where(and(eq(chatMessages.deleted, true), lte(chatMessages.createdAt, cutoff)));
+      chatMessagesDeleted = chatResult.rowCount ?? 0;
+
+      const projectResult = await db
+        .delete(messages)
+        .where(and(eq(messages.deleted, true), lte(messages.createdAt, cutoff)));
+      projectMessagesDeleted = projectResult.rowCount ?? 0;
+    } else {
+      // Delete ALL messages older than N days
+      const chatResult = await db
+        .delete(chatMessages)
+        .where(lte(chatMessages.createdAt, cutoff));
+      chatMessagesDeleted = chatResult.rowCount ?? 0;
+
+      const projectResult = await db
+        .delete(messages)
+        .where(lte(messages.createdAt, cutoff));
+      projectMessagesDeleted = projectResult.rowCount ?? 0;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        chatMessagesDeleted,
+        projectMessagesDeleted,
+        totalDeleted: chatMessagesDeleted + projectMessagesDeleted,
+      },
+    });
+  } catch (err) {
+    console.error("[analytics/messages/cleanup]", err);
+    res.status(500).json({ success: false, error: "Failed to cleanup messages" });
   }
 });
 

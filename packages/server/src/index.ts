@@ -192,6 +192,29 @@ httpServer.listen(PORT, () => {
       console.error("reminder-cron:", err);
     }
   });
+
+  // Auto-cleanup: permanently delete soft-deleted messages older than 30 days (runs daily at 3 AM)
+  cron.schedule("0 3 * * *", async () => {
+    try {
+      const { db } = await import("./db/index.js");
+      const { chatMessages, messages } = await import("./db/schema.js");
+      const { and, eq, lte } = await import("drizzle-orm");
+
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const cutoffStr = cutoff.toISOString();
+
+      const chatResult = await db.delete(chatMessages)
+        .where(and(eq(chatMessages.deleted, true), lte(chatMessages.createdAt, cutoffStr)));
+
+      const projectResult = await db.delete(messages)
+        .where(and(eq(messages.deleted, true), lte(messages.createdAt, cutoffStr)));
+
+      console.log(`[cron] Cleanup: removed old deleted messages`);
+    } catch (err) {
+      console.error("cleanup-cron:", err);
+    }
+  });
 });
 
 // Graceful shutdown

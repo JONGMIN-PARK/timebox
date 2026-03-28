@@ -1,6 +1,31 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { todos, events, ddays, timeBlocks } from "../db/schema.js";
+import {
+  users,
+  todos,
+  events,
+  ddays,
+  timeBlocks,
+  reminders,
+  messages,
+  chatRooms,
+  chatMembers,
+  chatMessages,
+  inboxMessages,
+  projects,
+  projectTasks,
+  projectMembers,
+  projectFiles,
+  posts,
+  postComments,
+  taskComments,
+  taskReactions,
+  teamGroups,
+  teamGroupMembers,
+  files,
+  activityLog,
+  userActivityLog,
+} from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 
@@ -120,6 +145,75 @@ router.post("/import", async (req: AuthRequest, res) => {
   } catch (error) {
     console.error("backup:import", error);
     res.status(500).json({ success: false, error: "Failed to import data" });
+  }
+});
+
+// GET /api/backup/admin-export — admin: full system backup (all users, all data)
+router.get("/admin-export", async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+
+    // Check if user is admin
+    const [user] = await db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    if (!user || user.role !== "admin") {
+      res.status(403).json({ success: false, error: "Admin access required" });
+      return;
+    }
+
+    const allUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        role: users.role,
+        active: users.active,
+        createdAt: users.createdAt,
+      })
+      .from(users);
+
+    const data = {
+      exportedAt: new Date().toISOString(),
+      version: 2,
+      totalUsers: allUsers.length,
+      users: allUsers,
+      todos: await db.select().from(todos),
+      events: await db.select().from(events),
+      ddays: await db.select().from(ddays),
+      timeBlocks: await db.select().from(timeBlocks),
+      reminders: await db.select().from(reminders),
+      messages: await db.select().from(messages),
+      chatRooms: await db.select().from(chatRooms),
+      chatMembers: await db.select().from(chatMembers),
+      chatMessages: await db.select().from(chatMessages),
+      inboxMessages: await db.select().from(inboxMessages),
+      projects: await db.select().from(projects),
+      projectTasks: await db.select().from(projectTasks),
+      projectMembers: await db.select().from(projectMembers),
+      projectFiles: await db.select().from(projectFiles),
+      posts: await db.select().from(posts),
+      postComments: await db.select().from(postComments),
+      taskComments: await db.select().from(taskComments),
+      taskReactions: await db.select().from(taskReactions),
+      teamGroups: await db.select().from(teamGroups),
+      teamGroupMembers: await db.select().from(teamGroupMembers),
+      files: await db.select().from(files),
+      activityLog: await db.select().from(activityLog),
+      userActivityLog: await db.select().from(userActivityLog),
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=timebox-admin-backup-${new Date().toISOString().slice(0, 10)}.json`
+    );
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("backup:admin-export", error);
+    res.status(500).json({ success: false, error: "Failed to export admin backup" });
   }
 });
 

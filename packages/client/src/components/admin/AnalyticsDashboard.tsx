@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
 import { cn } from "@/lib/utils";
-import { BarChart3, Users, Activity, TrendingUp, Clock } from "lucide-react";
+import { BarChart3, Users, Activity, TrendingUp, Clock, Trash2 } from "lucide-react";
 
 interface Summary {
   today: { actions: number; activeUsers: number };
@@ -42,6 +42,18 @@ interface TimelineEntry {
   created_at: string;
 }
 
+interface AdminMessage {
+  id: number;
+  user_id: number;
+  username: string;
+  display_name: string | null;
+  room_name: string | null;
+  content: string;
+  type: string;
+  deleted: boolean;
+  created_at: string;
+}
+
 const CATEGORY_COLORS: Record<string, string> = {
   personal: "bg-blue-500",
   project: "bg-emerald-500",
@@ -76,6 +88,13 @@ export default function AnalyticsDashboard() {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [sortField, setSortField] = useState<"actions_today" | "actions_this_week">("actions_today");
   const [sortAsc, setSortAsc] = useState(false);
+  const [adminMessages, setAdminMessages] = useState<AdminMessage[]>([]);
+  const [messagesOffset, setMessagesOffset] = useState(0);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [cleanupDays, setCleanupDays] = useState(90);
+  const [deletedOnly, setDeletedOnly] = useState(true);
+  const [cleanupResult, setCleanupResult] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -83,12 +102,13 @@ export default function AnalyticsDashboard() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [summaryRes, catRes, featRes, usersRes, timelineRes] = await Promise.all([
+    const [summaryRes, catRes, featRes, usersRes, timelineRes, messagesRes] = await Promise.all([
       api.get<Summary>("/analytics/summary"),
       api.get<CategoryStat[]>("/analytics/by-category"),
       api.get<FeatureStat[]>("/analytics/by-feature"),
       api.get<UserActivity[]>("/analytics/users"),
       api.get<TimelineEntry[]>("/analytics/timeline"),
+      api.get<AdminMessage[]>("/analytics/messages?limit=50&offset=0"),
     ]);
 
     if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
@@ -96,6 +116,11 @@ export default function AnalyticsDashboard() {
     if (featRes.success && featRes.data) setFeatures(featRes.data);
     if (usersRes.success && usersRes.data) setUserActivity(usersRes.data);
     if (timelineRes.success && timelineRes.data) setTimeline(timelineRes.data);
+    if (messagesRes.success && messagesRes.data) {
+      setAdminMessages(messagesRes.data);
+      setMessagesOffset(messagesRes.data.length);
+      setHasMoreMessages(messagesRes.data.length >= 50);
+    }
     setLoading(false);
   };
 
@@ -117,6 +142,42 @@ export default function AnalyticsDashboard() {
   };
 
   const maxFeatureCount = features.length > 0 ? Math.max(...features.map((f) => f.count)) : 1;
+
+  const loadMoreMessages = async () => {
+    setLoadingMessages(true);
+    const res = await api.get<AdminMessage[]>(`/analytics/messages?limit=50&offset=${messagesOffset}`);
+    if (res.success && res.data) {
+      setAdminMessages((prev) => [...prev, ...res.data!]);
+      setMessagesOffset((prev) => prev + res.data!.length);
+      setHasMoreMessages(res.data.length >= 50);
+    }
+    setLoadingMessages(false);
+  };
+
+  const handleCleanup = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${deletedOnly ? "soft-deleted" : "ALL"} messages older than ${cleanupDays} days? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setCleanupResult(null);
+    const res = await api.post<{ deleted: number }>("/analytics/messages/cleanup", {
+      olderThanDays: cleanupDays,
+      deletedOnly,
+    });
+    if (res.success && res.data) {
+      setCleanupResult(`Cleaned up ${res.data.deleted} message(s).`);
+      // Refresh messages
+      const refreshRes = await api.get<AdminMessage[]>("/analytics/messages?limit=50&offset=0");
+      if (refreshRes.success && refreshRes.data) {
+        setAdminMessages(refreshRes.data);
+        setMessagesOffset(refreshRes.data.length);
+        setHasMoreMessages(refreshRes.data.length >= 50);
+      }
+    } else {
+      setCleanupResult("Cleanup failed. Please try again.");
+    }
+  };
 
   if (loading) {
     return (
@@ -391,6 +452,158 @@ export default function AnalyticsDashboard() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Message Management */}
+      <section>
+        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+          Message Management
+        </h2>
+
+        {/* Cleanup Controls */}
+        <div className="card p-4 mb-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+              Delete messages older than
+              <input
+                type="number"
+                min={1}
+                value={cleanupDays}
+                onChange={(e) => setCleanupDays(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-16 px-2 py-1 text-xs rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              days
+            </label>
+            <label className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={deletedOnly}
+                onChange={(e) => setDeletedOnly(e.target.checked)}
+                className="rounded border-slate-300 dark:border-slate-600 text-blue-500 focus:ring-blue-500"
+              />
+              Deleted messages only
+            </label>
+            <button
+              onClick={handleCleanup}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clean Up
+            </button>
+            {cleanupResult && (
+              <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                {cleanupResult}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Message Log Table */}
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/60 dark:border-slate-700/40">
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Room
+                  </th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Message
+                  </th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="text-center px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Deleted?
+                  </th>
+                  <th className="text-right px-4 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Time
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {adminMessages.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-xs text-slate-400">
+                      No messages found
+                    </td>
+                  </tr>
+                )}
+                {adminMessages.map((msg) => (
+                  <tr
+                    key={msg.id}
+                    className={cn(
+                      "border-b border-slate-100/80 dark:border-slate-700/40 last:border-0 transition-colors",
+                      msg.deleted
+                        ? "bg-red-50/50 dark:bg-red-500/5"
+                        : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                    )}
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0">
+                          {(msg.display_name || msg.username)[0].toUpperCase()}
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-900 dark:text-white truncate max-w-[100px]">
+                          {msg.display_name || msg.username}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-[12px] text-slate-500 dark:text-slate-400 truncate max-w-[100px] block">
+                        {msg.room_name || "-"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 max-w-[200px]">
+                      <span
+                        className={cn(
+                          "text-[12px] truncate block",
+                          msg.deleted
+                            ? "line-through text-red-400 dark:text-red-500"
+                            : "text-slate-700 dark:text-slate-300"
+                        )}
+                        title={msg.content}
+                      >
+                        {msg.content.length > 80 ? msg.content.slice(0, 80) + "..." : msg.content}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                        {msg.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      {msg.deleted ? (
+                        <span className="text-[10px] font-semibold text-red-500 dark:text-red-400">Yes</span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400">No</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className="text-[11px] text-slate-400 tabular-nums">
+                        {timeAgo(msg.created_at)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {hasMoreMessages && (
+            <div className="px-4 py-3 border-t border-slate-200/60 dark:border-slate-700/40">
+              <button
+                onClick={loadMoreMessages}
+                disabled={loadingMessages}
+                className="w-full text-xs font-medium text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+              >
+                {loadingMessages ? "Loading..." : "Load more"}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>
