@@ -54,7 +54,24 @@ export async function initTelegramBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) { console.log("TELEGRAM_BOT_TOKEN not set, skipping"); return; }
 
+  // Stop existing bot instance if any (prevents duplicate polling)
+  if (bot) {
+    try { await bot.stopPolling(); } catch (_) {}
+    bot = null;
+  }
+
   bot = new TelegramBot(token, { polling: { interval: 300, params: { timeout: 10 } } });
+
+  // Handle polling errors gracefully (e.g. 409 Conflict from duplicate instances)
+  bot.on("polling_error", (err: any) => {
+    const code = err?.response?.statusCode || err?.code;
+    if (code === 409) {
+      console.warn("[telegram] 409 Conflict: another bot instance is polling. Stopping this one.");
+      bot?.stopPolling();
+    } else {
+      console.error("[telegram] polling_error:", err?.message || err);
+    }
+  });
 
   await bot.setMyCommands([
     { command: "help", description: "도움말 보기" },
@@ -873,3 +890,17 @@ async function sendDailyBriefing() {
 
 export function getTelegramBot() { return bot; }
 export function getTelegramBotUsername() { return botUsername; }
+export async function stopTelegramBot() {
+  if (bot) {
+    try { await bot.stopPolling(); } catch (_) {}
+    bot = null;
+  }
+}
+
+// Graceful shutdown — stop polling on process exit
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+  process.on(sig, () => {
+    console.log(`[telegram] Received ${sig}, stopping bot polling...`);
+    stopTelegramBot().then(() => process.exit(0));
+  });
+}
