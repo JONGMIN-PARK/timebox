@@ -250,27 +250,31 @@ export default function ElonScheduler() {
             </div>
 
             {/* Add task input */}
-            <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-700/50 flex items-center gap-1">
-              <select value={brainCategory} onChange={(e) => setBrainCategory(e.target.value as TimeBlockCategory)}
-                className="text-[10px] bg-slate-50 dark:bg-slate-700 rounded px-1 py-1 text-slate-600 dark:text-slate-400 outline-none w-16">
-                {Object.entries(CATEGORY_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.icon}</option>)}
-              </select>
-              <select value={brainDuration} onChange={(e) => setBrainDuration(Number(e.target.value))}
-                className="text-[10px] bg-slate-50 dark:bg-slate-700 rounded px-1 py-1 text-slate-600 dark:text-slate-400 outline-none w-14">
-                {[5, 10, 15, 20, 25, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m}m</option>)}
-              </select>
-              <input
-                type="text"
-                value={brainInput}
-                onChange={(e) => setBrainInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleBrainAdd()}
-                placeholder="할 일 추가..."
-                className="flex-1 text-xs bg-transparent text-slate-700 dark:text-slate-300 placeholder-slate-300 outline-none min-w-0"
-              />
-              <button onClick={handleBrainAdd} disabled={!brainInput.trim()}
-                className="w-5 h-5 rounded bg-blue-600 disabled:bg-slate-300 text-white flex items-center justify-center flex-shrink-0">
-                <Plus className="w-3 h-3" />
-              </button>
+            <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-700/50 space-y-1.5">
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={brainInput}
+                  onChange={(e) => setBrainInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleBrainAdd()}
+                  placeholder="할 일 추가..."
+                  className="flex-1 text-xs bg-slate-50 dark:bg-slate-700 rounded-lg px-2.5 py-1.5 text-slate-700 dark:text-slate-300 placeholder-slate-400 outline-none min-w-0"
+                />
+                <button onClick={handleBrainAdd} disabled={!brainInput.trim()}
+                  className="w-7 h-7 rounded-lg bg-blue-600 disabled:bg-slate-300 dark:disabled:bg-slate-600 text-white flex items-center justify-center flex-shrink-0">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select value={brainCategory} onChange={(e) => setBrainCategory(e.target.value as TimeBlockCategory)}
+                  className="text-[10px] bg-slate-50 dark:bg-slate-700 rounded px-1.5 py-1 text-slate-600 dark:text-slate-400 outline-none">
+                  {Object.entries(CATEGORY_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                </select>
+                <select value={brainDuration} onChange={(e) => setBrainDuration(Number(e.target.value))}
+                  className="text-[10px] bg-slate-50 dark:bg-slate-700 rounded px-1.5 py-1 text-slate-600 dark:text-slate-400 outline-none">
+                  {[5, 10, 15, 20, 25, 30, 45, 60, 90, 120].map((m) => <option key={m} value={m}>{m}m</option>)}
+                </select>
+              </div>
             </div>
 
             {/* Task items */}
