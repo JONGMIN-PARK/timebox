@@ -75,7 +75,7 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
   }, []);
 
   return (
-    <header className="h-12 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">
+    <header className="h-12 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">
       <div className="flex items-center gap-3 md:hidden">
         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm">
           <span className="text-white text-[10px] font-bold">TB</span>
