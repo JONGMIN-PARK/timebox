@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
@@ -14,6 +14,7 @@ interface HeaderProps {
 
 export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
   const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCountRef = useRef(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const pageVisible = usePageVisible();
 
@@ -32,13 +33,28 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
     const res = await api.get<{ count: number }>("/inbox/unread-count");
     if (res.success && res.data) {
       setUnreadCount(res.data.count);
+      unreadCountRef.current = res.data.count;
       updateAppBadge(res.data.count);
     }
   };
 
+  // Initial fetch + show toast if unread messages exist on login
+  const initialFetchDone = useRef(false);
+
   useEffect(() => {
     if (!pageVisible) return;
-    fetchUnread();
+    fetchUnread().then(() => {
+      // Show toast on first load if there are unread messages
+      if (!initialFetchDone.current) {
+        initialFetchDone.current = true;
+        const count = unreadCountRef.current;
+        if (count > 0) {
+          import("@/components/ui/Toast").then(({ showToast }) => {
+            showToast("info", `읽지 않은 메시지가 ${count}개 있습니다`);
+          });
+        }
+      }
+    });
     const interval = setInterval(fetchUnread, 30000);
     return () => clearInterval(interval);
   }, [pageVisible]);

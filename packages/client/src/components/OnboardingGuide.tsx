@@ -111,39 +111,42 @@ export default function OnboardingGuide({ onComplete }: OnboardingGuideProps) {
     : "opacity-100 translate-x-0";
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      {/* Card */}
-      <div className="relative w-full max-w-md mx-4">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+    <div
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onComplete()}
+    >
+      {/* Card - bottom sheet on mobile, centered on desktop */}
+      <div className="relative w-full sm:max-w-md sm:mx-4">
+        <div className="bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
           {/* Gradient header */}
           <div
-            className={`h-2 bg-gradient-to-r ${step.gradient} transition-all duration-500`}
+            className={`h-2 flex-shrink-0 bg-gradient-to-r ${step.gradient} transition-all duration-500`}
           />
 
           {/* Content */}
           <div
-            className={`p-8 text-center transition-all duration-250 ease-in-out ${slideClass}`}
+            className={`p-6 sm:p-8 text-center transition-all duration-250 ease-in-out flex-1 overflow-y-auto ${slideClass}`}
           >
             {/* Icon */}
             <div
-              className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl ${step.iconBg} mb-6`}
+              className={`inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ${step.iconBg} mb-4 sm:mb-6`}
             >
-              <Icon className={`w-10 h-10 ${step.iconColor}`} />
+              <Icon className={`w-8 h-8 sm:w-10 sm:h-10 ${step.iconColor}`} />
             </div>
 
             {/* Title */}
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-2 sm:mb-3">
               {step.title}
             </h2>
 
             {/* Description */}
-            <p className="text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
               {step.description}
             </p>
           </div>
 
           {/* Footer */}
-          <div className="px-8 pb-6 space-y-4">
+          <div className="px-6 sm:px-8 pb-6 space-y-4 flex-shrink-0">
             {/* Step dots */}
             <div className="flex items-center justify-center gap-2">
               {steps.map((_, i) => (
@@ -166,7 +169,7 @@ export default function OnboardingGuide({ onComplete }: OnboardingGuideProps) {
             <div className="flex items-center justify-between">
               <button
                 onClick={onComplete}
-                className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors py-2"
               >
                 건너뛰기
               </button>
@@ -175,14 +178,14 @@ export default function OnboardingGuide({ onComplete }: OnboardingGuideProps) {
                 {currentStep > 0 && (
                   <button
                     onClick={handlePrev}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    className="px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
                   >
                     이전
                   </button>
                 )}
                 <button
                   onClick={handleNext}
-                  className={`px-6 py-2 text-sm font-medium text-white rounded-lg bg-gradient-to-r ${step.gradient} hover:opacity-90 transition-opacity shadow-lg`}
+                  className={`px-6 py-2.5 text-sm font-medium text-white rounded-lg bg-gradient-to-r ${step.gradient} hover:opacity-90 transition-opacity shadow-lg`}
                 >
                   {isLast ? "시작하기" : "다음"}
                 </button>
