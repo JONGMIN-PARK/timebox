@@ -128,12 +128,13 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   toggleTodo: async (id) => {
     // Optimistic update
     const prev = get().todos;
+    const todo = prev.find(t => t.id === id);
+    if (!todo) return;
     set({ todos: prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t) });
 
     try {
-      const res = await api.put(`/todos/${id}/toggle`, {});
+      const res = await api.put(`/todos/${id}`, { completed: !todo.completed });
       if (!res.success) {
-        // Revert on failure
         set({ todos: prev });
       }
     } catch {
