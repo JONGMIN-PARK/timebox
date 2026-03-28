@@ -297,6 +297,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   type: text("type").notNull().default("text"),
   replyTo: integer("reply_to"),
+  deleted: boolean("deleted").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
 
@@ -370,6 +371,7 @@ export const chatMessages = pgTable("chat_messages", {
   content: text("content").notNull(),
   type: text("type").notNull().default("text"), // "text" | "system" | "image"
   replyTo: integer("reply_to"),
+  deleted: boolean("deleted").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
 

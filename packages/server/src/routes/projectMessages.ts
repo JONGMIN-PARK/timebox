@@ -39,7 +39,8 @@ router.get("/:projectId/messages", async (req: ProjectRequest, res) => {
 
     const data = result.map(m => ({
       ...m,
-      senderName: userMap.get(m.senderId) || "Unknown",
+      content: m.deleted ? "" : m.content,
+      senderName: m.deleted ? "" : (userMap.get(m.senderId) || "Unknown"),
     }));
 
     // Return in chronological order
@@ -74,6 +75,38 @@ router.post("/:projectId/messages", async (req: ProjectRequest, res) => {
   } catch (error) {
     console.error("projectMessages:send", error);
     res.status(500).json({ success: false, error: "Failed to send message" });
+  }
+});
+
+// DELETE /:projectId/messages/:messageId - Delete own message
+router.delete("/:projectId/messages/:messageId", async (req: ProjectRequest, res) => {
+  try {
+    const messageId = parseInt(req.params.messageId as string);
+    if (isNaN(messageId)) {
+      res.status(400).json({ success: false, error: "Invalid message ID" });
+      return;
+    }
+
+    const [msg] = await db.select().from(messages)
+      .where(and(eq(messages.id, messageId), eq(messages.projectId, req.projectId!)));
+
+    if (!msg) {
+      res.status(404).json({ success: false, error: "Message not found" });
+      return;
+    }
+
+    if (msg.senderId !== req.userId!) {
+      res.status(403).json({ success: false, error: "Can only delete your own messages" });
+      return;
+    }
+
+    await db.update(messages).set({ deleted: true })
+      .where(eq(messages.id, messageId));
+
+    res.json({ success: true, data: { deleted: true } });
+  } catch (error) {
+    console.error("projectMessages:delete", error);
+    res.status(500).json({ success: false, error: "Failed to delete message" });
   }
 });
 

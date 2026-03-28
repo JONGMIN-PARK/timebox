@@ -12,6 +12,8 @@ import {
   Users,
   Settings,
   X,
+  Trash2,
+  Smile,
 } from "lucide-react";
 
 // ── Types ──
@@ -41,6 +43,7 @@ interface ChatMessage {
   senderName: string;
   content: string;
   type: string;
+  deleted?: boolean;
   createdAt: string;
 }
 
@@ -51,6 +54,8 @@ interface ChatUser {
 }
 
 type View = "rooms" | "chat" | "create";
+
+const EMOJIS = ["😀","😂","🥰","😎","👍","👏","🔥","❤️","🎉","💪","😢","😡","🤔","👀","✅","⭐"];
 
 // ── Component ──
 
@@ -73,6 +78,10 @@ export default function ChatPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Emoji picker state
+  const [showEmoji, setShowEmoji] = useState(false);
+  const emojiRef = useRef<HTMLDivElement>(null);
+
   // Create room state
   const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
   const [roomName, setRoomName] = useState("");
@@ -81,6 +90,20 @@ export default function ChatPanel() {
     new Set(),
   );
   const [creating, setCreating] = useState(false);
+
+  // ── Close emoji picker on outside click ──
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+        setShowEmoji(false);
+      }
+    };
+    if (showEmoji) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmoji]);
 
   // ── Fetch rooms ──
 
@@ -171,6 +194,7 @@ export default function ChatPanel() {
     setActiveRoom(null);
     setMessages([]);
     setInputText("");
+    setShowEmoji(false);
     setView("rooms");
     fetchRooms();
   };
@@ -201,6 +225,52 @@ export default function ChatPanel() {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  // ── Delete message ──
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!activeRoom) return;
+    const res = await api.delete(`/chat/${activeRoom.id}/messages/${messageId}`);
+    if (res.success) {
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? { ...m, deleted: true, content: "" } : m
+      ));
+    }
+  };
+
+  // ── Image paste support ──
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        e.preventDefault();
+        const file = items[i].getAsFile();
+        if (!file || !activeRoom) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const dataUrl = reader.result as string;
+          const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, {
+            content: dataUrl,
+            type: "image",
+          });
+          if (res.success && res.data) {
+            setMessages(prev => [...prev, res.data!]);
+            const socket = getSocket();
+            socket.emit("chat:message", { roomId: String(activeRoom.id), message: res.data });
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  // ── Emoji insert ──
+
+  const insertEmoji = (emoji: string) => {
+    setInputText(prev => prev + emoji);
+    setShowEmoji(false);
   };
 
   // ── Create room ──
@@ -425,11 +495,75 @@ export default function ChatPanel() {
                 );
               }
 
+              // Deleted message placeholder
+              if (msg.deleted) {
+                return (
+                  <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start", "mt-1")}>
+                    <span className="text-[11px] text-slate-400 italic px-3 py-1.5 bg-slate-100 dark:bg-slate-700/30 rounded-xl">
+                      {t("chat.deletedMessage")}
+                    </span>
+                  </div>
+                );
+              }
+
+              // Image message
+              if (msg.type === "image") {
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex flex-col group",
+                      isMe ? "items-end" : "items-start",
+                      showHeader ? "mt-3" : "mt-0.5",
+                    )}
+                  >
+                    {showHeader && !isMe && (
+                      <div className="flex items-center gap-1.5 mb-1 ml-1">
+                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                          <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                            {getInitial(msg.senderName)}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                          {msg.senderName}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className={cn("flex items-center gap-1", isMe ? "flex-row-reverse" : "flex-row")}>
+                      <img
+                        src={msg.content}
+                        alt="shared image"
+                        className="max-w-[240px] rounded-xl cursor-pointer"
+                        onClick={() => window.open(msg.content, "_blank")}
+                      />
+                      {isMe && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
+                        </button>
+                      )}
+                    </div>
+
+                    <span
+                      className={cn(
+                        "text-[9px] text-slate-400 mt-0.5",
+                        isMe ? "mr-1" : "ml-1",
+                      )}
+                    >
+                      {formatTime(msg.createdAt)}
+                    </span>
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={msg.id}
                   className={cn(
-                    "flex flex-col",
+                    "flex flex-col group",
                     isMe ? "items-end" : "items-start",
                     showHeader ? "mt-3" : "mt-0.5",
                   )}
@@ -448,18 +582,28 @@ export default function ChatPanel() {
                     </div>
                   )}
 
-                  {/* Message bubble */}
-                  <div
-                    className={cn(
-                      "max-w-[80%] px-3 py-2 rounded-2xl text-[13px] leading-relaxed",
-                      isMe
-                        ? "bg-blue-600 text-white rounded-br-md"
-                        : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md",
+                  {/* Message bubble with delete button */}
+                  <div className={cn("flex items-center gap-1", isMe ? "flex-row-reverse" : "flex-row")}>
+                    <div
+                      className={cn(
+                        "max-w-[80%] px-3 py-2 rounded-2xl text-[13px] leading-relaxed",
+                        isMe
+                          ? "bg-blue-600 text-white rounded-br-md"
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md",
+                      )}
+                    >
+                      <p className="whitespace-pre-wrap break-words">
+                        {msg.content}
+                      </p>
+                    </div>
+                    {isMe && !msg.deleted && (
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                      >
+                        <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
+                      </button>
                     )}
-                  >
-                    <p className="whitespace-pre-wrap break-words">
-                      {msg.content}
-                    </p>
                   </div>
 
                   {/* Time */}
@@ -485,10 +629,37 @@ export default function ChatPanel() {
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder="Type a message..."
               rows={1}
               className="flex-1 text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 resize-none max-h-24 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             />
+
+            {/* Emoji picker */}
+            <div className="relative" ref={emojiRef}>
+              <button
+                onClick={() => setShowEmoji(prev => !prev)}
+                className="p-2 rounded-xl transition-colors bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex-shrink-0"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+              {showEmoji && (
+                <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-2 z-50">
+                  <div className="grid grid-cols-4 gap-1">
+                    {EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => insertEmoji(emoji)}
+                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={sendMessage}
               disabled={!inputText.trim()}

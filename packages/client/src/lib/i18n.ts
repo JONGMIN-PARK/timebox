@@ -176,6 +176,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "chat.requestMessage": "is requesting a chat",
     "chat.accept": "Accept",
     "chat.decline": "Decline",
+    "chat.deletedMessage": "This message was deleted",
 
     // Analytics
     "analytics.title": "Analytics",
@@ -526,6 +527,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "chat.requestMessage": "님이 채팅을 요청했습니다",
     "chat.accept": "수락",
     "chat.decline": "거절",
+    "chat.deletedMessage": "삭제된 메시지입니다",
 
     // Analytics
     "analytics.title": "분석",

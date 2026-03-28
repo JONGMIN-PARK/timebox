@@ -312,9 +312,11 @@ router.get("/:roomId/messages", async (req: AuthRequest, res) => {
     const senderIds = [...new Set(result.map(m => m.userId))];
     const userMap = await getUserMap(senderIds);
 
+    // Map deleted messages
     const data = result.map(m => ({
       ...m,
-      senderName: userMap.get(m.userId) || "Unknown",
+      content: m.deleted ? "" : m.content,
+      senderName: m.deleted ? "" : (userMap.get(m.userId) || "Unknown"),
     }));
 
     // Return in chronological order
@@ -370,6 +372,40 @@ router.post("/:roomId/messages", async (req: AuthRequest, res) => {
   } catch (error) {
     console.error("chat:sendMessage", error);
     res.status(500).json({ success: false, error: "Failed to send message" });
+  }
+});
+
+// DELETE /:roomId/messages/:messageId - Delete own message (soft delete)
+router.delete("/:roomId/messages/:messageId", async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const roomId = safeParseId(req.params.roomId);
+    const messageId = safeParseId(req.params.messageId);
+    if (!roomId || !messageId) {
+      res.status(400).json({ success: false, error: "Invalid ID" });
+      return;
+    }
+
+    const [msg] = await db.select().from(chatMessages)
+      .where(and(eq(chatMessages.id, messageId), eq(chatMessages.roomId, roomId)));
+
+    if (!msg) {
+      res.status(404).json({ success: false, error: "Message not found" });
+      return;
+    }
+
+    if (msg.userId !== userId) {
+      res.status(403).json({ success: false, error: "Can only delete your own messages" });
+      return;
+    }
+
+    await db.update(chatMessages).set({ deleted: true })
+      .where(eq(chatMessages.id, messageId));
+
+    res.json({ success: true, data: { deleted: true } });
+  } catch (error) {
+    console.error("chat:deleteMessage", error);
+    res.status(500).json({ success: false, error: "Failed to delete message" });
   }
 });
 

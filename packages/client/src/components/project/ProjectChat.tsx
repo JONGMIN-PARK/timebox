@@ -1,22 +1,26 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Send, MessageCircle } from "lucide-react";
+import { Send, MessageCircle, Trash2, Smile } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
 
 interface ChatMessage {
   id: number;
   content: string;
+  type?: "text" | "image";
   channel: string;
   senderId: number;
   senderName: string;
   createdAt: string;
+  deleted?: boolean;
 }
 
 interface ProjectChatProps {
   projectId: number;
 }
+
+const EMOJI_LIST = ["😀", "😂", "🥰", "😎", "👍", "👏", "🔥", "❤️", "🎉", "💪", "😢", "😡", "🤔", "👀", "✅", "⭐"];
 
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -35,6 +39,7 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
   const [sending, setSending] = useState(false);
   const [channel] = useState("general");
   const [myUserId, setMyUserId] = useState<number | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastMessageIdRef = useRef<number>(0);
@@ -91,6 +96,42 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
     }
   };
 
+  const handleDeleteMessage = async (messageId: number) => {
+    await api.delete(`/projects/${projectId}/messages/${messageId}`);
+    fetchMessages();
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setInput((prev) => prev + emoji);
+    setShowEmojiPicker(false);
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const dataUrl = reader.result as string;
+          setSending(true);
+          await api.post(`/projects/${projectId}/messages`, {
+            content: dataUrl,
+            type: "image",
+            channel,
+          });
+          setSending(false);
+          fetchMessages();
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+    }
+  };
+
   // Group messages by date
   let lastDate = "";
 
@@ -133,7 +174,7 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
                 </div>
               )}
               <div className={cn("flex mb-2", isOwn ? "justify-end" : "justify-start")}>
-                <div className={cn("max-w-[75%]", isOwn ? "items-end" : "items-start")}>
+                <div className={cn("max-w-[75%] group", isOwn ? "items-end" : "items-start")}>
                   {/* Sender name */}
                   <div className={cn("flex items-center gap-2 mb-0.5", isOwn ? "justify-end" : "justify-start")}>
                     <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -144,15 +185,32 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
                     </span>
                   </div>
                   {/* Bubble */}
-                  <div
-                    className={cn(
-                      "px-3 py-2 rounded-2xl text-[13px] leading-relaxed break-words",
-                      isOwn
-                        ? "bg-blue-500 text-white rounded-br-md"
-                        : "bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-white rounded-bl-md"
+                  <div className={cn("relative flex items-center gap-1", isOwn ? "flex-row-reverse" : "flex-row")}>
+                    <div
+                      className={cn(
+                        "px-3 py-2 rounded-2xl text-[13px] leading-relaxed break-words",
+                        msg.deleted
+                          ? "bg-slate-100 dark:bg-slate-700/30 text-slate-400 dark:text-slate-500 italic"
+                          : isOwn
+                            ? "bg-blue-500 text-white rounded-br-md"
+                            : "bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-white rounded-bl-md"
+                      )}
+                    >
+                      {msg.deleted
+                        ? "삭제된 메시지입니다"
+                        : msg.type === "image"
+                          ? <img src={msg.content} alt="image" className="max-w-full max-h-60 rounded-lg" />
+                          : msg.content}
+                    </div>
+                    {isOwn && !msg.deleted && (
+                      <button
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-400 hover:text-red-500"
+                        title="Delete message"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
-                  >
-                    {msg.content}
                   </div>
                 </div>
               </div>
@@ -164,12 +222,33 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
 
       {/* Input bar */}
       <div className="px-4 py-3 border-t border-slate-200/60 dark:border-slate-700/40 bg-white/50 dark:bg-slate-800/50">
+        {/* Emoji picker */}
+        {showEmojiPicker && (
+          <div className="mb-2 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg grid grid-cols-8 gap-1">
+            {EMOJI_LIST.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => handleEmojiSelect(emoji)}
+                className="w-8 h-8 flex items-center justify-center text-lg hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowEmojiPicker((v) => !v)}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+          >
+            <Smile className="w-4 h-4" />
+          </button>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={t("chat.placeholder")}
             className="input-base flex-1 text-sm"
             disabled={sending}

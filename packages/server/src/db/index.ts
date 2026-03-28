@@ -436,6 +436,9 @@ export async function initDb() {
       );
       CREATE INDEX IF NOT EXISTS idx_user_activity_user ON user_activity_log(user_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_user_activity_category ON user_activity_log(category, created_at DESC);
+
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
     `);
 
     // Seed default categories if empty
