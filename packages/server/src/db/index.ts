@@ -447,6 +447,9 @@ export async function initDb() {
 
       ALTER TABLE todos ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0;
 
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_model TEXT NOT NULL DEFAULT 'gemini-2.0-flash';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_models TEXT NOT NULL DEFAULT '[]';
+
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at);
       CREATE INDEX IF NOT EXISTS idx_messages_project_deleted ON messages(project_id, deleted);

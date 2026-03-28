@@ -673,7 +673,6 @@ export async function initTelegramBot() {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Per-chat conversation history (max 20 turns)
     const chatHistories = new Map<string, { role: string; parts: { text: string }[] }[]>();
@@ -687,6 +686,11 @@ export async function initTelegramBot() {
       const chatKey = msg.chat.id.toString();
 
       try {
+        // Get user's selected AI model
+        const [userRow] = await db.select().from(users).where(eq(users.id, userId));
+        const modelName = userRow?.aiModel || "gemini-2.0-flash";
+        const model = genAI.getGenerativeModel({ model: modelName });
+
         // Fetch user context for personalized answers
         const today = new Date().toISOString().slice(0, 10);
         const [userTodos, userEvents, userBlocks] = await Promise.all([

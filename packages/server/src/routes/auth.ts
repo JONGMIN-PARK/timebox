@@ -60,7 +60,7 @@ router.post("/login", async (req, res) => {
       success: true,
       data: {
         token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
       },
     });
   } catch (error) {
@@ -228,7 +228,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
     ]);
     res.json({
       success: true,
-      data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+      data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
     });
   } catch (error) {
     console.error("auth:me", error);
@@ -236,11 +236,51 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// PUT /api/auth/me — update own settings
+router.put("/me", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const rows = await db.select().from(users).where(eq(users.id, userId));
+    const user = rows[0];
+    if (!user) { res.status(404).json({ success: false, error: "User not found" }); return; }
+
+    const updates: Record<string, unknown> = {};
+
+    if (req.body.aiModel !== undefined) {
+      const allowed: string[] = JSON.parse(user.allowedModels || "[]");
+      // Admin can use any model; others only allowed models
+      if (user.role === "admin" || allowed.includes(req.body.aiModel)) {
+        updates.aiModel = req.body.aiModel;
+      } else {
+        res.status(403).json({ success: false, error: "Model not allowed" });
+        return;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db.update(users).set(updates).where(eq(users.id, userId));
+    }
+
+    const [updated] = await db.select().from(users).where(eq(users.id, userId));
+    const [teamGroupsList, hasProjects] = await Promise.all([
+      getUserTeamGroups(userId),
+      hasProjectMembership(userId),
+    ]);
+    res.json({
+      success: true,
+      data: { id: updated.id, username: updated.username, displayName: updated.displayName, role: updated.role, aiModel: updated.aiModel, allowedModels: JSON.parse(updated.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+    });
+  } catch (error) {
+    console.error("auth:updateMe", error);
+    res.status(500).json({ success: false, error: "Failed to update" });
+  }
+});
+
 // GET /api/auth/users (admin only)
 router.get("/users", authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
     const allUsers = (await db.select().from(users)).map((u) => ({
-      id: u.id, username: u.username, displayName: u.displayName, role: u.role, active: u.active, createdAt: u.createdAt,
+      id: u.id, username: u.username, displayName: u.displayName, role: u.role, active: u.active, aiModel: u.aiModel, allowedModels: JSON.parse(u.allowedModels || "[]"), createdAt: u.createdAt,
     }));
 
     res.json({ success: true, data: allUsers });
@@ -260,6 +300,8 @@ router.put("/users/:id", authMiddleware, adminMiddleware, async (req: AuthReques
     if (req.body.displayName !== undefined) updates.displayName = req.body.displayName;
     if (req.body.role !== undefined) updates.role = req.body.role;
     if (req.body.active !== undefined) updates.active = req.body.active;
+    if (req.body.aiModel !== undefined) updates.aiModel = req.body.aiModel;
+    if (req.body.allowedModels !== undefined) updates.allowedModels = JSON.stringify(req.body.allowedModels);
     if (req.body.password) {
       updates.passwordHash = await bcrypt.hash(req.body.password, 10);
     }
@@ -272,7 +314,7 @@ router.put("/users/:id", authMiddleware, adminMiddleware, async (req: AuthReques
 
     res.json({
       success: true,
-      data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role, active: result[0].active },
+      data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role, active: result[0].active, aiModel: result[0].aiModel, allowedModels: JSON.parse(result[0].allowedModels || "[]") },
     });
   } catch (error) {
     console.error("auth:updateUser", error);
