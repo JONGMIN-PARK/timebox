@@ -64,12 +64,15 @@ export async function initTelegramBot() {
 
   // Handle polling errors gracefully (e.g. 409 Conflict from duplicate instances)
   bot.on("polling_error", (err: any) => {
-    const code = err?.response?.statusCode || err?.code;
-    if (code === 409) {
+    const msg = err?.message || String(err);
+    if (msg.includes("409")) {
       console.warn("[telegram] 409 Conflict: another bot instance is polling. Stopping this one.");
       bot?.stopPolling();
+    } else if (msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND") || msg.includes("EAI_AGAIN")) {
+      // Network errors — just log briefly, polling will auto-retry
+      console.warn("[telegram] network error:", msg);
     } else {
-      console.error("[telegram] polling_error:", err?.message || err);
+      console.error("[telegram] polling_error:", msg);
     }
   });
 
