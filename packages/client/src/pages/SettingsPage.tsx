@@ -12,8 +12,10 @@ import type { Locale } from "@/lib/i18n";
 const AI_MODELS = [
   { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", tier: "free" },
   { id: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite", tier: "free" },
-  { id: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash", tier: "standard" },
-  { id: "gemini-2.5-pro-preview-05-06", label: "Gemini 2.5 Pro", tier: "pro" },
+  { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", tier: "standard" },
+  { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", tier: "standard" },
+  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", tier: "pro" },
+  { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (Preview)", tier: "pro" },
 ] as const;
 
 interface UserInfo {

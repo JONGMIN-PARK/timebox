@@ -710,7 +710,14 @@ export async function initTelegramBot() {
         const [userRow] = await db.select().from(users).where(eq(users.id, userId));
         if (!userRow) return;
         const isAdmin = userRow.role === "admin";
-        const modelName = userRow.aiModel || "gemini-2.0-flash";
+        // Map deprecated preview model IDs to current stable ones
+        const DEPRECATED_MODELS: Record<string, string> = {
+          "gemini-2.5-pro-preview-05-06": "gemini-2.5-pro",
+          "gemini-2.5-flash-preview-05-20": "gemini-2.5-flash",
+          "gemini-3-pro-preview": "gemini-3.1-pro-preview",
+        };
+        const rawModel = userRow.aiModel || "gemini-2.0-flash";
+        const modelName = DEPRECATED_MODELS[rawModel] || rawModel;
         const model = genAI.getGenerativeModel({ model: modelName });
 
         const today = new Date().toISOString().slice(0, 10);
