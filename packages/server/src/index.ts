@@ -130,7 +130,11 @@ if (process.env.NODE_ENV === "production") {
     maxAge: 0,
     etag: true,
   }));
-  app.get("*", (_req, res) => {
+  // SPA fallback: only for navigation requests (not .js/.css/.map files)
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/") || /\.\w+$/.test(req.path)) {
+      return next();
+    }
     res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.join(clientDist, "index.html"));
   });

@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   role: text("role").notNull().default("user"), // "admin" | "user"
   active: boolean("active").notNull().default(true),
+  aiModel: text("ai_model").notNull().default("gemini-2.0-flash"),
+  allowedModels: text("allowed_models").notNull().default("[]"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),

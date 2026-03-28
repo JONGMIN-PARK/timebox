@@ -13,6 +13,8 @@ interface User {
   username: string;
   displayName: string | null;
   role: string;
+  aiModel?: string;
+  allowedModels?: string[];
   teamGroups?: TeamGroupInfo[];
   hasProjectAccess?: boolean;
 }

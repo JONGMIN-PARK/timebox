@@ -1,6 +1,7 @@
 import TelegramBot from "node-telegram-bot-api";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../db/index.js";
-import { todos, events, ddays, telegramConfig, timeBlocks, users, files } from "../db/schema.js";
+import { todos, events, ddays, telegramConfig, timeBlocks, users, files, projects, projectMembers, projectTasks } from "../db/schema.js";
 import { eq, gte, lte, and, inArray } from "drizzle-orm";
 import cron from "node-cron";
 import fs from "fs";
@@ -171,7 +172,9 @@ export async function initTelegramBot() {
 *기타:*
 \`/week\` — 주간 요약
 \`/stats\` — 통계
-\`/link 코드\` — 계정 연동`, { parse_mode: "Markdown" });
+\`/link 코드\` — 계정 연동
+
+💡 *AI 질문:* 명령어 없이 자유롭게 메시지를 보내면 AI가 답변합니다!`, { parse_mode: "Markdown" });
   });
 
   // ── /today or /s — Daily briefing ──
@@ -665,6 +668,127 @@ export async function initTelegramBot() {
       bot!.sendMessage(msg.chat.id, "❌ Failed to save photo");
     }
   });
+
+  // ── Gemini AI Q&A: catch-all for non-command messages ──
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+
+    // Per-chat conversation history (max 20 turns)
+    const chatHistories = new Map<string, { role: string; parts: { text: string }[] }[]>();
+
+    bot.on("message", async (msg) => {
+      // Skip commands, photos, and non-text messages
+      if (!msg.text || msg.text.startsWith("/")) return;
+      const userId = await getUserIdFromChat(msg.chat.id.toString());
+      if (!userId) return;
+
+      const chatKey = msg.chat.id.toString();
+
+      try {
+        // Get user info and model
+        const [userRow] = await db.select().from(users).where(eq(users.id, userId));
+        if (!userRow) return;
+        const isAdmin = userRow.role === "admin";
+        const modelName = userRow.aiModel || "gemini-2.0-flash";
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        const today = new Date().toISOString().slice(0, 10);
+        let contextLines: string[] = [`오늘 날짜: ${today}`, `사용자: ${userRow.displayName || userRow.username} (${userRow.role})`];
+
+        if (isAdmin) {
+          // Admin: full app data
+          const [allUsers, allTodos, allEvents, allBlocks, allDdays, allProjects, allTasks] = await Promise.all([
+            db.select({ id: users.id, username: users.username, displayName: users.displayName, role: users.role, active: users.active }).from(users),
+            db.select().from(todos).where(eq(todos.completed, false)),
+            db.select().from(events).where(and(gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
+            db.select().from(timeBlocks).where(eq(timeBlocks.date, today)),
+            db.select().from(ddays),
+            db.select().from(projects),
+            db.select().from(projectTasks),
+          ]);
+
+          contextLines.push(
+            `\n[전체 사용자 ${allUsers.length}명]: ${allUsers.map(u => `${u.displayName || u.username}(${u.role}${u.active ? "" : ",비활성"})`).join(", ")}`,
+            `\n[전체 미완료 할일 ${allTodos.length}개]: ${allTodos.slice(0, 15).map(t => `${t.title}(우선순위:${t.priority},진행:${t.progress}%)`).join(", ")}${allTodos.length > 15 ? ` ...외 ${allTodos.length - 15}개` : ""}`,
+            `\n[오늘 일정 ${allEvents.length}개]: ${allEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}`,
+            `\n[오늘 타임블록 ${allBlocks.length}개]: ${allBlocks.slice(0, 10).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(", ")}`,
+            `\n[D-Day ${allDdays.length}개]: ${allDdays.slice(0, 10).map(d => `${d.title}(${d.targetDate})`).join(", ")}`,
+            `\n[프로젝트 ${allProjects.length}개]: ${allProjects.map(p => `${p.name}(${p.archived ? "보관됨" : "진행중"})`).join(", ")}`,
+            `\n[프로젝트 태스크 ${allTasks.length}개]: ${allTasks.slice(0, 10).map(t => `${t.title}(${t.status},${t.priority})`).join(", ")}${allTasks.length > 10 ? ` ...외 ${allTasks.length - 10}개` : ""}`,
+          );
+        } else {
+          // Regular user: own data + assigned projects
+          const [userTodos, userEvents, userBlocks, userDdays, memberOf] = await Promise.all([
+            db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))),
+            db.select().from(events).where(and(eq(events.userId, userId), gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
+            db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today))),
+            db.select().from(ddays).where(eq(ddays.userId, userId)),
+            db.select({ projectId: projectMembers.projectId }).from(projectMembers).where(eq(projectMembers.userId, userId)),
+          ]);
+
+          contextLines.push(
+            userTodos.length > 0 ? `\n[내 할일 ${userTodos.length}개]: ${userTodos.slice(0, 10).map(t => `${t.title}(${t.priority},${t.progress}%)`).join(", ")}` : "\n할일 없음",
+            userEvents.length > 0 ? `\n[오늘 일정 ${userEvents.length}개]: ${userEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}` : "\n오늘 일정 없음",
+            userBlocks.length > 0 ? `\n[타임블록 ${userBlocks.length}개]: ${userBlocks.slice(0, 10).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(", ")}` : "\n타임블록 없음",
+            userDdays.length > 0 ? `\n[D-Day ${userDdays.length}개]: ${userDdays.map(d => `${d.title}(${d.targetDate})`).join(", ")}` : "",
+          );
+
+          if (memberOf.length > 0) {
+            const projectIds = memberOf.map(m => m.projectId);
+            const [myProjects, myTasks] = await Promise.all([
+              db.select().from(projects).where(inArray(projects.id, projectIds)),
+              db.select().from(projectTasks).where(inArray(projectTasks.projectId, projectIds)),
+            ]);
+            contextLines.push(
+              `\n[내 프로젝트 ${myProjects.length}개]: ${myProjects.map(p => `${p.name}(${p.archived ? "보관됨" : "진행중"})`).join(", ")}`,
+              myTasks.length > 0 ? `\n[프로젝트 태스크 ${myTasks.length}개]: ${myTasks.slice(0, 10).map(t => `${t.title}(${t.status})`).join(", ")}` : "",
+            );
+          }
+        }
+
+        const systemPrompt = `너는 TimeBox 일정관리 앱의 AI 비서야. ${isAdmin ? "관리자로서 앱의 모든 데이터에 접근 가능하다." : "사용자 본인의 데이터만 접근 가능하다."}
+앱 기능: 할일관리, 캘린더, 타임블록 스케줄러, D-Day, 프로젝트 관리, 파일 보관함, 팀 채팅.
+
+현재 데이터:
+${contextLines.filter(Boolean).join("\n")}
+
+답변은 텔레그램에서 보기 좋게 짧고 핵심적으로. 일반 질문에도 자유롭게 답변해.`;
+
+        // Get or create chat history
+        let history = chatHistories.get(chatKey) || [];
+
+        const chat = model.startChat({
+          history: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            { role: "model", parts: [{ text: "네, TimeBox AI 비서로서 도움드리겠습니다!" }] },
+            ...history,
+          ],
+        });
+
+        const result = await chat.sendMessage(msg.text);
+        const reply = result.response.text();
+
+        // Save to history (keep last 20 turns)
+        history.push({ role: "user", parts: [{ text: msg.text }] });
+        history.push({ role: "model", parts: [{ text: reply }] });
+        if (history.length > 40) history = history.slice(-40);
+        chatHistories.set(chatKey, history);
+
+        await bot!.sendMessage(msg.chat.id, reply, { parse_mode: "Markdown" }).catch(() =>
+          bot!.sendMessage(msg.chat.id, reply)
+        );
+      } catch (e: any) {
+        const errMsg = e?.message || e?.toString() || "unknown error";
+        console.error("[gemini] Error:", errMsg, e?.status, e?.statusText);
+        bot!.sendMessage(msg.chat.id, `⚠️ AI 오류: ${errMsg.slice(0, 200)}`);
+      }
+    });
+
+    console.log(`[telegram] Gemini AI Q&A enabled (key: ${geminiKey.slice(0, 6)}...)`);
+  } else {
+    console.log("[telegram] Gemini AI disabled - GEMINI_API_KEY not set");
+  }
 
   await setupDailyBriefing();
 }

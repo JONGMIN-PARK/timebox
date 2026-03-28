@@ -3,11 +3,18 @@ import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import TelegramSection from "@/components/settings/TelegramSection";
 import type { Locale } from "@/lib/i18n";
+
+const AI_MODELS = [
+  { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", tier: "free" },
+  { id: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite", tier: "free" },
+  { id: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash", tier: "standard" },
+  { id: "gemini-2.5-pro-preview-05-06", label: "Gemini 2.5 Pro", tier: "pro" },
+] as const;
 
 interface UserInfo {
   id: number;
@@ -15,6 +22,8 @@ interface UserInfo {
   displayName: string | null;
   role: string;
   active: boolean;
+  aiModel?: string;
+  allowedModels?: string[];
   createdAt: string;
 }
 
@@ -41,7 +50,7 @@ interface TeamGroupMember {
 }
 
 export default function SettingsPage() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, fetchMe } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const { t, setLocale, locale } = useI18n();
   const [users, setUsers] = useState<UserInfo[]>([]);
@@ -229,6 +238,35 @@ export default function SettingsPage() {
 
         {/* Telegram Integration */}
         <TelegramSection />
+
+        {/* AI Model */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">AI 모델</h2>
+          <div className="card p-4">
+            <div className="flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-purple-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-slate-700 dark:text-slate-300">텔레그램 AI 비서 모델</p>
+                <p className="text-[10px] text-slate-400">
+                  {isAdmin ? "관리자는 모든 모델 사용 가능" : user?.allowedModels?.length ? "관리자가 허용한 모델만 선택 가능" : "허용된 모델이 없습니다. 관리자에게 요청하세요."}
+                </p>
+              </div>
+              <select
+                value={user?.aiModel || "gemini-2.0-flash"}
+                onChange={async (e) => {
+                  await api.put("/auth/me", { aiModel: e.target.value });
+                  fetchMe();
+                }}
+                disabled={!isAdmin && (!user?.allowedModels || user.allowedModels.length === 0)}
+                className="text-xs bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl px-3 py-2 text-slate-900 dark:text-white outline-none disabled:opacity-40"
+              >
+                {AI_MODELS.filter((m) => isAdmin || user?.allowedModels?.includes(m.id)).map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
 
         {/* Notifications */}
         <section>
@@ -463,6 +501,27 @@ export default function SettingsPage() {
                       ))}
                     </div>
                     <p className="text-[11px] text-slate-400">@{u.username}</p>
+                    {/* AI Model assignment */}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <Sparkles className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                      {AI_MODELS.map((m) => {
+                        const allowed = u.allowedModels || [];
+                        const isAllowed = allowed.includes(m.id);
+                        return (
+                          <button key={m.id} onClick={async () => {
+                            const newAllowed = isAllowed ? allowed.filter((a: string) => a !== m.id) : [...allowed, m.id];
+                            await api.put(`/auth/users/${u.id}`, { allowedModels: newAllowed });
+                            fetchUsers();
+                          }}
+                            className={cn("text-[9px] px-1.5 py-0.5 rounded-full border transition-colors",
+                              isAllowed
+                                ? "bg-purple-100 dark:bg-purple-500/15 border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400"
+                                : "border-slate-200 dark:border-slate-600 text-slate-400 hover:border-purple-300")}>
+                            {m.label.replace("Gemini ", "")}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   {u.id !== user?.id && (
                     <div className="flex items-center gap-1 flex-shrink-0">

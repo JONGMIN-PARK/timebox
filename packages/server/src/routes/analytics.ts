@@ -112,20 +112,23 @@ router.get("/timeline", async (req: AuthRequest, res) => {
     const dateFrom = (req.query.dateFrom as string) || null;
     const dateTo = (req.query.dateTo as string) || null;
 
-    const conditions: string[] = [];
-    const params: unknown[] = [];
-    let paramIdx = 1;
+    const conditions: ReturnType<typeof sql>[] = [];
 
-    if (userId) { conditions.push(`ual.user_id = $${paramIdx++}`); params.push(userId); }
-    if (action) { conditions.push(`ual.action ILIKE $${paramIdx++}`); params.push(`%${action}%`); }
-    if (category) { conditions.push(`ual.category = $${paramIdx++}`); params.push(category); }
-    if (dateFrom) { conditions.push(`ual.created_at >= $${paramIdx++}`); params.push(dateFrom); }
-    if (dateTo) { conditions.push(`ual.created_at <= $${paramIdx++}`); params.push(dateTo + "T23:59:59"); }
-    if (search) { conditions.push(`(ual.action ILIKE $${paramIdx} OR u.username ILIKE $${paramIdx} OR u.display_name ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+    if (userId) conditions.push(sql`ual.user_id = ${userId}`);
+    if (action) conditions.push(sql`ual.action ILIKE ${"%" + action + "%"}`);
+    if (category) conditions.push(sql`ual.category = ${category}`);
+    if (dateFrom) conditions.push(sql`ual.created_at >= ${dateFrom}`);
+    if (dateTo) conditions.push(sql`ual.created_at <= ${dateTo + "T23:59:59"}`);
+    if (search) {
+      const pat = "%" + search + "%";
+      conditions.push(sql`(ual.action ILIKE ${pat} OR u.username ILIKE ${pat} OR u.display_name ILIKE ${pat})`);
+    }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereClause = conditions.length > 0
+      ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+      : sql``;
 
-    const results = await db.execute(sql.raw(`
+    const results = await db.execute(sql`
       SELECT
         ual.id, ual.user_id, u.username, u.display_name,
         ual.action, ual.category, ual.target_type, ual.target_id,
@@ -135,16 +138,18 @@ router.get("/timeline", async (req: AuthRequest, res) => {
       ${whereClause}
       ORDER BY ual.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
-    `, params));
+    `);
 
-    const [countResult] = await db.execute(sql.raw(`
+    const countResult = await db.execute(sql`
       SELECT COUNT(*)::int AS total
       FROM user_activity_log ual
       JOIN users u ON ual.user_id = u.id
       ${whereClause}
-    `, params)) as any;
+    `) as any;
 
-    res.json({ success: true, data: results.rows, total: countResult?.total || results.rows.length });
+    const total = countResult.rows?.[0]?.total ?? results.rows.length;
+
+    res.json({ success: true, data: results.rows, total });
   } catch (err) {
     console.error("[analytics/timeline]", err);
     res.status(500).json({ success: false, error: "Failed to fetch timeline" });
