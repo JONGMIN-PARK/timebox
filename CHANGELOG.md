@@ -3,11 +3,12 @@
 ## Project Overview
 
 **TimeBox** — Personal Schedule Manager Web App
-- **Stack:** React 18 + Vite 5 + Tailwind CSS + Express.js + PostgreSQL + Drizzle ORM
+- **Stack:** React 18 + Vite 5 + Tailwind CSS + Express.js + PostgreSQL + Drizzle ORM + Socket.io
 - **Repo:** https://github.com/JONGMIN-PARK/timebox
-- **Deploy:** Render.com (free tier, Singapore region)
+- **Deploy:** Render.com (starter, Singapore region)
 - **Monorepo:** pnpm workspace (`@timebox/client`, `@timebox/server`, `@timebox/shared`)
-- **Features:** Team collaboration, inbox messaging, per-user Telegram, responsive PWA
+- **Auth:** JWT + bcryptjs
+- **Features:** Team collaboration, real-time chat, inbox messaging, per-user Telegram, admin analytics, responsive PWA
 
 ---
 
@@ -22,7 +23,7 @@
 | Todo list (add/complete/delete/sort) | ✅ Done → ⬆️ Enhanced | + categories, inline edit, D-Day, drag reorder |
 | Monthly calendar (events CRUD) | ✅ Done → ⬆️ Enhanced | + weekly/daily views, category colors, todo overlay |
 | D-Day widget | ✅ Done | Countdown display, add/delete |
-| Basic reminders | ⏳ Partial | DB schema exists, no UI yet |
+| Basic reminders | ✅ Done | In-app popup, sound, Telegram notification, background support |
 | Responsive layout | ✅ Done → ⬆️ Enhanced | Mobile-first, glass effects, safe-area |
 | Render.com deploy | ✅ Done | render.yaml blueprint |
 
@@ -71,7 +72,7 @@
 | Project dashboard | ✅ Done | Progress, D-Day, weekly stats, member workload, activity |
 | Bulletin board | ✅ Done | Posts, comments, categories (notice/discussion/question) |
 | Shared file manager | ✅ Done | Folder structure, upload/download, team storage |
-| Team chat | ✅ Done | Per-project, polling, keep-alive tabs |
+| Team chat | ✅ Done → ⬆️ Upgraded | Socket.io real-time, emoji picker, image support |
 | Task transfer | ✅ Done | Request/accept/reject workflow, notifications |
 | Project documents | ✅ Done | Overview/specs editor, viewer role separation |
 | Member management | ✅ Done | Invite, roles, team group auto-viewer access |
@@ -86,6 +87,31 @@
 | Telegram new commands | ✅ Done | /project, /mytasks, /inbox, /msg + auto-complete menu |
 | Online presence | ✅ Done | Heartbeat system, green dot in sidebar |
 | Header unread badge | ✅ Done | Bell icon with count, 30s polling |
+
+### Phase 7: Real-time, Analytics & Optimization — ✅ Complete (2026-03-28)
+
+| PRD Item | Status | Notes |
+|----------|--------|-------|
+| Real-time chat (Socket.io) | ✅ Done | Group rooms, 1:1 chat request, emoji picker, image upload, message delete |
+| Activity tracking | ✅ Done | Middleware logging all user actions (create/update/delete) |
+| Admin analytics dashboard | ✅ Done | User stats, activity charts, message viewer, auto-cleanup |
+| Performance: compression | ✅ Done | gzip/brotli via compression middleware |
+| Performance: JWT role cache | ✅ Done | Cached role in token to reduce DB lookups |
+| Performance: DB indexes | ✅ Done | Additional indexes on high-traffic query columns |
+| Performance: category cache | ✅ Done | Server-side category data cached |
+| Performance: useMemo | ✅ Done | Memoized expensive computations in React components |
+| Optimistic UI updates | ✅ Done | Instant feedback on todo/task actions before server confirms |
+| Toast notifications | ✅ Done | Non-blocking success/error feedback system |
+| Mobile: logout in settings | ✅ Done | Logout button accessible on mobile settings page |
+| Mobile: reminder/D-Day | ✅ Done | Reminder and D-Day views optimized for mobile |
+| Mobile: scheduler for team | ✅ Done | Elon Musk scheduler available for team users on mobile |
+| Telegram: QR code linking | ✅ Done | QR code display for easy bot linking |
+| Telegram: deep link | ✅ Done | Auto-connect via deep link URL |
+| Telegram: polling fix | ✅ Done | Reduced polling interval from 8s to 3s for faster notifications |
+| App icons | ✅ Done | SVG + PNG icon set for all platforms (mobile, desktop, PWA) |
+| Deploy: pnpm cache | ✅ Done | Build speedup with pnpm store caching |
+| Deploy: bcryptjs | ✅ Done | Pure JS bcryptjs replaces native bcrypt (no build issues) |
+| Deploy: frozen-lockfile | ✅ Done | Deterministic installs with --frozen-lockfile |
 
 ---
 
@@ -120,7 +146,7 @@
 | **Project creation form** | Name, description, dates, color, docs, team group selection |
 | **Project D-Day** | Start/target dates, D-Day badge (color-coded) on dashboard |
 | **Kanban improvements** | Card follows cursor on drag, blue border for my tasks, full assignee names |
-| **Kanban → Todo** | "내 할 일에 추가" button copies task to personal todo list |
+| **Kanban → Todo** | "Add to my todos" button copies task to personal todo list |
 | **Project documents** | Markdown/text docs per project, admin/owner editable |
 | **Inbox messaging** | User-to-user messages, compose, received/sent tabs, delete |
 | **Task assignment inbox** | Auto-notification on assign with project/task/date details |
@@ -133,6 +159,23 @@
 | **Todo time support** | Date picker + time picker (HH:MM), stored as YYYY-MM-DDThh:mm |
 | **iPhone safe area** | env(safe-area-inset-*) for notch/Dynamic Island padding |
 | **Responsive design** | All panels adapt to screen size, tab bar scrollable, column widths scale |
+| **Real-time chat (Socket.io)** | WebSocket-based group and 1:1 chat with rooms, typing indicators |
+| **Chat emoji picker** | Inline emoji selection in chat messages |
+| **Chat image support** | Upload and display images in chat conversations |
+| **Chat message delete** | Delete own messages from chat |
+| **Admin analytics dashboard** | User activity stats, charts, message viewer, system health |
+| **Activity tracking middleware** | Automatic logging of all CRUD actions per user |
+| **Admin message viewer** | Admin can view and manage all messages across the system |
+| **Admin data backup** | Full database backup and auto-cleanup from admin panel |
+| **Toast notification system** | Non-blocking success/error/info toasts for user feedback |
+| **Optimistic UI updates** | Instant local state updates before server confirmation |
+| **Telegram QR code linking** | QR code in Settings for easy bot connection |
+| **Telegram deep link** | One-click deep link URL for Telegram bot auto-connect |
+| **Task emoji reactions** | React to kanban tasks with emoji (displayed on cards) |
+| **Project overview summary** | Dashboard summary view for project health |
+| **App icons (SVG + PNG)** | Full icon set for mobile homescreen, desktop, and PWA |
+| **Compact todo meta** | Category, date, D-Day in single line for cleaner display |
+| **CI/CD pipeline** | Auto-deploy to Render after successful build |
 
 ---
 
@@ -153,7 +196,20 @@
 | i18n coverage | 50+ new translation keys, all hardcoded Korean removed |
 | Accessibility | ARIA labels, dialog roles, focus trap, escape handlers |
 | Token security | Removed cache storage duplication, localStorage only |
-| DB indexes | 10+ new indexes for team/project/inbox tables |
+| DB indexes | 10+ new indexes for team/project/inbox/activity tables |
+| compression middleware | gzip/brotli response compression for all API responses |
+| JWT role cache | Role embedded in JWT token to eliminate per-request DB role lookups |
+| Category cache | Server-side caching of category data to reduce repeated queries |
+| useMemo optimization | Memoized expensive list filtering and computation in React |
+| Shared helpers: userEnrichment | Centralized user data enrichment logic for API responses |
+| Shared helpers: constants | Shared constants module for categories, roles, limits |
+| Shared helpers: Avatar | Reusable Avatar component across all views |
+| Shared helpers: usePolling | Custom hook for polling-based data refresh with cleanup |
+| Shared helpers: Toast | Centralized toast notification utility |
+| Optimistic UI pattern | Local state updated before server round-trip for instant feel |
+| bcryptjs migration | Replaced native bcrypt with pure JS bcryptjs (no native build deps) |
+| pnpm cache + frozen-lockfile | Faster CI builds with cached pnpm store and deterministic installs |
+| Stale cache elimination | Service worker versioning ensures fresh code on deploy |
 
 ---
 
@@ -200,6 +256,34 @@ da34327 Add inbox messaging system with task assignment notifications
 106ba64 Overhaul Telegram bot: per-user commands + 4 new commands + auto-complete
 f040e92 Responsive design: auto-adapt to all screen sizes
 d6eab73 Fix iPhone safe area: prevent overlap with status bar/Dynamic Island
+37b184a Update all documentation with today's implementation progress
+ff70777 Major refactoring: performance, security, code quality for 100+ users
+3f982f0 Add task emoji reactions + project overview summary dashboard
+b913ae6 Add CI/CD: auto-deploy to Render after successful build
+6595472 Show emoji reactions on kanban task cards
+d161031 Redesign project header: D-Day, dates, members, transfer badges
+cea6180 Inline date editing in project header + kanban within-column reordering
+902987c Fix drag offset: remove DragOverlay, use useSortable transform directly
+cd87d40 Add Telegram linking UI in Settings for all users
+373bc87 Mobile optimization + deploy build speedup
+4b590b8 Add TimeBox app icons for mobile and desktop
+ec779b2 Compact todo meta row: category, date, D-Day in single line
+82f5222 Fix Telegram notification delay by tuning polling config
+75c5d90 Add QR code for Telegram linking + deep link auto-connect
+380567d Refresh inbox bell count immediately on read/delete
+45599b0 Add real-time chat, activity tracking, and admin analytics
+edf1a1d Fix ChatPanel API paths and socket message handling
+0d5f984 Fix activity tracking: register middleware before routes, log all actions
+d7a51f0 Fix analytics dashboard: match server response format
+37ad04f Fix SW cache error for non-http schemes + add mobile-web-app-capable meta
+3024314 Fix chat auto-scroll: scroll within container only, not page
+94ce4a7 Fix chat React error: match server response structure
+d2664da Eliminate stale cache: instant updates on deploy
+f6c1079 Major refactoring: shared helpers, performance, i18n, accessibility
+217ddc9 Add message delete, emoji picker, and image support for all chat
+15c63ba Admin data management: full backup, message viewer, auto-cleanup
+7f5d170 Fix analytics crash: null-safe access + fix message API field names
+82f19e7 Major performance & UX upgrade: compression, real-time, optimistic UI
 ```
 
 ---
@@ -220,17 +304,22 @@ d6eab73 Fix iPhone safe area: prevent overlap with status bar/Dynamic Island
 - [x] ~~Per-user Telegram~~ ✅
 - [x] ~~Responsive design~~ ✅
 - [x] ~~iPhone safe area~~ ✅
+- [x] ~~WebSocket real-time (Socket.io chat)~~ ✅
+- [x] ~~Data analytics dashboard~~ ✅
 
 ### Remaining
-- [ ] WebSocket real-time (replace polling)
 - [ ] Push notifications (Web Push API)
 - [ ] Gantt chart view for projects
 - [ ] File versioning
 - [ ] @mention in chat/posts
 - [ ] Service worker (full offline support)
 - [ ] Swipe gestures (mobile)
-- [ ] Data analytics dashboard
 - [ ] Password complexity requirements
+- [ ] Recurring events UI (DB field exists, no front-end)
+- [ ] Actual vs planned time comparison view
+- [ ] Chat read receipts / typing indicators
+- [ ] Project archiving
+- [ ] Bulk task operations (multi-select, batch update)
 
 ---
 
@@ -255,6 +344,7 @@ pnpm start
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| DATABASE_URL | Yes | PostgreSQL connection string |
 | NODE_ENV | Yes | `production` |
 | JWT_SECRET | Yes | Random secret string |
 | TELEGRAM_BOT_TOKEN | No | BotFather token |

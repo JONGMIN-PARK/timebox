@@ -8,9 +8,9 @@
 ### 핵심 원칙
 - 기존 개인 기능은 그대로 유지 (하위 호환)
 - "프로젝트"를 중심으로 팀 기능이 붙는 구조
-- 점진적 확장: Phase 1 → 2 → 3 순서로 개발
+- 점진적 확장: Phase 1 → 2 → 3 → 4 순서로 개발
 
-**구현 상태**: Phase 1-3 전체 구현 완료 (2026-03-27)
+**구현 상태**: Phase 1-4 전체 구현 완료 (2026-03-28)
 
 ---
 
@@ -22,18 +22,22 @@
   │   ├── 내 할일, 캘린더, 타임박스, 디데이, 리마인더
   │   └── 내 파일
   │
-  └── 팀/프로젝트 (새로 추가)
-      ├── 프로젝트 A
-      │   ├── 멤버 관리
-      │   ├── 공유 할일 (칸반 보드)
-      │   ├── 공유 캘린더
-      │   ├── 자료실
-      │   ├── 게시판
-      │   ├── 채팅
-      │   └── 현황판 (대시보드)
-      │
-      └── 프로젝트 B
-          └── ...
+  ├── 팀/프로젝트 (새로 추가)
+  │   ├── 프로젝트 A
+  │   │   ├── 멤버 관리
+  │   │   ├── 공유 할일 (칸반 보드)
+  │   │   ├── 공유 캘린더
+  │   │   ├── 자료실
+  │   │   ├── 게시판
+  │   │   ├── 채팅
+  │   │   └── 현황판 (대시보드)
+  │   │
+  │   └── 프로젝트 B
+  │       └── ...
+  │
+  └── 일반 채팅
+      ├── 그룹 채팅방
+      └── 1:1 다이렉트 채팅
 ```
 
 ---
@@ -93,13 +97,39 @@ project_files
   tags (JSON),
   created_at
 
--- 채팅 메시지
+-- 프로젝트 채팅 메시지
 messages
   id, project_id (FK projects),
   channel ("general" | "task-{id}" | custom),
   sender_id (FK users),
   content, type ("text" | "file" | "system"),
   reply_to (FK messages),
+  created_at
+
+-- 일반 채팅방
+chat_rooms
+  id, name, type ("group" | "direct"),
+  created_by (FK users),
+  created_at, updated_at
+
+-- 채팅방 멤버
+chat_members
+  id, room_id (FK chat_rooms), user_id (FK users),
+  joined_at, last_read_at
+
+-- 채팅 메시지
+chat_messages
+  id, room_id (FK chat_rooms),
+  sender_id (FK users),
+  content, type ("text" | "image" | "system"),
+  deleted_at (소프트 삭제),
+  created_at
+
+-- 사용자 행동 분석 로그
+user_activity_log
+  id, user_id (FK users),
+  action, target_type, target_id,
+  metadata (JSON), ip_address,
   created_at
 
 -- 활동 로그 (현황판용)
@@ -214,7 +244,7 @@ UI:
 - 파일 카드: 썸네일, 이름, 크기, 업로더, 날짜
 ```
 
-### Phase 3: 실시간 채팅 ✅ 구현 (polling 방식, WebSocket 미적용)
+### Phase 3: 실시간 채팅 ✅ Socket.io 실시간 구현 완료
 
 #### 4.6 채팅 ✅
 ```
@@ -228,9 +258,11 @@ UI:
 - 이모지 리액션
 
 기술:
-- Polling (5초 간격) 방식으로 구현 (WebSocket 미적용)
+- Socket.io 실시간 메시지 송수신
+- 이모지 피커 (emoji-mart)
+- 이미지 붙여넣기 (클립보드 paste)
+- 메시지 삭제 (소프트 삭제)
 - 메시지 DB 저장
-- REST API 기반 메시지 송수신
 
 UI:
 - 우측 패널 또는 하단 패널 (슬랙 스타일)
@@ -238,31 +270,54 @@ UI:
 - 입력창: 텍스트 + 파일 첨부 + 이모지
 ```
 
-### Phase 4: 확장 기능 (2026-03-27 구현)
+### Phase 4: 확장 기능 ✅ 구현 완료 (2026-03-28)
 
-#### 4.7 프로젝트 문서
+#### 4.7 프로젝트 문서 ✅
 - 프로젝트 생성 시 개요/사양 문서 입력 가능
 - "문서" 탭에서 조회/편집 (admin/owner만 편집)
 - 일반 텍스트 에디터
 
-#### 4.8 메시지함 (인박스)
+#### 4.8 메시지함 (인박스) ✅
 - 사용자 간 직접 메시지 발송
 - 태스크 할당 시 자동 알림 메시지 생성
 - 받은 메시지 / 보낸 메시지 탭
 - 읽음/안읽음 표시, 전체 읽음, 삭제
 - 헤더에 안읽은 메시지 벨 아이콘 + 뱃지
 
-#### 4.9 텔레그램 개별 연동
+#### 4.9 텔레그램 개별 연동 ✅
 - 각 사용자가 설정에서 연동 코드 생성
 - 봇에서 /link CODE로 개별 연동
 - 모든 알림이 본인 텔레그램으로 전달
 - 신규 명령어: /project, /mytasks, /inbox, /msg
 - / 입력 시 자동완성 메뉴 (setMyCommands)
 
-#### 4.10 온라인 상태
-- 사이드바 하단에 접속 중인 팀 멤버 표시
-- 60초 하트비트, 2분 미응답 시 오프라인
-- 초록 점 + 풀네임 표시
+#### 4.10 실시간 채팅 시스템 ✅
+- 일반 그룹 채팅방 (프로젝트 외 독립 채팅)
+- 1:1 채팅 요청 (다이렉트 메시지)
+- Socket.io 기반 실시간 메시지 송수신
+- 채팅방 생성/참여/나가기
+
+#### 4.11 사용자 행동 분석 (관리자 전용) ✅
+- 사용자별 활동 추적 (로그인, 페이지 방문, 기능 사용)
+- 활동 요약 대시보드 (DAU, MAU, 기능별 사용량)
+- 사용자별 상세 활동 내역 조회
+- 관리자 전용 접근 제어
+
+#### 4.12 관리자 메시지 관리 ✅
+- 전체 메시지 열람 (관리자 권한)
+- 메시지 정리 (삭제/아카이브)
+- 자동 삭제 정책 (오래된 메시지 정리)
+
+#### 4.13 텔레그램 QR 연동 ✅
+- 설정 페이지에서 QR 코드로 텔레그램 봇 연동
+- 연동 코드 자동 생성 및 QR 표시
+- 연동 상태 확인 및 해제
+
+#### 4.14 성능 최적화 ✅
+- HTTP compression (gzip/brotli) 적용
+- JWT 캐시 (토큰 파싱 결과 캐싱)
+- DB 인덱스 최적화 (주요 쿼리 대상 컬럼)
+- 쿼리 성능 개선
 
 ---
 
@@ -307,10 +362,27 @@ DELETE /api/projects/:id/files/:fid      - 파일 삭제
 PUT    /api/projects/:id/files/:fid/move - 폴더 이동
 ```
 
-### 채팅
+### 프로젝트 채팅
 ```
 GET    /api/projects/:id/messages        - 메시지 히스토리
 WS     /ws/projects/:id/chat             - 실시간 채팅 (Socket.io)
+```
+
+### 일반 채팅
+```
+GET    /api/chat                          - 내 채팅방 목록
+POST   /api/chat                          - 채팅방 생성
+POST   /api/chat/direct                   - 1:1 채팅방 생성/찾기
+GET    /api/chat/:roomId/messages         - 메시지 목록
+POST   /api/chat/:roomId/messages         - 메시지 전송
+DELETE /api/chat/:roomId/messages/:id     - 메시지 삭제
+```
+
+### 활동 분석 (관리자 전용)
+```
+GET    /api/analytics/summary             - 활동 요약
+GET    /api/analytics/users               - 사용자별 활동
+GET    /api/analytics/messages            - 메시지 관리
 ```
 
 ### 활동 로그
@@ -364,6 +436,10 @@ viewer        R            R        R      R      R      R
   │   ├── 🔵 프로젝트 B
   │   └── + 새 프로젝트
   │
+  ├── 채팅
+  │   ├── 그룹 채팅방
+  │   └── 1:1 다이렉트
+  │
   └── 설정
 ```
 
@@ -409,43 +485,46 @@ viewer        R            R        R      R      R      R
 
 | 영역 | 현재 | 추가 |
 |------|------|------|
-| 실시간 통신 | - | **Socket.io** (채팅, 실시간 업데이트) |
+| 실시간 통신 | - | **Socket.io** ✅ 구현 완료 (채팅, 실시간 업데이트) |
 | 에디터 | - | **@uiw/react-md-editor** (Markdown 게시판) |
 | 차트 | - | **recharts** (현황판 통계) |
 | 드래그 | dnd-kit | 그대로 활용 (칸반) |
 | 알림 | Web Notification + Telegram | 그대로 활용 + @멘션 알림 |
 | DB | PostgreSQL (Supabase) | 그대로 (테이블 추가) |
-| 인증 | JWT | 그대로 + 프로젝트 권한 미들웨어 |
+| 인증 | JWT | 그대로 + 프로젝트 권한 미들웨어 + **JWT 캐시** |
 | 메시지 | - | **inbox_messages** 테이블, REST API |
 | 온라인 상태 | - | **In-memory heartbeat** (60s interval) |
 | 반응형 | Tailwind | **Safe area, dvh, responsive breakpoints** |
+| 압축 | - | **compression** ✅ (gzip/brotli HTTP 응답 압축) |
+| 행동 분석 | - | **user_activity_log** ✅ (관리자 전용 활동 추적) |
 
 ---
 
 ## 9. 개발 로드맵
 
-### Phase 1 (2~3주) - 팀 기초
+### Phase 1 (2~3주) - 팀 기초 ✅
 ```
 Week 1: 프로젝트 CRUD + 멤버 관리 + 사이드바 확장
 Week 2: 칸반 보드 (태스크 CRUD + 드래그)
 Week 3: 현황판 + 활동 로그
 ```
 
-### Phase 2 (2주) - 소통
+### Phase 2 (2주) - 소통 ✅
 ```
 Week 4: 게시판 (글/댓글, Markdown)
 Week 5: 공유 자료실 (폴더, 업로드)
 ```
 
-### Phase 3 (2주) - 실시간
+### Phase 3 (2주) - 실시간 ✅
 ```
 Week 6: Socket.io 채팅 기본
 Week 7: 스레드, 멘션, 리액션, 알림 연동
 ```
 
-### Phase 4 (1주) - 마무리
+### Phase 4 (2주) - 확장 + 마무리 ✅
 ```
-Week 8: 통합 테스트, 성능 최적화, 모바일 반응형
+Week 8: 일반 채팅 (그룹/1:1), 텔레그램 QR 연동
+Week 9: 사용자 행동 분석, 관리자 메시지 관리, 성능 최적화
 ```
 
 ---
@@ -463,12 +542,16 @@ Week 8: 통합 테스트, 성능 최적화, 모바일 반응형
 - 채팅 메시지 페이지네이션 (최근 50개씩)
 - 활동 로그 30일 보관 (이전 데이터 아카이브)
 - 파일 용량: 프로젝트당 1GB (무료), 10GB (유료)
+- HTTP compression (gzip/brotli) 적용
+- JWT 캐시로 토큰 파싱 성능 개선
+- DB 인덱스 최적화
 
 ### 보안
 - 모든 팀 API에 프로젝트 멤버십 검증 미들웨어
 - 역할 기반 접근 제어 (RBAC)
 - 파일 접근 시 프로젝트 소속 확인
 - 채팅 WebSocket 연결 시 JWT + 프로젝트 권한 확인
+- 메시지 소프트 삭제 (복구 가능)
 
 ---
 
@@ -498,11 +581,13 @@ Week 8: 통합 테스트, 성능 최적화, 모바일 반응형
 |------|--------|-------|--------------|
 | 개인 생산성 | ⚪ 약함 | ❌ 없음 | ✅ 타임박스+캘린더+디데이 |
 | 칸반 보드 | ✅ | ❌ | ✅ |
-| 실시간 채팅 | ⚪ 댓글만 | ✅ | ✅ |
+| 실시간 채팅 | ⚪ 댓글만 | ✅ | ✅ (Socket.io) |
 | 게시판 | ✅ 페이지 | ❌ | ✅ |
 | 자료실 | ⚪ | ⚪ | ✅ |
-| 텔레그램 연동 | ❌ | ❌ | ✅ |
+| 텔레그램 연동 | ❌ | ❌ | ✅ (QR 연동) |
 | PWA/오프라인 | ⚪ | ⚪ | ✅ |
+| 1:1/그룹 채팅 | ⚪ | ✅ | ✅ |
+| 관리자 분석 | ⚪ | ✅ | ✅ |
 | 가격 | $8/user | $7/user | **$5/user** |
 
 **핵심 차별점**: "개인 생산성 도구 + 팀 협업"이 하나의 앱에서 자연스럽게 전환

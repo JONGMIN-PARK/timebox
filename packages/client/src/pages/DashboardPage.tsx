@@ -5,6 +5,7 @@ import Header from "@/components/layout/Header";
 import DDayWidget from "@/components/dday/DDayWidget";
 import ReminderPanel from "@/components/reminders/ReminderPanel";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import SplashScreen from "@/components/SplashScreen";
 
 const TodoList = lazy(() => import("@/components/todo/TodoList"));
 const CalendarView = lazy(() => import("@/components/calendar/CalendarView"));
@@ -27,10 +28,18 @@ const ProjectView = lazy(() => import("@/components/project/ProjectView"));
 const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
 import NewProjectForm from "@/components/project/NewProjectForm";
 
+// Only show splash on the very first mount of the app session
+const splashShownRef = { current: false };
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (splashShownRef.current) return false;
+    splashShownRef.current = true;
+    return true;
+  });
   const { fetchMe } = useAuthStore();
   const { activeProjectId } = useProjectStore();
   const user = useAuthStore(s => s.user);
@@ -112,6 +121,10 @@ export default function DashboardPage() {
   };
 
   const showRightPanel = !["settings", "scheduler", "chat", "analytics"].includes(activeTab);
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
 
   return (
     <div className="h-[100dvh] flex bg-slate-50 dark:bg-slate-900 bg-ambient pb-[48px] md:pb-0 safe-top safe-left safe-right">

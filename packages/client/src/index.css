@@ -129,11 +129,126 @@
 
   /* ── Animations ── */
   .animate-in {
-    animation: fadeInUp 0.25s ease-out both;
+    animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Button press effect */
+  .btn-press {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  .btn-press:active {
+    transform: scale(0.95);
+  }
+
+  /* Page slide transitions */
+  @keyframes slideInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slide-up {
+    animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-16px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .animate-slide-left {
+    animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Smooth tab content transition */
+  .tab-content {
+    animation: fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Button hover glow */
+  .btn-glow:hover {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    transition: box-shadow 0.2s ease;
+  }
+
+  /* Card hover lift */
+  .card-hover {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+  .dark .card-hover:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  }
+
+  /* ── Splash screen animations ── */
+  .splash-screen {
+    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .splash-fade-out {
+    opacity: 0 !important;
+    transform: scale(1.05);
+    pointer-events: none;
+  }
+
+  .splash-logo {
+    opacity: 0;
+    transform: scale(0.5) rotate(-10deg);
+    transition: opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+  .splash-logo-visible {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  .splash-logo-glow {
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%);
+    animation: splashPulseGlow 2s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  .splash-text {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .splash-text-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .splash-tagline {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .splash-tagline-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .splash-progress {
+    animation: splashProgressBar 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes splashShimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes splashProgressBar {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
+  @keyframes splashPulseGlow {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
   }
 
   .animate-scale-in {
