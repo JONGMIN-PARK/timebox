@@ -398,7 +398,7 @@ export default function ElonScheduler() {
             </div>
             <div className="text-center">
               <div className="text-lg font-bold text-amber-500">
-                {stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0}%
+                {priorityItems.length > 0 ? Math.round((completedCount / priorityItems.length) * 100) : 0}%
               </div>
               <div className="text-[10px] text-slate-400">달성률</div>
             </div>
