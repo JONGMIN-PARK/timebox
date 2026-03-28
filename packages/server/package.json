@@ -10,6 +10,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@timebox/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",

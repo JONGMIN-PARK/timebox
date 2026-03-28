@@ -1,4 +1,5 @@
 import TelegramBot from "node-telegram-bot-api";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../db/index.js";
 import { todos, events, ddays, telegramConfig, timeBlocks, users, files } from "../db/schema.js";
 import { eq, gte, lte, and, inArray } from "drizzle-orm";
@@ -171,7 +172,9 @@ export async function initTelegramBot() {
 *기타:*
 \`/week\` — 주간 요약
 \`/stats\` — 통계
-\`/link 코드\` — 계정 연동`, { parse_mode: "Markdown" });
+\`/link 코드\` — 계정 연동
+
+💡 *AI 질문:* 명령어 없이 자유롭게 메시지를 보내면 AI가 답변합니다!`, { parse_mode: "Markdown" });
   });
 
   // ── /today or /s — Daily briefing ──
@@ -665,6 +668,78 @@ export async function initTelegramBot() {
       bot!.sendMessage(msg.chat.id, "❌ Failed to save photo");
     }
   });
+
+  // ── Gemini AI Q&A: catch-all for non-command messages ──
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    // Per-chat conversation history (max 20 turns)
+    const chatHistories = new Map<string, { role: string; parts: { text: string }[] }[]>();
+
+    bot.on("message", async (msg) => {
+      // Skip commands, photos, and non-text messages
+      if (!msg.text || msg.text.startsWith("/")) return;
+      const userId = await getUserIdFromChat(msg.chat.id.toString());
+      if (!userId) return;
+
+      const chatKey = msg.chat.id.toString();
+
+      try {
+        // Fetch user context for personalized answers
+        const today = new Date().toISOString().slice(0, 10);
+        const [userTodos, userEvents, userBlocks] = await Promise.all([
+          db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))),
+          db.select().from(events).where(and(eq(events.userId, userId), gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
+          db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today))),
+        ]);
+
+        const contextLines = [
+          `오늘 날짜: ${today}`,
+          userTodos.length > 0 ? `할일 ${userTodos.length}개: ${userTodos.slice(0, 5).map(t => t.title).join(", ")}` : "할일 없음",
+          userEvents.length > 0 ? `오늘 일정 ${userEvents.length}개: ${userEvents.slice(0, 5).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}` : "오늘 일정 없음",
+          userBlocks.length > 0 ? `타임블록 ${userBlocks.length}개` : "타임블록 없음",
+        ];
+
+        const systemPrompt = `너는 TimeBox 개인 일정관리 앱의 AI 비서야. 사용자의 질문에 친절하고 간결하게 답변해.
+앱 기능: 할일관리, 캘린더, 타임블록 스케줄러, D-Day, 프로젝트 관리, 파일 보관함, 팀 채팅.
+사용자 현재 상황:
+${contextLines.join("\n")}
+
+일반적인 질문에도 자유롭게 답변해. 답변은 텔레그램에서 보기 좋게 짧고 핵심적으로.`;
+
+        // Get or create chat history
+        let history = chatHistories.get(chatKey) || [];
+
+        const chat = model.startChat({
+          history: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            { role: "model", parts: [{ text: "네, TimeBox AI 비서로서 도움드리겠습니다!" }] },
+            ...history,
+          ],
+        });
+
+        const result = await chat.sendMessage(msg.text);
+        const reply = result.response.text();
+
+        // Save to history (keep last 20 turns)
+        history.push({ role: "user", parts: [{ text: msg.text }] });
+        history.push({ role: "model", parts: [{ text: reply }] });
+        if (history.length > 40) history = history.slice(-40);
+        chatHistories.set(chatKey, history);
+
+        await bot!.sendMessage(msg.chat.id, reply, { parse_mode: "Markdown" }).catch(() =>
+          bot!.sendMessage(msg.chat.id, reply)
+        );
+      } catch (e) {
+        console.error("[gemini]", e);
+        bot!.sendMessage(msg.chat.id, "⚠️ AI 응답 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      }
+    });
+
+    console.log("[telegram] Gemini AI Q&A enabled");
+  }
 
   await setupDailyBriefing();
 }
