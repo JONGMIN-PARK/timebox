@@ -44,7 +44,7 @@ function CategoryPicker({ value, onChange, compact }: { value: string; onChange:
 
   return (
     <div className="relative">
-      <div className="absolute z-30 left-0 top-0 w-52 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl py-1 animate-scale-in max-h-64 overflow-y-auto">
+      <div className="absolute z-30 left-0 top-full mt-1 w-52 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl py-1 animate-scale-in max-h-64 overflow-y-auto">
         {TODO_CATEGORIES.map((cat) => (
           <div key={cat.id}>
             <button

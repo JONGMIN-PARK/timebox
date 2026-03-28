@@ -62,6 +62,12 @@ router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
     }
 
     const tags = safeJsonParse<string[]>(req.body.tags || "[]", []);
+
+    // Check for existing file with same name to determine version
+    const existing = await db.select().from(files)
+      .where(and(eq(files.userId, userId), eq(files.originalName, file.originalname)));
+    const version = existing.length > 0 ? Math.max(...existing.map(f => f.version || 1)) + 1 : 1;
+
     const result = await db.insert(files).values({
       userId,
       originalName: file.originalname,
@@ -70,6 +76,7 @@ router.post("/upload", upload.single("file"), async (req: AuthRequest, res) => {
       size: file.size,
       tags: JSON.stringify(tags),
       uploadedVia: "web",
+      version,
     }).returning();
 
     res.status(201).json({ success: true, data: result[0] });

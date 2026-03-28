@@ -442,4 +442,9 @@
     pointer-events: none;
   }
   .ripple:hover::after { opacity: 1; }
+
+  /* Smooth scrolling for iOS */
+  .overflow-x-auto, .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }

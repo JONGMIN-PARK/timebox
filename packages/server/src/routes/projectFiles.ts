@@ -56,6 +56,11 @@ router.post("/:projectId/files/upload", upload.single("file"), async (req: Proje
     const tags = safeJsonParse<string[]>(req.body.tags || "[]", []);
     const folder = req.body.folder || "/";
 
+    // Check for existing file with same name to determine version
+    const existing = await db.select().from(projectFiles)
+      .where(and(eq(projectFiles.projectId, req.projectId!), eq(projectFiles.originalName, file.originalname)));
+    const version = existing.length > 0 ? Math.max(...existing.map(f => f.version || 1)) + 1 : 1;
+
     const result = await db.insert(projectFiles).values({
       projectId: req.projectId!,
       uploaderId: req.userId!,
@@ -65,6 +70,7 @@ router.post("/:projectId/files/upload", upload.single("file"), async (req: Proje
       size: file.size,
       folder,
       tags: JSON.stringify(tags),
+      version,
     }).returning();
 
     res.status(201).json({ success: true, data: result[0] });

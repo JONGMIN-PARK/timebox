@@ -18,7 +18,7 @@ const ChatPanel = lazy(() => import("@/components/chat/ChatPanel"));
 const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashboard"));
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { connectSocket, disconnectSocket } from "@/lib/socket";
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import ToastContainer from "@/components/ui/Toast";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
@@ -51,6 +51,43 @@ export default function DashboardPage() {
     fetchMe();
     connectSocket();
     return () => disconnectSocket();
+  }, []);
+
+  // Browser notifications for background events
+  useEffect(() => {
+    const socket = getSocket();
+
+    const showNotif = (title: string, body: string) => {
+      if (document.hidden && Notification.permission === "granted") {
+        const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+        new Notification(title, { body, icon: "/icon-192.png" });
+      }
+    };
+
+    const handleInbox = (data: any) => {
+      const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+      if (prefs.inbox !== false) showNotif("새 메시지", data.fromName ? `${data.fromName}님의 메시지` : "새 메시지가 도착했습니다");
+    };
+
+    const handleChat = (data: any) => {
+      const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+      if (prefs.chat !== false) showNotif("채팅", data.message?.senderName ? `${data.message.senderName}: ${(data.message.content || "").slice(0, 50)}` : "새 채팅 메시지");
+    };
+
+    const handleTask = (data: any) => {
+      const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+      if (prefs.tasks !== false) showNotif("태스크 할당", "새로운 태스크가 할당되었습니다");
+    };
+
+    socket.on("inbox:new-message", handleInbox);
+    socket.on("chat:message", handleChat);
+    socket.on("task:assigned", handleTask);
+
+    return () => {
+      socket.off("inbox:new-message", handleInbox);
+      socket.off("chat:message", handleChat);
+      socket.off("task:assigned", handleTask);
+    };
   }, []);
 
   // Global keyboard shortcuts
@@ -129,7 +166,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex bg-slate-50 dark:bg-slate-900 bg-ambient pb-[48px] md:pb-0 safe-top safe-left safe-right">
+    <div className="h-[100dvh] flex bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right pb-[calc(48px+env(safe-area-inset-bottom,0px))] md:pb-0">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="flex-1 flex flex-col min-w-0">

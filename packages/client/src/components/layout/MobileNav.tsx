@@ -59,7 +59,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
   const isTeamActive = activeTab.startsWith("project-") || activeTab === "team";
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200/60 dark:border-slate-700/40 z-50 safe-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200/60 dark:border-slate-700/40 z-40 safe-bottom">
       <div className="flex justify-around py-1">
         {tabs.map((tab) => {
           const isActive = tab.id === "team" ? isTeamActive : activeTab === tab.id;
@@ -68,7 +68,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
               key={tab.id}
               onClick={() => handleTabClick(tab.id)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-xl min-w-0 flex-1 transition-all duration-200",
+                "flex flex-col items-center gap-0.5 px-1 py-2 rounded-xl min-w-0 flex-1 transition-all duration-200",
                 isActive
                   ? "text-blue-600 dark:text-blue-400"
                   : "text-slate-400 dark:text-slate-500 active:scale-95",

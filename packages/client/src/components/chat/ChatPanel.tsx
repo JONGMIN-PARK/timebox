@@ -543,7 +543,7 @@ export default function ChatPanel() {
                       <img
                         src={msg.content}
                         alt="shared image"
-                        className="max-w-[240px] rounded-xl cursor-pointer"
+                        className="max-w-[min(240px,70vw)] rounded-xl cursor-pointer"
                         onClick={() => window.open(msg.content, "_blank")}
                       />
                       {isMe && (
@@ -658,8 +658,8 @@ export default function ChatPanel() {
                 <Smile className="w-4 h-4" />
               </button>
               {showEmoji && (
-                <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-2 z-50">
-                  <div className="grid grid-cols-4 gap-1">
+                <div className="absolute bottom-full mb-2 right-0 p-2 grid grid-cols-8 sm:grid-cols-4 gap-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl z-50 max-w-[calc(100vw-2rem)]">
+                  <div className="grid grid-cols-8 sm:grid-cols-4 gap-1">
                     {EMOJIS.map((emoji) => (
                       <button
                         key={emoji}

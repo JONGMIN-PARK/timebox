@@ -438,6 +438,9 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_user_activity_user ON user_activity_log(user_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_user_activity_category ON user_activity_log(category, created_at DESC);
 
+      ALTER TABLE files ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE project_files ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+
       ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_by TEXT NOT NULL DEFAULT '[]';

@@ -103,16 +103,31 @@ async function checkReminders() {
   } catch {}
 }
 
+// Handle push events from server
+self.addEventListener("push", (event) => {
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || "TimeBox";
+  const options = {
+    body: data.body || "",
+    icon: "/icon-192.png",
+    badge: "/favicon-32.png",
+    tag: data.tag || "timebox-notification",
+    data: data.url ? { url: data.url } : {},
+    vibrate: [100, 50, 100],
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
 // Handle notification click
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const url = event.notification.data?.url || "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then((clients) => {
-      if (clients.length > 0) {
-        clients[0].focus();
-      } else {
-        self.clients.openWindow("/");
+      for (const client of clients) {
+        if (client.url.includes(url) && "focus" in client) return client.focus();
       }
+      return self.clients.openWindow(url);
     })
   );
 });

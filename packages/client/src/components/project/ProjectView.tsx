@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -14,7 +14,9 @@ import ProjectFileManager from "./ProjectFileManager";
 import ProjectChat from "./ProjectChat";
 import ProjectDocs from "./ProjectDocs";
 
-type Tab = "dashboard" | "tasks" | "members" | "board" | "files" | "chat" | "docs";
+const GanttView = lazy(() => import("./GanttView"));
+
+type Tab = "dashboard" | "tasks" | "gantt" | "members" | "board" | "files" | "chat" | "docs";
 
 interface ProjectInfo {
   id: number;
@@ -34,6 +36,7 @@ interface ProjectViewProps {
 const TAB_KEYS: { key: Tab; labelKey: string }[] = [
   { key: "dashboard", labelKey: "project.dashboard" },
   { key: "tasks", labelKey: "project.tasks" },
+  { key: "gantt", labelKey: "project.gantt" },
   { key: "board", labelKey: "post.title" },
   { key: "files", labelKey: "files.shared" },
   { key: "chat", labelKey: "chat.title" },
@@ -234,6 +237,11 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
         </div>
         <div className={cn("absolute inset-0 overflow-hidden", activeTab === "tasks" ? "block" : "hidden")}>
           <KanbanBoard projectId={projectId} />
+        </div>
+        <div className={cn("absolute inset-0 overflow-hidden", activeTab === "gantt" ? "block" : "hidden")}>
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
+            <GanttView projectId={projectId} />
+          </Suspense>
         </div>
         <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "board" ? "block" : "hidden")}>
           <PostBoard projectId={projectId} />

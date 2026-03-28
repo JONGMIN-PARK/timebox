@@ -189,7 +189,7 @@ function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col w-[240px] sm:w-[260px] md:w-[280px] min-w-[200px] bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/40 transition-colors",
+        "flex flex-col w-[80vw] sm:w-[240px] md:w-[260px] min-w-[200px] flex-shrink-0 bg-slate-50/80 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/40 transition-colors",
         isOver && "border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-500/5",
       )}
     >

@@ -153,6 +153,7 @@ export const files = pgTable("files", {
   size: integer("size").notNull(),
   tags: text("tags").notNull().default("[]"),
   uploadedVia: text("uploaded_via").notNull().default("web"),
+  version: integer("version").notNull().default(1),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),
@@ -286,6 +287,7 @@ export const projectFiles = pgTable("project_files", {
   size: integer("size").notNull(),
   folder: text("folder").notNull().default("/"),
   tags: text("tags").notNull().default("[]"),
+  version: integer("version").notNull().default(1),
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
 
