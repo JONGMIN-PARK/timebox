@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { Plus, GripVertical, CalendarDays, Loader2 } from "lucide-react";
+import { Plus, GripVertical, CalendarDays, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -33,6 +33,18 @@ const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
 
 const priorityColor = (p: string) =>
   p === "high" ? "#ef4444" : p === "medium" ? "#f59e0b" : "#94a3b8";
+
+/** Format datetime as MM-DD HH:mm:ss in KST */
+function fmtDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const mm = String(kst.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(kst.getUTCDate()).padStart(2, "0");
+  const hh = String(kst.getUTCHours()).padStart(2, "0");
+  const mi = String(kst.getUTCMinutes()).padStart(2, "0");
+  const ss = String(kst.getUTCSeconds()).padStart(2, "0");
+  return `${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
 
 /** Stable sort: by sortOrder, then by id as tiebreaker */
 function stableSort(tasks: ProjectTask[]) {
@@ -136,6 +148,12 @@ const TaskCard = React.memo(function TaskCard({
                   {tag.trim()}
                 </span>
               ))}
+
+            {/* Updated time */}
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5 tabular-nums">
+              <Clock className="w-2.5 h-2.5" />
+              {fmtDateTime(task.updatedAt)}
+            </span>
 
             {/* Spacer */}
             <div className="flex-1" />
