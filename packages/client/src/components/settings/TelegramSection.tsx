@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
-import { MessageCircle, Link2, Unlink, Send, Copy, Check } from "lucide-react";
+import { MessageCircle, Link2, Unlink, Send, Copy, Check, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QRCodeSVG } from "qrcode.react";
 
 interface TelegramConfig {
   id: number;
@@ -16,6 +17,7 @@ export default function TelegramSection() {
   const [config, setConfig] = useState<TelegramConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [linkCode, setLinkCode] = useState("");
+  const [deepLink, setDeepLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null);
@@ -30,9 +32,10 @@ export default function TelegramSection() {
   const isLinked = config?.chatId && config?.active;
 
   const handleGenerateCode = async () => {
-    const res = await api.post<{ code: string; instruction: string }>("/telegram/generate-link", {});
+    const res = await api.post<{ code: string; deepLink: string | null; instruction: string }>("/telegram/generate-link", {});
     if (res.success && res.data) {
       setLinkCode(res.data.code);
+      setDeepLink(res.data.deepLink || "");
     }
   };
 
@@ -112,22 +115,44 @@ export default function TelegramSection() {
               {t("settings.telegramGuide")}
             </p>
 
-            {/* Step 1: Generate code */}
             {!linkCode ? (
               <button
                 onClick={handleGenerateCode}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
               >
-                <Link2 className="w-4 h-4" />
+                <QrCode className="w-4 h-4" />
                 {t("settings.telegramGenerate")}
               </button>
             ) : (
-              <div className="space-y-2">
-                {/* Step 2: Show code */}
-                <div className="bg-slate-100 dark:bg-slate-700/60 rounded-xl p-4 space-y-2">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {t("settings.telegramStep1")}
-                  </p>
+              <div className="space-y-3">
+                {/* QR Code */}
+                {deepLink && (
+                  <div className="flex flex-col items-center gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/40">
+                    <QRCodeSVG
+                      value={deepLink}
+                      size={180}
+                      bgColor="transparent"
+                      fgColor="currentColor"
+                      className="text-slate-900 dark:text-white"
+                      level="M"
+                    />
+                    <p className="text-[11px] text-slate-400 text-center">
+                      {t("settings.telegramQrGuide")}
+                    </p>
+                    <a
+                      href={deepLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-600 transition-colors"
+                    >
+                      <Link2 className="w-3 h-3" />
+                      {t("settings.telegramOpenDirect")}
+                    </a>
+                  </div>
+                )}
+                {/* Fallback: manual code */}
+                <div className="bg-slate-100 dark:bg-slate-700/60 rounded-xl p-3 space-y-1.5">
+                  <p className="text-[11px] text-slate-400">{t("settings.telegramManual")}</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-sm font-mono bg-white dark:bg-slate-800 rounded-lg px-3 py-2 text-blue-600 dark:text-blue-400 select-all">
                       /link {linkCode}
@@ -140,9 +165,6 @@ export default function TelegramSection() {
                       {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-slate-400" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400">
-                    {t("settings.telegramStep2")}
-                  </p>
                 </div>
               </div>
             )}

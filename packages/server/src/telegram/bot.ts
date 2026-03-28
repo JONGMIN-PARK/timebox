@@ -13,6 +13,7 @@ const __dirname2 = path.dirname(__filename2);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname2, "../../uploads");
 
 let bot: TelegramBot | null = null;
+let botUsername: string | null = null;
 
 async function isLinkedUser(msg: TelegramBot.Message): Promise<number | null> {
   const chatId = msg.chat.id.toString();
@@ -74,10 +75,39 @@ export async function initTelegramBot() {
     { command: "link", description: "계정 연동 (코드)" },
   ]);
 
-  console.log("Telegram bot initialized");
+  // Cache bot username for QR deep links
+  try {
+    const me = await bot.getMe();
+    botUsername = me.username || null;
+    console.log(`Telegram bot initialized: @${botUsername}`);
+  } catch {
+    console.log("Telegram bot initialized (could not fetch username)");
+  }
 
-  // ── /start ──
-  bot.onText(/\/start/, async (msg) => {
+  // ── /start ── (handles deep link: /start link_CODE)
+  bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
+    const payload = match?.[1];
+    if (payload && payload.startsWith("link_")) {
+      const code = payload.slice(5);
+      // Reuse /link logic
+      const chatId = msg.chat.id.toString();
+      const { linkCodes } = await import("../lib/telegramLink.js");
+      const linkData = linkCodes.get(code);
+      if (!linkData) {
+        bot!.sendMessage(msg.chat.id, "❌ 유효하지 않거나 만료된 코드입니다. 설정에서 새 코드를 생성해주세요.");
+        return;
+      }
+      const existing = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, linkData.userId));
+      if (existing.length > 0) {
+        await db.update(telegramConfig).set({ chatId, active: true, updatedAt: new Date().toISOString() })
+          .where(eq(telegramConfig.userId, linkData.userId));
+      } else {
+        await db.insert(telegramConfig).values({ userId: linkData.userId, chatId, active: true });
+      }
+      linkCodes.delete(code);
+      bot!.sendMessage(msg.chat.id, "✅ 계정이 연동되었습니다! 🎉\n\n/help 로 사용법을 확인하세요.", { parse_mode: "Markdown" });
+      return;
+    }
     bot!.sendMessage(msg.chat.id, `✅ *TimeBox Bot Connected!*\n\nType /h for quick help or /help for full commands.\n먼저 /link 코드 로 계정을 연동해주세요.`, { parse_mode: "Markdown" });
   });
 
@@ -718,3 +748,4 @@ async function sendDailyBriefing() {
 }
 
 export function getTelegramBot() { return bot; }
+export function getTelegramBotUsername() { return botUsername; }

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "../db/index.js";
 import { telegramConfig } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { getTelegramBot } from "../telegram/bot.js";
+import { getTelegramBot, getTelegramBotUsername } from "../telegram/bot.js";
 import { type AuthRequest } from "../middleware/auth.js";
 import crypto from "crypto";
 import { linkCodes } from "../lib/telegramLink.js";
@@ -33,7 +33,9 @@ router.post("/generate-link", async (req: AuthRequest, res) => {
       if (Date.now() - v.createdAt > 10 * 60 * 1000) linkCodes.delete(k);
     }
 
-    res.json({ success: true, data: { code, instruction: `텔레그램 봇에서 /link ${code} 를 입력하세요` } });
+    const botName = getTelegramBotUsername();
+    const deepLink = botName ? `https://t.me/${botName}?start=link_${code}` : null;
+    res.json({ success: true, data: { code, deepLink, instruction: `텔레그램 봇에서 /link ${code} 를 입력하세요` } });
   } catch (error) {
     console.error("telegram:generateLink", error);
     res.status(500).json({ success: false, error: "Failed to generate link code" });
