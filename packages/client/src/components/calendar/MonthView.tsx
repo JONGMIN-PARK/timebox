@@ -74,7 +74,7 @@ export default function MonthView({
                   e.preventDefault();
                   const rect = target.getBoundingClientRect();
                   setLongPressDate(dateKey);
-                  setMenuPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                  setMenuPos({ x: rect.left + rect.width / 2, y: rect.top });
                   // Clear text selection
                   window.getSelection()?.removeAllRanges();
                 }, 500);
@@ -89,7 +89,7 @@ export default function MonthView({
                 e.preventDefault();
                 const rect = e.currentTarget.getBoundingClientRect();
                 setLongPressDate(dateKey);
-                setMenuPos({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                setMenuPos({ x: rect.left + rect.width / 2, y: rect.top });
               }}
               onMouseEnter={(e) => onDayHover(e, dateKey)}
               onMouseLeave={onDayLeave}
@@ -143,7 +143,7 @@ export default function MonthView({
             style={{
               left: Math.max(8, Math.min(menuPos.x, window.innerWidth - 188)),
               top: Math.max(8, Math.min(menuPos.y, window.innerHeight - 200)),
-              transform: "translate(-50%, -50%)",
+              transform: "translate(-50%, -100%)",
             }}
           >
             <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase">
