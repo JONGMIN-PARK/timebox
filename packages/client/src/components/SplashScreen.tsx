@@ -13,7 +13,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
   useEffect(() => {
     const t1 = setTimeout(() => setPhase(1), 600);
     const t2 = setTimeout(() => setPhase(2), 1600);
-    const t3 = setTimeout(() => onComplete(), 2100);
+    const t3 = setTimeout(() => onComplete(), 2600);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [onComplete]);
 
@@ -30,7 +30,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)",
         overflow: "hidden",
         opacity: phase >= 2 ? 0 : 1,
-        transition: "opacity 0.5s ease-out",
+        transition: "opacity 1s ease-out",
       }}
     >
       {/* Ambient glow */}
@@ -48,7 +48,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         transform: phase === 0 ? "scale(0.6)" : phase === 1 ? "scale(1)" : "scale(30)",
         opacity: phase === 0 ? 0 : phase === 1 ? 1 : 0,
         transition: phase === 2
-          ? "transform 0.5s cubic-bezier(0.4, 0, 1, 1), opacity 0.4s ease-out"
+          ? "transform 1s cubic-bezier(0.4, 0, 1, 1), opacity 0.8s ease-out"
           : "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease-in",
       }}>
         {/* Logo SVG */}
