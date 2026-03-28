@@ -133,7 +133,10 @@ export default function ChatPanel() {
   // ── Auto-scroll on new messages ──
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   // ── Open a chat room ──
