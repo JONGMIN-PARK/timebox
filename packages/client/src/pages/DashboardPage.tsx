@@ -211,7 +211,7 @@ export default function DashboardPage() {
               </main>
 
               {showRightPanel && (
-                <aside className="hidden lg:flex flex-col w-80 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
+                <aside className="hidden lg:flex flex-col w-96 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
                   {activeTab !== "todo" && (
                     <div className="flex-1 border-b border-slate-200/60 dark:border-slate-700/40">
                       <Suspense fallback={<div className="p-4"><LoadingSpinner size="sm" /></div>}>
