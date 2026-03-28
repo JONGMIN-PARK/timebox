@@ -4,12 +4,14 @@ import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
 import { getSocket } from "@/lib/socket";
 import DDayChips from "@/components/dday/DDayChips";
+import { APP_VERSION } from "@/lib/version";
 
 interface HeaderProps {
   onInboxClick?: () => void;
+  onVersionClick?: () => void;
 }
 
-export default function Header({ onInboxClick }: HeaderProps) {
+export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const pageVisible = usePageVisible();
 
@@ -47,10 +49,16 @@ export default function Header({ onInboxClick }: HeaderProps) {
           <span className="text-white text-[10px] font-bold">TB</span>
         </div>
         <span className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">TimeBox</span>
+        <button onClick={onVersionClick} className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full ml-1">
+          v{APP_VERSION}
+        </button>
       </div>
 
-      <div className="hidden md:block flex-1 overflow-x-auto">
+      <div className="hidden md:flex flex-1 items-center gap-2 overflow-x-auto">
         <DDayChips />
+        <button onClick={onVersionClick} className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full ml-1 flex-shrink-0 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+          v{APP_VERSION}
+        </button>
       </div>
 
       {/* Inbox bell */}

@@ -22,6 +22,7 @@ import { connectSocket, disconnectSocket } from "@/lib/socket";
 import ToastContainer from "@/components/ui/Toast";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
+import VersionModal from "@/components/VersionModal";
 import ChatRequestPopup from "@/components/chat/ChatRequestPopup";
 
 const ProjectView = lazy(() => import("@/components/project/ProjectView"));
@@ -35,6 +36,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("calendar");
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showVersion, setShowVersion] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     if (splashShownRef.current) return false;
     splashShownRef.current = true;
@@ -134,7 +136,7 @@ export default function DashboardPage() {
         <Header onInboxClick={() => {
           useProjectStore.getState().setActiveProject(null);
           setActiveTab("inbox");
-        }} />
+        }} onVersionClick={() => setShowVersion(true)} />
 
         <div className="flex-1 flex overflow-hidden">
           {activeProjectId && hasTeamAccess ? (
@@ -174,6 +176,7 @@ export default function DashboardPage() {
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
       <ChatRequestPopup onAccept={() => setActiveTab("chat")} />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
+      <VersionModal open={showVersion} onClose={() => setShowVersion(false)} />
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
       <ToastContainer />
     </div>
