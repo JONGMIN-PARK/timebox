@@ -389,6 +389,53 @@ export async function initDb() {
         created_at TEXT NOT NULL DEFAULT now()
       );
       CREATE INDEX IF NOT EXISTS idx_task_reactions_task ON task_reactions(task_id);
+
+      CREATE TABLE IF NOT EXISTS chat_rooms (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'group',
+        description TEXT,
+        created_by INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS chat_members (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        joined_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_members_room ON chat_members(room_id);
+      CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id);
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'text',
+        reply_to INTEGER,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(room_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS user_activity_log (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        action TEXT NOT NULL,
+        category TEXT NOT NULL,
+        target_type TEXT,
+        target_id INTEGER,
+        project_id INTEGER,
+        metadata TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_activity_user ON user_activity_log(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_user_activity_category ON user_activity_log(category, created_at DESC);
     `);
 
     // Seed default categories if empty

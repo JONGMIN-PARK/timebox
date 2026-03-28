@@ -13,10 +13,14 @@ const ElonScheduler = lazy(() => import("@/components/scheduler/ElonScheduler"))
 const FileVault = lazy(() => import("@/components/files/FileVault"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const InboxPanel = lazy(() => import("@/components/inbox/InboxPanel"));
+const ChatPanel = lazy(() => import("@/components/chat/ChatPanel"));
+const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashboard"));
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { connectSocket, disconnectSocket } from "@/lib/socket";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
+import ChatRequestPopup from "@/components/chat/ChatRequestPopup";
 
 const ProjectView = lazy(() => import("@/components/project/ProjectView"));
 const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
@@ -33,6 +37,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchMe();
+    connectSocket();
+    return () => disconnectSocket();
   }, []);
 
   // Global keyboard shortcuts
@@ -83,6 +89,10 @@ export default function DashboardPage() {
         return <FileVault />;
       case "inbox":
         return <InboxPanel />;
+      case "chat":
+        return <ChatPanel />;
+      case "analytics":
+        return <AnalyticsDashboard />;
       case "projects":
         return <ProjectSummary />;
       case "project-new":
@@ -100,7 +110,7 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = !["settings", "scheduler"].includes(activeTab);
+  const showRightPanel = !["settings", "scheduler", "chat", "analytics"].includes(activeTab);
 
   return (
     <div className="h-[100dvh] flex bg-slate-50 dark:bg-slate-900 bg-ambient pb-[48px] md:pb-0 safe-top safe-left safe-right">
@@ -148,6 +158,7 @@ export default function DashboardPage() {
       </div>
 
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <ChatRequestPopup onAccept={() => setActiveTab("chat")} />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
     </div>

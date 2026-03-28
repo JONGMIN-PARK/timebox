@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -20,6 +20,7 @@ const tabs = [
   { id: "files", labelKey: "nav.files", icon: FileBox },
   { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
   { id: "inbox", labelKey: "inbox.title", icon: Mail },
+  { id: "chat", labelKey: "nav.chat", icon: MessageCircle },
 ];
 
 const projectTabs = [
@@ -248,6 +249,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <ThemeIcon className="w-[18px] h-[18px]" />
           <span className="hidden lg:block">{{ light: t("settings.light"), dark: t("settings.dark"), system: t("settings.system") }[theme]}</span>
         </button>
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => onTabChange("analytics")}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-all",
+              activeTab === "analytics"
+                ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40",
+            )}
+          >
+            <BarChart3 className="w-[18px] h-[18px]" />
+            <span className="hidden lg:block">{t("nav.analytics")}</span>
+          </button>
+        )}
         <button
           onClick={() => onTabChange("settings")}
           className={cn(

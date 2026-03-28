@@ -1,4 +1,4 @@
-import { Calendar, Clock, CheckSquare, LayoutGrid, Settings, Users } from "lucide-react";
+import { Calendar, Clock, CheckSquare, LayoutGrid, Settings, Users, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { useAuthStore } from "@/stores/authStore";
@@ -13,7 +13,7 @@ const personalTabs = [
   { id: "calendar", labelKey: "nav.calendar", icon: Calendar },
   { id: "timebox", labelKey: "nav.timebox", icon: Clock },
   { id: "todo", labelKey: "nav.todos", icon: CheckSquare },
-  { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
+  { id: "chat", labelKey: "nav.chat", icon: MessageCircle },
   { id: "settings", labelKey: "nav.settings", icon: Settings },
 ];
 
@@ -22,6 +22,7 @@ const personalTabsWithTeam = [
   { id: "timebox", labelKey: "nav.timebox", icon: Clock },
   { id: "todo", labelKey: "nav.todos", icon: CheckSquare },
   { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
+  { id: "chat", labelKey: "nav.chat", icon: MessageCircle },
   { id: "team", labelKey: "project.title", icon: Users },
   { id: "settings", labelKey: "nav.settings", icon: Settings },
 ];

@@ -9,6 +9,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "nav.timebox": "TimeBox",
     "nav.files": "Files",
     "nav.scheduler": "Scheduler",
+    "nav.chat": "Chat",
+    "nav.analytics": "Analytics",
     "nav.settings": "Settings",
 
     // Common
@@ -328,6 +330,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "nav.timebox": "\ud0c0\uc784\ubc15\uc2a4",
     "nav.files": "\ud30c\uc77c",
     "nav.scheduler": "\uc2a4\ucf00\uc904\ub7ec",
+    "nav.chat": "\ucc44\ud305",
+    "nav.analytics": "\ubd84\uc11d",
     "nav.settings": "\uc124\uc815",
 
     // Common

@@ -3,6 +3,7 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createServer } from "http";
 import dotenv from "dotenv";
 import cron from "node-cron";
 import { initDb } from "./db/index.js";
@@ -25,7 +26,11 @@ import projectMessageRoutes from "./routes/projectMessages.js";
 import teamGroupRoutes from "./routes/teamGroups.js";
 import presenceRoutes from "./routes/presence.js";
 import inboxRoutes from "./routes/inbox.js";
+import chatRoutes from "./routes/chat.js";
 import { initTelegramBot } from "./telegram/bot.js";
+import { initSocket } from "./socket/index.js";
+import analyticsRoutes from "./routes/analytics.js";
+import { activityTracker } from "./middleware/activityTracker.js";
 
 dotenv.config();
 
@@ -33,6 +38,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // Initialize database (async)
@@ -103,6 +109,11 @@ app.use("/api/projects", authMiddleware, projectMessageRoutes);
 app.use("/api/admin/groups", authMiddleware, adminMiddleware, teamGroupRoutes);
 app.use("/api/presence", authMiddleware, presenceRoutes);
 app.use("/api/inbox", authMiddleware, inboxRoutes);
+app.use("/api/chat", authMiddleware, chatRoutes);
+app.use("/api/analytics", authMiddleware, adminMiddleware, analyticsRoutes);
+
+// Activity tracking (after routes, logs completed requests)
+app.use(activityTracker);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
@@ -116,7 +127,10 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
+// Initialize Socket.io
+initSocket(httpServer);
+
+httpServer.listen(PORT, () => {
   console.log(`TimeBox server running on http://localhost:${PORT}`);
 
   // Initialize Telegram bot only in production (prevents polling conflict with local dev)

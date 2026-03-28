@@ -341,3 +341,49 @@ export const taskReactions = pgTable("task_reactions", {
   emoji: text("emoji").notNull(), // "👍" "🔥" "💪" "⚠️" "❤️" "👀" "🎉" etc.
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
+
+// ── Chat Rooms ──
+export const chatRooms = pgTable("chat_rooms", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("group"), // "group" | "direct"
+  description: text("description"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
+// ── Chat Members ──
+export const chatMembers = pgTable("chat_members", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull().default("member"), // "owner" | "admin" | "member"
+  joinedAt: text("joined_at").notNull().default(sql`now()`),
+});
+
+// ── Chat Messages ──
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull(),
+  userId: integer("user_id").notNull(),
+  content: text("content").notNull(),
+  type: text("type").notNull().default("text"), // "text" | "system" | "image"
+  replyTo: integer("reply_to"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
+// ── User Activity Log (Admin Analytics) ──
+export const userActivityLog = pgTable("user_activity_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  action: text("action").notNull(), // e.g., "todo.create", "event.update", "project.view"
+  category: text("category").notNull(), // "personal" | "project" | "general"
+  targetType: text("target_type"), // "todo", "event", "project", "chat", etc.
+  targetId: integer("target_id"),
+  projectId: integer("project_id"),
+  metadata: text("metadata"), // JSON string for extra info
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
