@@ -28,26 +28,31 @@ interface MemberStats {
   completedTasks: number;
 }
 
+interface ChangeDetail {
+  field: string;
+  from: string;
+  to: string;
+}
+
 interface ActivityItem {
   id: number;
   userId: number;
   username: string;
-  action: "completed" | "created" | "commented";
+  action: string;
   targetTitle: string;
+  changes?: ChangeDetail[] | null;
   createdAt: string;
 }
 
-function relativeTime(dateStr: string, t: (key: string) => string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return t("dashboard.justNow");
-  if (diffMin < 60) return t("dashboard.minutesAgo").replace("{n}", String(diffMin));
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return t("dashboard.hoursAgo").replace("{n}", String(diffHour));
-  const diffDay = Math.floor(diffHour / 24);
-  return t("dashboard.daysAgo").replace("{n}", String(diffDay));
+function fmtDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const mm = String(kst.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(kst.getUTCDate()).padStart(2, "0");
+  const hh = String(kst.getUTCHours()).padStart(2, "0");
+  const mi = String(kst.getUTCMinutes()).padStart(2, "0");
+  const ss = String(kst.getUTCSeconds()).padStart(2, "0");
+  return `${mm}-${dd} ${hh}:${mi}:${ss}`;
 }
 
 function actionIcon(action: string) {
@@ -58,22 +63,29 @@ function actionIcon(action: string) {
       return <span className="text-blue-500">●</span>;
     case "commented":
       return <span className="text-yellow-500">●</span>;
+    case "deleted":
+      return <span className="text-red-500">●</span>;
+    case "updated":
+      return <span className="text-orange-400">●</span>;
     default:
       return <span className="text-slate-400">●</span>;
   }
 }
 
-function actionLabel(action: string, targetTitle: string, t: (key: string) => string): string {
-  switch (action) {
-    case "completed":
-      return t("dashboard.actionCompleted").replace("{title}", targetTitle);
-    case "created":
-      return t("dashboard.actionCreated").replace("{title}", targetTitle);
-    case "commented":
-      return t("dashboard.actionCommented").replace("{title}", targetTitle);
-    default:
-      return targetTitle;
-  }
+const ACTION_LABEL_MAP: Record<string, string> = {
+  created: "생성",
+  completed: "완료",
+  updated: "수정",
+  deleted: "삭제",
+  commented: "댓글",
+  transfer_requested: "이관 요청",
+  transfer_accepted: "이관 수락",
+  transfer_rejected: "이관 거절",
+};
+
+function actionLabel(action: string, targetTitle: string): string {
+  const label = ACTION_LABEL_MAP[action] || action;
+  return `"${targetTitle}" ${label}`;
 }
 
 export default function ProjectDashboard({ projectId }: { projectId: number }) {
@@ -269,17 +281,26 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
             {activity.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors"
+                className="flex gap-3 px-4 py-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors"
               >
-                <span className="text-sm shrink-0">{actionIcon(a.action)}</span>
+                <span className="text-sm shrink-0 mt-0.5">{actionIcon(a.action)}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] text-slate-700 dark:text-slate-200 truncate">
+                  <p className="text-[13px] text-slate-700 dark:text-slate-200">
                     <span className="font-medium">{a.username}</span>{" "}
-                    {actionLabel(a.action, a.targetTitle, t)}
+                    {actionLabel(a.action, a.targetTitle)}
                   </p>
+                  {a.changes && a.changes.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {a.changes.map((c, i) => (
+                        <p key={i} className="text-[11px] text-slate-400 dark:text-slate-500">
+                          <span className="text-slate-500 dark:text-slate-400">{c.field}</span>: {c.from} → {c.to}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap">
-                  {relativeTime(a.createdAt, t)}
+                <span className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap tabular-nums mt-0.5">
+                  {fmtDateTime(a.createdAt)}
                 </span>
               </div>
             ))}

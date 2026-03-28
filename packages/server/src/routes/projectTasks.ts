@@ -135,6 +135,16 @@ router.post("/:projectId/tasks", projectEditorMiddleware, async (req: ProjectReq
 router.put("/:projectId/tasks/:taskId", projectEditorMiddleware, async (req: ProjectRequest, res) => {
   try {
     const taskId = parseInt(req.params.taskId as string);
+
+    // Fetch old task for change tracking
+    const oldRows = await db.select().from(projectTasks)
+      .where(and(eq(projectTasks.id, taskId), eq(projectTasks.projectId, req.projectId!)));
+    if (!oldRows[0]) {
+      res.status(404).json({ success: false, error: "Task not found" });
+      return;
+    }
+    const oldTask = oldRows[0];
+
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
     if (req.body.title !== undefined) updates.title = req.body.title.trim();
@@ -159,15 +169,67 @@ router.put("/:projectId/tasks/:taskId", projectEditorMiddleware, async (req: Pro
     const io = getIO();
     if (io) io.to(`project-${req.projectId}`).emit("task:updated", { projectId: req.projectId, task: result[0] });
 
-    // Log status changes
-    if (req.body.status) {
+    // Build detailed change log
+    const FIELD_LABELS: Record<string, string> = {
+      title: "제목", description: "설명", status: "상태", priority: "우선순위",
+      assigneeId: "담당자", startDate: "시작일", dueDate: "마감일", tags: "태그",
+    };
+    const STATUS_LABELS: Record<string, string> = {
+      todo: "할일", in_progress: "진행중", in_review: "검토중", done: "완료",
+    };
+    const PRIORITY_LABELS: Record<string, string> = {
+      low: "낮음", medium: "보통", high: "높음", urgent: "긴급",
+    };
+
+    const changes: { field: string; from: string; to: string }[] = [];
+    const trackFields = ["title", "description", "status", "priority", "assigneeId", "startDate", "dueDate", "tags"] as const;
+
+    // Resolve assignee names if assigneeId changed
+    let assigneeNameMap = new Map<number, string>();
+    if (req.body.assigneeId !== undefined && String(oldTask.assigneeId ?? "") !== String(req.body.assigneeId ?? "")) {
+      const ids = [oldTask.assigneeId, req.body.assigneeId].filter((id): id is number => !!id);
+      if (ids.length > 0) {
+        const nameRows = await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users).where(inArray(users.id, ids));
+        assigneeNameMap = new Map(nameRows.map(u => [u.id, u.displayName || u.username]));
+      }
+    }
+
+    for (const field of trackFields) {
+      if (req.body[field] === undefined) continue;
+      const oldVal = String(oldTask[field] ?? "");
+      const newVal = field === "tags" ? JSON.stringify(req.body[field]) : String(req.body[field] ?? "");
+      if (oldVal === newVal) continue;
+
+      let fromDisplay = oldVal || "(없음)";
+      let toDisplay = newVal || "(없음)";
+
+      if (field === "status") {
+        fromDisplay = STATUS_LABELS[oldVal] || oldVal || "(없음)";
+        toDisplay = STATUS_LABELS[newVal] || newVal || "(없음)";
+      } else if (field === "priority") {
+        fromDisplay = PRIORITY_LABELS[oldVal] || oldVal || "(없음)";
+        toDisplay = PRIORITY_LABELS[newVal] || newVal || "(없음)";
+      } else if (field === "description") {
+        fromDisplay = oldVal ? `${oldVal.slice(0, 20)}...` : "(없음)";
+        toDisplay = newVal ? `${newVal.slice(0, 20)}...` : "(없음)";
+      } else if (field === "assigneeId") {
+        fromDisplay = oldTask.assigneeId ? (assigneeNameMap.get(oldTask.assigneeId) || oldVal) : "(없음)";
+        toDisplay = req.body.assigneeId ? (assigneeNameMap.get(req.body.assigneeId) || newVal) : "(없음)";
+      }
+
+      changes.push({ field: FIELD_LABELS[field] || field, from: fromDisplay, to: toDisplay });
+    }
+
+    // Log activity with detailed changes (skip sortOrder-only updates)
+    if (changes.length > 0) {
+      const action = req.body.status === "done" ? "task_completed" : "task_updated";
       await db.insert(activityLog).values({
         projectId: req.projectId!,
         userId: req.userId!,
-        action: req.body.status === "done" ? "task_completed" : "task_updated",
+        action,
         targetType: "task",
         targetId: taskId,
-        metadata: JSON.stringify({ title: result[0].title, status: req.body.status }),
+        metadata: JSON.stringify({ title: result[0].title, changes }),
       });
     }
 
@@ -231,6 +293,16 @@ router.delete("/:projectId/tasks/:taskId", projectEditorMiddleware, async (req: 
       res.status(404).json({ success: false, error: "Task not found" });
       return;
     }
+
+    // Log deletion
+    await db.insert(activityLog).values({
+      projectId: req.projectId!,
+      userId: req.userId!,
+      action: "task_deleted",
+      targetType: "task",
+      targetId: taskId,
+      metadata: JSON.stringify({ title: result[0].title }),
+    });
 
     // Notify project members via socket
     const io = getIO();
@@ -527,6 +599,7 @@ router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
       task_created: "created",
       task_completed: "completed",
       task_updated: "updated",
+      task_deleted: "deleted",
       comment_added: "commented",
       task_transfer_requested: "transfer_requested",
       task_transfer_accepted: "transfer_accepted",
@@ -541,6 +614,7 @@ router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
         username: activityUserMap.get(l.userId)?.displayName || "Unknown",
         action: actionMap[l.action] || l.action,
         targetTitle: parsed.title || "",
+        changes: parsed.changes || null,
         createdAt: l.createdAt,
       };
     });
