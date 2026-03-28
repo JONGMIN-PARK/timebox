@@ -727,21 +727,28 @@ export async function initTelegramBot() {
         let contextLines: string[] = [`오늘 날짜: ${today}`, `사용자: ${userRow.displayName || userRow.username} (${userRow.role})`];
 
         if (isAdmin) {
-          // Admin: full app data
-          const [allUsers, allTodos, allEvents, allBlocks, allDdays, allProjects, allTasks] = await Promise.all([
+          // Admin: full app data — include own todos separately + all todos with owner info
+          const [allUsers, myTodos, allTodos, allEvents, myEvents, allBlocks, allDdays, allProjects, allTasks] = await Promise.all([
             db.select({ id: users.id, username: users.username, displayName: users.displayName, role: users.role, active: users.active }).from(users),
+            db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))),
             db.select().from(todos).where(eq(todos.completed, false)),
             db.select().from(events).where(and(gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
+            db.select().from(events).where(and(eq(events.userId, userId), gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
             db.select().from(timeBlocks).where(eq(timeBlocks.date, today)),
             db.select().from(ddays),
             db.select().from(projects),
             db.select().from(projectTasks),
           ]);
 
+          // Build user ID → name map for labeling
+          const nameMap = new Map(allUsers.map(u => [u.id, u.displayName || u.username]));
+
           contextLines.push(
             `\n[전체 사용자 ${allUsers.length}명]: ${allUsers.map(u => `${u.displayName || u.username}(${u.role}${u.active ? "" : ",비활성"})`).join(", ")}`,
-            `\n[전체 미완료 할일 ${allTodos.length}개]: ${allTodos.slice(0, 15).map(t => `${t.title}(우선순위:${t.priority},진행:${t.progress}%)`).join(", ")}${allTodos.length > 15 ? ` ...외 ${allTodos.length - 15}개` : ""}`,
-            `\n[오늘 일정 ${allEvents.length}개]: ${allEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}`,
+            `\n[내 할일 ${myTodos.length}개]: ${myTodos.slice(0, 10).map(t => `${t.title}(우선순위:${t.priority},진행:${t.progress}%${t.dueDate ? ",마감:" + t.dueDate : ""})`).join(", ")}${myTodos.length > 10 ? ` ...외 ${myTodos.length - 10}개` : ""}`,
+            `\n[전체 미완료 할일 ${allTodos.length}개]: ${allTodos.slice(0, 15).map(t => `${t.title}(담당:${nameMap.get(t.userId) || t.userId},${t.priority},${t.progress}%${t.dueDate ? ",마감:" + t.dueDate : ""})`).join(", ")}${allTodos.length > 15 ? ` ...외 ${allTodos.length - 15}개` : ""}`,
+            `\n[내 오늘 일정 ${myEvents.length}개]: ${myEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}`).join(", ")}`,
+            `\n[전체 오늘 일정 ${allEvents.length}개]: ${allEvents.slice(0, 10).map(e => `${e.startTime.slice(11, 16)} ${e.title}(${nameMap.get(e.userId) || e.userId})`).join(", ")}`,
             `\n[오늘 타임블록 ${allBlocks.length}개]: ${allBlocks.slice(0, 10).map(b => `${b.startTime}-${b.endTime} ${b.title}`).join(", ")}`,
             `\n[D-Day ${allDdays.length}개]: ${allDdays.slice(0, 10).map(d => `${d.title}(${d.targetDate})`).join(", ")}`,
             `\n[프로젝트 ${allProjects.length}개]: ${allProjects.map(p => `${p.name}(${p.archived ? "보관됨" : "진행중"})`).join(", ")}`,
@@ -777,8 +784,9 @@ export async function initTelegramBot() {
           }
         }
 
-        const systemPrompt = `너는 TimeBox 일정관리 앱의 AI 비서야. ${isAdmin ? "관리자로서 앱의 모든 데이터에 접근 가능하다." : "사용자 본인의 데이터만 접근 가능하다."}
+        const systemPrompt = `너는 TimeBox 일정관리 앱의 AI 비서야. ${isAdmin ? "관리자로서 앱의 모든 데이터에 접근 가능하다. '내 할일'과 '전체 할일'이 구분되어 있다." : "사용자 본인의 데이터만 접근 가능하다."}
 앱 기능: 할일관리, 캘린더, 타임블록 스케줄러, D-Day, 프로젝트 관리, 파일 보관함, 팀 채팅.
+사용자가 "내 할일", "내 일정" 등을 물으면 해당 사용자의 데이터만 보여줘.
 
 현재 데이터:
 ${contextLines.filter(Boolean).join("\n")}
