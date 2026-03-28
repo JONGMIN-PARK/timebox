@@ -49,15 +49,10 @@ function parseRoute(method: string, path: string) {
   const resourceId = segments.length > 1 ? parseInt(segments[1]) : undefined;
   const hasId = resourceId && !isNaN(resourceId);
 
-  // Skip GET list requests (no specific resource ID)
-  if (method === "GET" && !hasId) {
-    return null;
-  }
-
   // Determine action verb
   let verb: string;
-  if (method === "GET" && hasId) {
-    verb = "view";
+  if (method === "GET") {
+    verb = hasId ? "view" : "list";
   } else {
     verb = METHOD_ACTION_MAP[method];
     if (!verb) return null;
@@ -89,11 +84,7 @@ function parseRoute(method: string, path: string) {
       const subId = segments.length > 3 ? parseInt(segments[3]) : undefined;
       const hasSubId = subId && !isNaN(subId);
 
-      if (method === "GET" && !hasSubId) {
-        return null; // skip list of sub-resources
-      }
-
-      verb = method === "GET" && hasSubId ? "view" : METHOD_ACTION_MAP[method] || "view";
+      verb = method === "GET" ? (hasSubId ? "view" : "list") : (METHOD_ACTION_MAP[method] || "view");
       action = `${subType}.${verb}`;
       targetId = hasSubId ? subId : undefined;
     }

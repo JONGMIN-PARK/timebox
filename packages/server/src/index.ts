@@ -88,6 +88,9 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
+// Activity tracking (must be before routes to hook into res.finish)
+app.use(activityTracker);
+
 // Public routes
 app.use("/api/auth", authRoutes);
 
@@ -111,9 +114,6 @@ app.use("/api/presence", authMiddleware, presenceRoutes);
 app.use("/api/inbox", authMiddleware, inboxRoutes);
 app.use("/api/chat", authMiddleware, chatRoutes);
 app.use("/api/analytics", authMiddleware, adminMiddleware, analyticsRoutes);
-
-// Activity tracking (after routes, logs completed requests)
-app.use(activityTracker);
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
