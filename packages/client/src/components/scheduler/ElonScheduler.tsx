@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
@@ -89,6 +90,7 @@ function SortableTaskItem({ item, onRemove, onToggle }: {
 
 export default function ElonScheduler() {
   const { t } = useI18n();
+  const pageVisible = usePageVisible();
   const { blocks, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
 
@@ -108,6 +110,16 @@ export default function ElonScheduler() {
       setMemoText(localStorage.getItem(`tb_memo_${selectedDate}`) || "");
     } catch { setMemoText(""); }
   }, [selectedDate]);
+
+  // Auto-navigate to today when page becomes visible and date has changed
+  useEffect(() => {
+    if (pageVisible) {
+      const today = format(new Date(), "yyyy-MM-dd");
+      if (selectedDate !== today) {
+        setSelectedDate(today);
+      }
+    }
+  }, [pageVisible]);
 
   const sortedBlocks = useMemo(
     () => [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)),

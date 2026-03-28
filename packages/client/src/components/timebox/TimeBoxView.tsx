@@ -4,6 +4,7 @@ import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
@@ -43,6 +44,7 @@ export default function TimeBoxView() {
     useTimeBlockStore();
   const { t } = useI18n();
 
+  const pageVisible = usePageVisible();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newBlock, setNewBlock] = useState({
     title: "",
@@ -55,6 +57,16 @@ export default function TimeBoxView() {
   useEffect(() => {
     fetchBlocks(selectedDate);
   }, []);
+
+  // Auto-navigate to today when page becomes visible and date has changed
+  useEffect(() => {
+    if (pageVisible) {
+      const today = format(new Date(), "yyyy-MM-dd");
+      if (selectedDate !== today) {
+        setSelectedDate(today);
+      }
+    }
+  }, [pageVisible]);
 
   // Scroll to current time on mount
   useEffect(() => {

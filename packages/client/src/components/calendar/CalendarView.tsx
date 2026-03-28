@@ -15,11 +15,13 @@ import {
   subWeeks,
   addDays,
   subDays,
+  isSameDay,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { usePageVisible } from "@/lib/useVisibility";
 import type { ViewMode, HoverTooltipItem } from "./calendarTypes";
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
 import MonthView from "./MonthView";
@@ -39,6 +41,17 @@ export default function CalendarView() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
   const { t } = useI18n();
+  const pageVisible = usePageVisible();
+
+  // Auto-navigate to today when page becomes visible and date has changed
+  useEffect(() => {
+    if (pageVisible) {
+      const today = new Date();
+      if (!isSameDay(currentDate, today)) {
+        setCurrentDate(today);
+      }
+    }
+  }, [pageVisible]);
 
   const { rangeStart, rangeEnd } = useMemo(() => {
     if (viewMode === "month") {
