@@ -52,7 +52,7 @@ export async function initTelegramBot() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) { console.log("TELEGRAM_BOT_TOKEN not set, skipping"); return; }
 
-  bot = new TelegramBot(token, { polling: true });
+  bot = new TelegramBot(token, { polling: { interval: 300, params: { timeout: 10 } } });
 
   await bot.setMyCommands([
     { command: "help", description: "도움말 보기" },
