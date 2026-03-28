@@ -50,7 +50,7 @@ function savePriorityItems(date: string, items: PriorityItem[]) {
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
-const TIMETABLE_HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
+const TIMETABLE_HOURS = Array.from({ length: 20 }, (_, i) => i + 4);
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as TimeBlockCategory[];
 const EMPTY_SLOT_COLOR_LIGHT = "#f1f5f9";
 const EMPTY_SLOT_COLOR_DARK = "#1e293b";
