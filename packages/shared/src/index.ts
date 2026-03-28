@@ -89,6 +89,7 @@ export interface Todo {
   userId: number;
   title: string;
   completed: boolean;
+  progress: number;
   priority: string;
   category: string;
   dueDate: string | null;

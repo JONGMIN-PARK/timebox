@@ -91,10 +91,10 @@ function CategoryPicker({ value, onChange, compact }: { value: string; onChange:
 }
 
 // ── Sortable Todo Item ──
-function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory }: {
+function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress }: {
   todo: Todo; onToggle: (id: number) => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
-  onUpdateCategory: (id: number, cat: string) => void;
+  onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -151,6 +151,19 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
               <span className={cn("font-semibold shrink-0", daysLeftColor(daysLeft))}>{daysLeftLabel(daysLeft)}</span>
             </>
           )}
+          <span className="text-slate-300 dark:text-slate-600">·</span>
+          <span className="tabular-nums">{todo.progress ?? 0}%</span>
+        </div>
+        {/* Progress bar */}
+        <div className="flex items-center gap-1.5 mt-1 ml-3">
+          <input
+            type="range"
+            min={0} max={100} step={10}
+            value={todo.progress ?? 0}
+            onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
+            className="flex-1 h-1 accent-blue-500 cursor-pointer"
+          />
+          <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right">{todo.progress ?? 0}%</span>
         </div>
         {showDatePicker && (
           <div className="mt-1 ml-3 flex items-center gap-2">
@@ -223,9 +236,11 @@ export default function TodoList() {
     filtered.filter((t) => t.completed),
     [filtered]);
 
-  const completionRate = useMemo(() =>
-    filtered.length > 0 ? Math.round((completedTodos.length / filtered.length) * 100) : 0,
-    [filtered, completedTodos]);
+  const completionRate = useMemo(() => {
+    if (filtered.length === 0) return 0;
+    const totalProgress = filtered.reduce((sum, t) => sum + (t.completed ? 100 : (t.progress ?? 0)), 0);
+    return Math.round(totalProgress / filtered.length);
+  }, [filtered]);
 
   // Category counts for filter
   const categoryCounts = useMemo(() =>
@@ -333,7 +348,8 @@ export default function TodoList() {
                   <SortableTodoItem key={todo.id} todo={todo} onToggle={toggleTodo} onDelete={deleteTodo}
                     onUpdateDate={(id, d) => updateTodo(id, { dueDate: d })}
                     onUpdateTitle={(id, t) => updateTodo(id, { title: t })}
-                    onUpdateCategory={(id, c) => updateTodo(id, { category: c })} />
+                    onUpdateCategory={(id, c) => updateTodo(id, { category: c })}
+                    onUpdateProgress={(id, p) => updateTodo(id, { progress: p })} />
                 ))}
               </ul>
             </SortableContext>

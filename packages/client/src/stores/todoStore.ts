@@ -110,7 +110,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     // Optimistic: add temp item
     const tempId = -Date.now();
     const date = dueDate || new Date().toISOString().slice(0, 10);
-    const tempTodo = { id: tempId, title, completed: false, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString() };
+    const tempTodo = { id: tempId, title, completed: false, progress: 0, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString() };
     set({ todos: [tempTodo as Todo, ...get().todos] });
 
     try {
@@ -130,10 +130,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const prev = get().todos;
     const todo = prev.find(t => t.id === id);
     if (!todo) return;
-    set({ todos: prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t) });
+    const newCompleted = !todo.completed;
+    const newProgress = newCompleted ? 100 : (todo.progress >= 100 ? 0 : todo.progress);
+    set({ todos: prev.map(t => t.id === id ? { ...t, completed: newCompleted, progress: newProgress } : t) });
 
     try {
-      const res = await api.put(`/todos/${id}`, { completed: !todo.completed });
+      const res = await api.put(`/todos/${id}`, { completed: newCompleted, progress: newProgress });
       if (!res.success) {
         set({ todos: prev });
       }

@@ -445,6 +445,8 @@ export async function initDb() {
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_by TEXT NOT NULL DEFAULT '[]';
 
+      ALTER TABLE todos ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0;
+
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at);
       CREATE INDEX IF NOT EXISTS idx_messages_project_deleted ON messages(project_id, deleted);

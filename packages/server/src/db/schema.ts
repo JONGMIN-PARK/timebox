@@ -93,6 +93,7 @@ export const todos = pgTable("todos", {
   userId: integer("user_id").notNull(),
   title: text("title").notNull(),
   completed: boolean("completed").notNull().default(false),
+  progress: integer("progress").notNull().default(0),
   priority: text("priority").notNull().default("medium"),
   category: text("category").notNull().default("personal"),
   dueDate: text("due_date"),
