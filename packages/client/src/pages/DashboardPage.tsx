@@ -140,11 +140,11 @@ export default function DashboardPage() {
         return <TimeBoxView />;
       case "todo":
         return (
-          <div className="flex flex-col h-full overflow-y-auto">
-            <div className="flex-1 min-h-0">
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <TodoList />
             </div>
-            <div className="lg:hidden p-4 space-y-4 border-t border-slate-200/60 dark:border-slate-700/40 flex-shrink-0">
+            <div className="lg:hidden p-4 space-y-4 border-t border-slate-200/60 dark:border-slate-700/40 flex-shrink-0 max-h-[35vh] overflow-y-auto">
               <ReminderPanel />
               <DDayWidget />
             </div>
