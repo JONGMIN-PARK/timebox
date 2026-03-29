@@ -636,7 +636,7 @@ export default function TodoList() {
       </div>
 
       {/* Todo items */}
-      <div className="flex-1 overflow-y-auto min-h-[320px]">
+      <div className="flex-1 overflow-y-auto min-h-[26rem]">
         {/* Active section */}
         {showActiveSection && activeTodos.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter}

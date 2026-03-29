@@ -31,6 +31,7 @@ import FloatingChat from "@/components/chat/FloatingChat";
 const ProjectView = lazy(() => import("@/components/project/ProjectView"));
 const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
 import NewProjectForm from "@/components/project/NewProjectForm";
+import { cn } from "@/lib/utils";
 
 // Only show splash on the very first mount of the app session
 const splashShownRef = { current: false };
@@ -119,11 +120,17 @@ export default function DashboardPage() {
         return <TimeBoxView />;
       case "todo":
         return (
-          <div className="flex flex-col h-full overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <TodoList />
+          <div className="flex flex-col h-full min-h-0 overflow-hidden">
+            {/* At least ~4 todo rows visible; reminder / D-Day scroll below on small screens */}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div
+                className="flex-1 min-h-0 overflow-y-auto"
+                style={{ minHeight: "clamp(18rem, 50dvh, 32rem)" }}
+              >
+                <TodoList />
+              </div>
             </div>
-            <div className="lg:hidden p-4 space-y-4 border-t border-slate-200/60 dark:border-slate-700/40 flex-shrink-0 max-h-[35vh] overflow-y-auto">
+            <div className="lg:hidden flex-shrink-0 border-t border-slate-200/60 dark:border-slate-700/40 max-h-[30dvh] overflow-y-auto p-4 space-y-4">
               <ReminderPanel />
               <DDayWidget />
             </div>
@@ -190,15 +197,20 @@ export default function DashboardPage() {
               </main>
 
               {showRightPanel && (
-                <aside className="hidden lg:flex flex-col w-96 border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-y-auto">
+                <aside className="hidden lg:flex flex-col w-96 min-h-0 h-full border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-hidden">
                   {activeTab !== "todo" && (
-                    <div className="flex-1 border-b border-slate-200/60 dark:border-slate-700/40">
+                    <div className="flex-1 min-h-[26rem] flex flex-col overflow-hidden border-b border-slate-200/60 dark:border-slate-700/40">
                       <Suspense fallback={<div className="p-4"><LoadingSpinner size="sm" /></div>}>
                         <TodoList />
                       </Suspense>
                     </div>
                   )}
-                  <div className="p-4 space-y-4">
+                  <div
+                    className={cn(
+                      "p-4 space-y-4 overflow-y-auto border-t border-slate-200/40 dark:border-slate-700/30",
+                      activeTab === "todo" ? "flex-1 min-h-0" : "flex-shrink-0 max-h-[40vh]",
+                    )}
+                  >
                     <ReminderPanel />
                     <DDayWidget />
                   </div>
