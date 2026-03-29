@@ -62,9 +62,9 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
         lastMessageIdRef.current = latest.id;
         // Auto-scroll on new messages (only if chat container is visible)
         setTimeout(() => {
-          const el = messagesEndRef.current;
-          if (el && el.offsetParent !== null) {
-            el.scrollIntoView({ behavior: "smooth" });
+          const container = containerRef.current;
+          if (container && container.offsetParent !== null) {
+            container.scrollTop = container.scrollHeight;
           }
         }, 50);
       }
