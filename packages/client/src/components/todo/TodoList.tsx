@@ -1,18 +1,12 @@
 import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
+import { compareTodosByDueDateTime } from "@/lib/todoSort";
 import { TodoCategoryPicker } from "@/components/todo/TodoCategoryPicker";
 import { ProjectPicker } from "@/components/project/ProjectPicker";
 import { useProjectStore } from "@/stores/projectStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Search, Clock, Play, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, CalendarDays, Pencil, Search, Clock, Play, RotateCcw } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
-import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay,
-} from "@dnd-kit/core";
-import {
-  arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useI18n } from "@/lib/useI18n";
 
 // ── Helpers ──
@@ -141,8 +135,8 @@ function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'wai
   );
 }
 
-// ── Sortable Todo Item ──
-function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject }: {
+// ── Todo row (마감일 순 정렬; 드래그 순서 없음) ──
+function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject }: {
   todo: Todo; onStatusChange: (id: number, status: 'waiting' | 'active' | 'completed') => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
@@ -151,13 +145,11 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
   onUpdateProject?: (id: number, projectId: number | null) => void;
 }) {
   const { t } = useI18n();
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(todo.title);
   const daysLeft = getDaysLeft(todo.dueDate);
   const catInfo = getCategoryInfo(todo.category);
-  const style = { transform: CSS.Transform.toString(transform), transition };
   const effectiveStatus = getEffectiveStatus(todo);
 
   const handleSaveTitle = () => {
@@ -167,18 +159,13 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
   };
 
   return (
-    <li ref={setNodeRef} style={style}
+    <li
       className={cn(
         "group relative px-2 sm:px-3 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors",
-        isDragging && "opacity-40 shadow-lg rounded-xl bg-white dark:bg-slate-800",
         effectiveStatus === 'waiting' && "border-l-2 border-amber-400 dark:border-amber-500",
-      )}>
+      )}
+    >
       <div className="flex items-start gap-1">
-        {/* Drag handle */}
-        <button {...attributes} {...listeners} className="flex-shrink-0 w-6 h-7 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none rounded">
-          <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600" />
-        </button>
-
         {/* Status */}
         <StatusDropdown currentStatus={effectiveStatus} onChangeStatus={(s) => onStatusChange(todo.id, s)} />
 
@@ -420,7 +407,7 @@ const TrashedTodoItem = memo(function TrashedTodoItem({
 
 // ── Main TodoList ──
 export default function TodoList() {
-  const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, restoreTodo, permanentlyDeleteTodo, emptyTrash, updateTodo, updateStatus, reorderTodos } = useTodoStore();
+  const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, restoreTodo, permanentlyDeleteTodo, emptyTrash, updateTodo, updateStatus } = useTodoStore();
   const { projects, fetchProjects } = useProjectStore();
   const { t } = useI18n();
   const [newTitle, setNewTitle] = useState("");
@@ -431,13 +418,7 @@ export default function TodoList() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [showWaiting, setShowWaiting] = useState(true);
   const [showTrash, setShowTrash] = useState(false);
-  const [dragActiveId, setDragActiveId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
 
   useEffect(() => { fetchTodos(); }, [fetchTodos]);
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
@@ -468,15 +449,21 @@ export default function TodoList() {
     [todos, categoryFilter, matchesSearch]);
 
   const waitingTodos = useMemo(() =>
-    filtered.filter((t) => getEffectiveStatus(t) === 'waiting' && matchesSearch(t)),
+    filtered
+      .filter((t) => getEffectiveStatus(t) === 'waiting' && matchesSearch(t))
+      .sort(compareTodosByDueDateTime),
     [filtered, matchesSearch]);
 
   const activeTodos = useMemo(() =>
-    filtered.filter((t) => getEffectiveStatus(t) === 'active' && matchesSearch(t)).sort((a, b) => a.sortOrder - b.sortOrder),
+    filtered
+      .filter((t) => getEffectiveStatus(t) === 'active' && matchesSearch(t))
+      .sort(compareTodosByDueDateTime),
     [filtered, matchesSearch]);
 
   const completedTodos = useMemo(() =>
-    filtered.filter((t) => getEffectiveStatus(t) === 'completed' && matchesSearch(t)),
+    filtered
+      .filter((t) => getEffectiveStatus(t) === 'completed' && matchesSearch(t))
+      .sort(compareTodosByDueDateTime),
     [filtered, matchesSearch]);
 
   const completionRate = useMemo(() => {
@@ -513,30 +500,6 @@ export default function TodoList() {
       setNewProjectId(null);
     }
   };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setDragActiveId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = activeTodos.findIndex((t) => t.id === active.id);
-    const newIndex = activeTodos.findIndex((t) => t.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(activeTodos, oldIndex, newIndex);
-    reorderTodos(reordered.map((t, i) => ({ id: t.id, sortOrder: i })));
-  };
-
-  const handleWaitingDragEnd = (event: DragEndEvent) => {
-    setDragActiveId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = waitingTodos.findIndex((t) => t.id === active.id);
-    const newIndex = waitingTodos.findIndex((t) => t.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(waitingTodos, oldIndex, newIndex);
-    reorderTodos(reordered.map((t, i) => ({ id: t.id, sortOrder: i })));
-  };
-
-  const draggedTodo = dragActiveId ? [...activeTodos, ...waitingTodos].find((t) => t.id === dragActiveId) : null;
 
   // Memoized handlers
   const handleStatusChange = useCallback((id: number, status: 'waiting' | 'active' | 'completed') => { updateStatus(id, status); }, [updateStatus]);
@@ -626,7 +589,7 @@ export default function TodoList() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("todo.search") ?? "Search todos..."}
+            placeholder={t("todo.search")}
             className="flex-1 text-xs bg-transparent text-slate-700 dark:text-slate-300 placeholder-slate-400 outline-none"
           />
         </div>
@@ -669,35 +632,23 @@ export default function TodoList() {
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {/* Active section */}
         {showActiveSection && activeTodos.length > 0 && (
-          <DndContext sensors={sensors} collisionDetection={closestCenter}
-            onDragStart={(e) => setDragActiveId(e.active.id as number)}
-            onDragEnd={handleDragEnd} onDragCancel={() => setDragActiveId(null)}>
-            <SortableContext items={activeTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-              <ul className="py-1">
-                {activeTodos.map((todo) => (
-                  <SortableTodoItem key={todo.id} todo={todo}
-                    onStatusChange={handleStatusChange}
-                    onDelete={handleDelete}
-                    onUpdateDate={handleUpdateDate}
-                    onUpdateTitle={handleUpdateTitle}
-                    onUpdateCategory={handleUpdateCategory}
-                    onUpdateProgress={handleUpdateProgress}
-                    onUpdatePriority={handleUpdatePriority}
-                    projectOptions={projectOptions}
-                    onUpdateProject={handleUpdateProject} />
-                ))}
-              </ul>
-            </SortableContext>
-            <DragOverlay>
-              {draggedTodo && (
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 shadow-xl rounded-xl border border-slate-200/60 dark:border-slate-600">
-                  <GripVertical className="w-3.5 h-3.5 text-slate-400" />
-                  <div className={cn("w-1.5 h-1.5 rounded-full", priorityDot(draggedTodo.priority))} />
-                  <span className="text-sm text-slate-900 dark:text-white">{draggedTodo.title}</span>
-                </div>
-              )}
-            </DragOverlay>
-          </DndContext>
+          <ul className="py-1">
+            {activeTodos.map((todo) => (
+              <TodoListItem
+                key={todo.id}
+                todo={todo}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDelete}
+                onUpdateDate={handleUpdateDate}
+                onUpdateTitle={handleUpdateTitle}
+                onUpdateCategory={handleUpdateCategory}
+                onUpdateProgress={handleUpdateProgress}
+                onUpdatePriority={handleUpdatePriority}
+                projectOptions={projectOptions}
+                onUpdateProject={handleUpdateProject}
+              />
+            ))}
+          </ul>
         )}
 
         {/* Waiting section */}
@@ -710,35 +661,23 @@ export default function TodoList() {
               {t("todo.waiting")} ({waitingTodos.length})
             </button>
             {showWaiting && (
-              <DndContext sensors={sensors} collisionDetection={closestCenter}
-                onDragStart={(e) => setDragActiveId(e.active.id as number)}
-                onDragEnd={handleWaitingDragEnd} onDragCancel={() => setDragActiveId(null)}>
-                <SortableContext items={waitingTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                  <ul className="py-1">
-                    {waitingTodos.map((todo) => (
-                      <SortableTodoItem key={todo.id} todo={todo}
-                        onStatusChange={handleStatusChange}
-                        onDelete={handleDelete}
-                        onUpdateDate={handleUpdateDate}
-                        onUpdateTitle={handleUpdateTitle}
-                        onUpdateCategory={handleUpdateCategory}
-                        onUpdateProgress={handleUpdateProgress}
-                        onUpdatePriority={handleUpdatePriority}
-                        projectOptions={projectOptions}
-                        onUpdateProject={handleUpdateProject} />
-                    ))}
-                  </ul>
-                </SortableContext>
-                <DragOverlay>
-                  {draggedTodo && (
-                    <div className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 shadow-xl rounded-xl border border-amber-300/60 dark:border-amber-600">
-                      <GripVertical className="w-3.5 h-3.5 text-slate-400" />
-                      <Clock className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="text-sm text-slate-900 dark:text-white">{draggedTodo.title}</span>
-                    </div>
-                  )}
-                </DragOverlay>
-              </DndContext>
+              <ul className="py-1">
+                {waitingTodos.map((todo) => (
+                  <TodoListItem
+                    key={todo.id}
+                    todo={todo}
+                    onStatusChange={handleStatusChange}
+                    onDelete={handleDelete}
+                    onUpdateDate={handleUpdateDate}
+                    onUpdateTitle={handleUpdateTitle}
+                    onUpdateCategory={handleUpdateCategory}
+                    onUpdateProgress={handleUpdateProgress}
+                    onUpdatePriority={handleUpdatePriority}
+                    projectOptions={projectOptions}
+                    onUpdateProject={handleUpdateProject}
+                  />
+                ))}
+              </ul>
             )}
           </div>
         )}

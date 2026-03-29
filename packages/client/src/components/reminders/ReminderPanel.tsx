@@ -3,7 +3,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Bell, Plus, Trash2, Clock, X, AlarmClock, Check, Volume2 } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
-import EmptyState from "@/components/ui/EmptyState";
+import { useI18n } from "@/lib/useI18n";
 
 interface Reminder {
   id: number; title: string; message: string | null; remindAt: string;
@@ -12,6 +12,7 @@ interface Reminder {
 }
 
 export default function ReminderPanel() {
+  const { t } = useI18n();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", remindAt: "", message: "", repeatRule: "" });
@@ -278,12 +279,10 @@ export default function ReminderPanel() {
           })}
 
           {upcoming.length === 0 && !showAdd && (
-            <EmptyState
-              icon={Bell}
-              title="No upcoming reminders"
-              description="Add a reminder to get notified"
-              className="py-6"
-            />
+            <p className="px-4 py-2 text-[11px] leading-snug text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              <Bell className="w-3.5 h-3.5 shrink-0 text-slate-300 dark:text-slate-600" aria-hidden />
+              {t("reminder.emptyHint")}
+            </p>
           )}
 
           {/* Past reminders toggle */}

@@ -28,6 +28,7 @@ import { showToast } from "@/components/ui/Toast";
 import CalendarTodoAddModal from "./CalendarTodoAddModal";
 import { ProjectPicker } from "@/components/project/ProjectPicker";
 import { useProjectStore } from "@/stores/projectStore";
+import { sortTodosForDisplay } from "@/lib/todoSort";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
@@ -126,12 +127,16 @@ export default function CalendarView() {
   const todosByDate = useMemo(() => {
     const map = new Map<string, typeof todos>();
     todos.forEach((t) => {
+      if (t.deletedAt) return;
       if (t.dueDate) {
         const dateKey = t.dueDate.slice(0, 10); // normalize to yyyy-MM-dd
         const existing = map.get(dateKey) || [];
         existing.push(t);
         map.set(dateKey, existing);
       }
+    });
+    map.forEach((arr, key) => {
+      map.set(key, sortTodosForDisplay(arr));
     });
     return map;
   }, [todos]);

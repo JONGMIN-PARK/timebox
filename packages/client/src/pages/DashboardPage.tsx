@@ -247,9 +247,9 @@ export default function DashboardPage() {
               </main>
 
               {showRightPanel && (
-                <aside className="hidden lg:flex flex-col w-96 min-h-0 h-full border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-hidden">
+                <aside className="hidden lg:flex flex-col w-1/2 max-w-3xl min-w-[20rem] shrink-0 min-h-0 h-full border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-hidden">
                   {activeTab !== "todo" && (
-                    <div className="flex-1 min-h-[26rem] flex flex-col overflow-hidden border-b border-slate-200/60 dark:border-slate-700/40">
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden border-b border-slate-200/60 dark:border-slate-700/40">
                       <Suspense fallback={<div className="p-4"><LoadingSpinner size="sm" /></div>}>
                         <TodoList />
                       </Suspense>
@@ -258,7 +258,7 @@ export default function DashboardPage() {
                   <div
                     className={cn(
                       "p-4 space-y-4 overflow-y-auto border-t border-slate-200/40 dark:border-slate-700/30",
-                      activeTab === "todo" ? "flex-1 min-h-0" : "flex-shrink-0 max-h-[40vh]",
+                      activeTab === "todo" ? "flex-1 min-h-0" : "flex-shrink-0 max-h-[min(32vh,22rem)]",
                     )}
                   >
                     <ReminderPanel />

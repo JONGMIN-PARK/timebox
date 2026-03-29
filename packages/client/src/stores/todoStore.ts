@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { todoApi } from "@/lib/apiService";
 import { showToast } from "@/components/ui/Toast";
 import type { Todo } from "@timebox/shared";
+import { normalizeTodoStoreOrder } from "@/lib/todoSort";
 
 // Re-export category definitions from unified config for backward compatibility
 export { TODO_CATEGORIES, getCategoryInfo } from "@/lib/categories";
@@ -45,9 +46,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     try {
       const [main, trash] = await Promise.all([todoApi.getAll(), todoApi.getAll("trash")]);
       if (main.success && main.data && trash.success && trash.data) {
-        set({ todos: [...main.data, ...trash.data], loading: false });
+        set({ todos: normalizeTodoStoreOrder([...main.data, ...trash.data]), loading: false });
       } else if (main.success && main.data) {
-        set({ todos: main.data, loading: false });
+        set({ todos: normalizeTodoStoreOrder(main.data), loading: false });
         if (!trash.success && trash.error) {
           showToast("error", trash.error);
         }
@@ -68,12 +69,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const tempId = -Date.now();
     const date = dueDate || new Date().toISOString().slice(0, 10);
     const tempTodo = { id: tempId, title, completed: status === 'completed', progress: status === 'completed' ? 100 : 0, status, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null as string | null, projectId: projectId ?? null };
-    set({ todos: [tempTodo as Todo, ...get().todos] });
+    set({ todos: normalizeTodoStoreOrder([tempTodo as Todo, ...get().todos]) });
 
     try {
       const res = await todoApi.create({ title, priority, dueDate: date, category, status, projectId: projectId ?? undefined });
       if (res.success && res.data) {
-        set({ todos: get().todos.map(t => t.id === tempId ? res.data! : t) });
+        set({ todos: normalizeTodoStoreOrder(get().todos.map(t => t.id === tempId ? res.data! : t)) });
         return true;
       } else {
         const msg = res.error || "Failed to add todo";
@@ -96,7 +97,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     if (!todo) return;
     const newCompleted = !todo.completed;
     const newProgress = newCompleted ? 100 : (todo.progress >= 100 ? 0 : todo.progress);
-    set({ todos: prev.map(t => t.id === id ? { ...t, completed: newCompleted, progress: newProgress } : t) });
+    set({ todos: normalizeTodoStoreOrder(prev.map(t => t.id === id ? { ...t, completed: newCompleted, progress: newProgress } : t)) });
 
     try {
       const res = await todoApi.toggle(id, { completed: newCompleted, progress: newProgress });
@@ -119,13 +120,13 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const prev = get().todos;
     const now = new Date().toISOString();
     set({
-      todos: prev.map((t) => (t.id === id ? { ...t, deletedAt: now, updatedAt: now } : t)),
+      todos: normalizeTodoStoreOrder(prev.map((t) => (t.id === id ? { ...t, deletedAt: now, updatedAt: now } : t))),
     });
 
     try {
       const res = await todoApi.delete(id);
       if (res.success && res.data) {
-        set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
+        set({ todos: normalizeTodoStoreOrder(get().todos.map((t) => (t.id === id ? res.data! : t))) });
       } else {
         const msg = res.error || "Failed to delete todo";
         set({ todos: prev, error: msg });
@@ -142,12 +143,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ error: null });
     const prev = get().todos;
     set({
-      todos: prev.map((t) => (t.id === id ? { ...t, deletedAt: null, updatedAt: new Date().toISOString() } : t)),
+      todos: normalizeTodoStoreOrder(prev.map((t) => (t.id === id ? { ...t, deletedAt: null, updatedAt: new Date().toISOString() } : t))),
     });
     try {
       const res = await todoApi.restore(id);
       if (res.success && res.data) {
-        set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
+        set({ todos: normalizeTodoStoreOrder(get().todos.map((t) => (t.id === id ? res.data! : t))) });
       } else {
         set({ todos: prev });
         const msg = res.error || "Failed to restore todo";
@@ -165,7 +166,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   permanentlyDeleteTodo: async (id) => {
     set({ error: null });
     const prev = get().todos;
-    set({ todos: prev.filter((t) => t.id !== id) });
+    set({ todos: normalizeTodoStoreOrder(prev.filter((t) => t.id !== id)) });
     try {
       const res = await todoApi.deletePermanent(id);
       if (!res.success) {
@@ -185,7 +186,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   emptyTrash: async () => {
     set({ error: null });
     const prev = get().todos;
-    set({ todos: prev.filter((t) => !t.deletedAt) });
+    set({ todos: normalizeTodoStoreOrder(prev.filter((t) => !t.deletedAt)) });
     try {
       const res = await todoApi.emptyTrash();
       if (!res.success) {
@@ -206,12 +207,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ error: null });
     // Optimistic update
     const prev = get().todos;
-    set({ todos: prev.map(t => t.id === id ? { ...t, ...updates } : t) });
+    set({ todos: normalizeTodoStoreOrder(prev.map(t => t.id === id ? { ...t, ...updates } : t)) });
 
     try {
       const res = await todoApi.update(id, updates);
       if (res.success && res.data) {
-        set({ todos: get().todos.map(t => t.id === id ? res.data! : t) });
+        set({ todos: normalizeTodoStoreOrder(get().todos.map(t => t.id === id ? res.data! : t)) });
       } else {
         const msg = res.error || "Failed to update todo";
         set({ todos: prev, error: msg });
@@ -232,12 +233,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     if (status === 'completed') { updates.completed = true; updates.progress = 100; }
     else if (status === 'active') { updates.completed = false; }
     else if (status === 'waiting') { updates.completed = false; updates.progress = 0; }
-    set({ todos: prev.map(t => t.id === id ? { ...t, ...updates } : t) });
+    set({ todos: normalizeTodoStoreOrder(prev.map(t => t.id === id ? { ...t, ...updates } : t)) });
 
     try {
       const res = await todoApi.updateStatus(id, status);
       if (res.success && res.data) {
-        set({ todos: get().todos.map(t => t.id === id ? res.data! : t) });
+        set({ todos: normalizeTodoStoreOrder(get().todos.map(t => t.id === id ? res.data! : t)) });
         showToast("success", status === 'completed' ? "Todo completed" : status === 'waiting' ? "Todo set to waiting" : "Todo activated");
       } else {
         set({ todos: prev });

@@ -86,6 +86,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.trashEmptied": "Trash emptied",
     "todo.subTab.tasks": "Tasks",
     "todo.subTab.remindersDday": "Reminders & D-Day",
+    "todo.search": "Search tasks...",
 
     // Calendar
     "calendar.addEvent": "Add Event",
@@ -197,6 +198,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // Reminders
     "reminder.title": "Reminders",
     "reminder.addNew": "Add Reminder",
+    "reminder.emptyHint": "No upcoming reminders. Tap + to add one.",
 
     // Settings
     "settings.title": "Settings",
@@ -566,6 +568,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.trashEmptied": "\ud734\uc9c0\ud1b5\uc744 \ube44\uc6e0\uc2b5\ub2c8\ub2e4",
     "todo.subTab.tasks": "\ud560 \uc77c",
     "todo.subTab.remindersDday": "\ub9ac\ub9c8\uc778\ub354 \u00b7 \ub514\ub370\uc774",
+    "todo.search": "\ud560 \uc77c \uac80\uc0c9...",
 
     // Calendar
     "calendar.addEvent": "\uc77c\uc815 \ucd94\uac00",
@@ -677,6 +680,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // Reminders
     "reminder.title": "\ub9ac\ub9c8\uc778\ub354",
     "reminder.addNew": "\ub9ac\ub9c8\uc778\ub354 \ucd94\uac00",
+    "reminder.emptyHint": "\uc608\uc815\ub41c \ub9ac\ub9c8\uc778\ub354\uac00 \uc5c6\uc2b5\ub2c8\ub2e4. + \ub97c \ub20c\ub7ec \ucd94\uac00\ud558\uc138\uc694.",
 
     // Settings
     "settings.title": "\uc124\uc815",
