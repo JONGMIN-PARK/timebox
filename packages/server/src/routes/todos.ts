@@ -10,19 +10,31 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
-/** Check if status column exists in DB (cached) */
-let hasStatusColumn: boolean | null = null;
-async function checkStatusColumn() {
-  if (hasStatusColumn !== null) return hasStatusColumn;
+/** Ensure status column exists in DB, auto-migrate if missing */
+let statusColumnReady: boolean | null = null;
+async function ensureStatusColumn() {
+  if (statusColumnReady !== null) return statusColumnReady;
   try {
     await db.execute(sql`SELECT status FROM todos LIMIT 0`);
-    hasStatusColumn = true;
+    statusColumnReady = true;
   } catch {
-    hasStatusColumn = false;
-    logger.warn("todos.status column not found - running in compatibility mode. Run DB migration to add it.");
+    logger.warn("todos.status column not found - auto-migrating...");
+    try {
+      await db.execute(sql`ALTER TABLE todos ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`);
+      await db.execute(sql`UPDATE todos SET status = 'completed' WHERE completed = true`);
+      await db.execute(sql`UPDATE todos SET status = 'active' WHERE completed = false`);
+      statusColumnReady = true;
+      logger.info("todos.status column added and populated successfully");
+    } catch (e) {
+      logger.error("Failed to auto-migrate status column", { error: String(e) });
+      statusColumnReady = false;
+    }
   }
-  return hasStatusColumn;
+  return statusColumnReady;
 }
+
+// Keep backward compat alias
+const checkStatusColumn = ensureStatusColumn;
 
 /** Derive a status field from DB row for backward compatibility */
 function withStatus(row: Record<string, unknown>) {

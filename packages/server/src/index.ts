@@ -53,6 +53,19 @@ const PORT = env.PORT;
 // Initialize database (async)
 await initDb();
 
+// Auto-migrate: ensure new columns exist
+import { db } from "./db/index.js";
+import { sql } from "drizzle-orm";
+try {
+  await db.execute(sql`SELECT status FROM todos LIMIT 0`);
+} catch {
+  logger.info("Auto-migrating: adding status column to todos table...");
+  await db.execute(sql`ALTER TABLE todos ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`);
+  await db.execute(sql`UPDATE todos SET status = 'completed' WHERE completed = true`);
+  await db.execute(sql`UPDATE todos SET status = 'active' WHERE completed = false`);
+  logger.info("Auto-migration complete: todos.status column added");
+}
+
 // Middleware
 app.use(compression());
 const allowedOrigins = process.env.CORS_ORIGIN
