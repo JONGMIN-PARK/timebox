@@ -12,6 +12,32 @@
 
 ---
 
+## 2026-03-29 — Elon 일간 스케줄러 & 타임블록 확장
+
+| 항목 | 설명 |
+|------|------|
+| **DB / API** | `time_blocks.notes`, `time_blocks.meta`(JSON), 라우트·검증·백업 import/export |
+| **Shared** | `TimeBlock` 타입에 `notes?`, `meta?` |
+| **Client** | `ElonScheduler`, `ElonTimeCanvas`, `ElonBlockSheet`, `elonStorage.ts` — 줌/스냅, 링크·핀, 드래그·리사이즈, 전날 복사, 스케치 레이어(일 단위 localStorage) |
+| **연동** | Top 3 → 타임라인 저장 시 브레인 덤프 항목 생성·갱신(`meta.brainId`). 블록 삭제 시 브레인 복구 + 제목 일치 시 Top 3 줄 비움 |
+| **버그픽스** | 스케줄러에서 날짜 변경이 즉시 오늘로 되돌아가던 현상 제거(`pageVisible` effect 삭제) |
+| **i18n** | `elon.*` 키 다수(스케치, Top3·브레인 안내 등) |
+
+관련 커밋 예: `4dc74cf`, `b38173e`, `f82e2d7` (이후 `main` 기준).
+
+---
+
+## 다음 세션에서 이어가기
+
+상세 아이디어·파일 위치는 **[docs/NEXT-SESSION.md](./docs/NEXT-SESSION.md)** 를 본다. 요약:
+
+- 스케치: 애플 펜슬/와콤 — `PointerEvent.pressure`, `getCoalescedEvents()`, (선택) 스타일러스 전용 모드
+- 스케치 백업: `meta` 또는 별도 API로 서버 동기화 여부 결정
+- UI: 타임라인 전용 “브레인으로 되돌리기”(삭제 없이), 도형/텍스트 레이어
+- PRD 브리지: [docs/PRD-personal-schedule-project-bridge.md](./docs/PRD-personal-schedule-project-bridge.md) — 개인 일정 ↔ `projectId` 연결
+
+---
+
 ## PRD vs Implementation Status
 
 ### Phase 1: MVP — ✅ Complete
@@ -123,6 +149,7 @@
 | **Registration requests** | Public signup request → admin approval workflow |
 | **Admin settings** | User CRUD, role toggle, activate/deactivate, request management |
 | **Elon Musk Scheduler** | 3-step: Brain Box → Priority → Time Grid (5-min slots) |
+| **Elon day view (mobile/desktop)** | Summary, Top 3, timeline tools, time canvas + brain dump, day memo; notes/meta on blocks; sketch layer; Top 3 ↔ brain sync |
 | **Todo categories** | Hierarchical: Work (Meeting/Proposal/Dev/Review/Report), Personal, Study, Project, Urgent, Idea |
 | **Todo due dates (D-Day)** | Per-todo date with D-Day countdown (color-coded) |
 | **Todo inline editing** | Double-click or pencil icon to edit title |

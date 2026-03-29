@@ -71,6 +71,21 @@
 | 실제 vs 계획 | 계획한 시간과 실제 사용 시간 비교 | P2 |
 | 시간 통계 | 카테고리별 주간/월간 시간 사용 통계 | P2 |
 
+#### 3.2.1 일간 Elon 스케줄러 — 구현 현황 (2026-03)
+
+모바일·데스크톱 공통 **일간 뷰** (`ElonScheduler` 및 하위 컴포넌트)에서 아래가 동작한다.
+
+| 영역 | 구현 내용 |
+|------|-----------|
+| **데이터** | `time_blocks`에 `notes`(텍스트), `meta`(JSON 문자열: `brainId`, `prioritySlot` 1–3, `caption`, `linkToBlockId`, `annotations`, 스타일 등). 백업보내기/가져오기 및 API 검증 반영. |
+| **레이아웃** | 상단 요약 → Top 3 → 타임라인 도구줄 → (타임 테이블 + 브레인 덤프) → 하단 하루 메모. |
+| **타임 테이블** | 드래그 이동·상·하단 리사이즈, 줌/스냅, Top 3만 강조, 전날 복사, 블록 복제, 링크선·핀(annotations). |
+| **Top 3 ↔ 브레인** | Top 3에서 시계로 블록을 저장하면 `prioritySlot` + 연동용 `brainId`로 브레인 덤프에 항목 생성/갱신. 타임라인에서 해당 블록 삭제 시 브레인으로 복구(없을 때) 및 제목이 같으면 Top 3 입력 줄 비움. |
+| **필기** | 타임라인 블록 열 위 자유 곡선; 날짜별 `localStorage` (`tb_elon_sketch_v1_{date}`). 서버 미동기화. |
+| **날짜** | 헤더 ◀▶로 날짜 변경(전역 `selectedDate`); 탭 포커스 시 오늘로 강제되던 버그는 제거됨. |
+
+**미구현·백로그 (PRD 대비):** 스케치 스타일러스 압력/`getCoalescedEvents` 고도화, 도형·캔버스 텍스트, 스케치 서버 동기화, 탭 복귀 시 “오늘로 점프”를 **선택 옵션**으로만 제공 등은 [docs/NEXT-SESSION.md](./docs/NEXT-SESSION.md)에 정리.
+
 **타임박싱 개념:**
 ```
 08:00 - 08:30  [심층 작업] 프로젝트 A 코딩
@@ -341,11 +356,12 @@ timebox/
 │   └── shared/          # 공유 타입, 유틸리티
 │       ├── src/
 │       └── package.json
+├── docs/                 # 팀/브리지 PRD, NEXT-SESSION 등
 ├── pnpm-workspace.yaml
 ├── package.json
 ├── tsconfig.base.json
-├── PRD.md
-└── README.md
+├── README.md
+└── PRD.md
 ```
 
 ### 5.5 배포
@@ -386,6 +402,8 @@ TimeBlock (타임박스)
 ├── start_time
 ├── end_time
 ├── title
+├── notes (nullable, 긴 메모·캔버스 보조 텍스트)
+├── meta (nullable JSON 문자열: brainId, prioritySlot, annotations, linkToBlockId 등)
 ├── category (enum: deep_work, meeting, email, exercise, break, etc.)
 ├── color
 ├── completed (boolean)

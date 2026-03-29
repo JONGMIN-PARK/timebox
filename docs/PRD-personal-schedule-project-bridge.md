@@ -2,7 +2,8 @@
 
 **문서 버전**: 1.0  
 **작성 기준**: 2026-03-29  
-**관련 문서**: [PRD-team-collaboration.md](./PRD-team-collaboration.md) (팀/프로젝트 코어는 구현 완료로 가정)
+**관련 문서**: [PRD-team-collaboration.md](./PRD-team-collaboration.md) (팀/프로젝트 코어는 구현 완료로 가정)  
+**연관 구현(별도 축)**: 일간 Elon 스케줄러·타임블록 `notes`/`meta`·Top3↔브레인 연동은 [PRD.md](../PRD.md) §3.2.1, [CHANGELOG.md](../CHANGELOG.md), 이어작업 메모는 [NEXT-SESSION.md](./NEXT-SESSION.md) 참고.
 
 ---
 
