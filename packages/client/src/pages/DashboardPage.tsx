@@ -195,7 +195,7 @@ export default function DashboardPage() {
           setActiveTab("inbox");
         }} onVersionClick={() => setShowVersion(true)} />
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden pb-[60px] md:pb-0">
           {activeProjectId && hasTeamAccess ? (
             <main className="flex-1 overflow-hidden animate-in">
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
