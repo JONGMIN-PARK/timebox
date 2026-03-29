@@ -33,6 +33,63 @@ function daysLeftLabel(d: number | null) { if (d === null) return ""; return d =
 function daysLeftColor(d: number | null) { if (d === null) return ""; if (d === 0) return "text-red-500 font-bold"; if (d <= 3) return "text-orange-500"; if (d <= 7) return "text-amber-500"; if (d < 0) return "text-slate-400"; return "text-slate-500"; }
 const priorityDot = (p: string) => p === "high" ? "bg-red-500" : p === "medium" ? "bg-amber-500" : "bg-slate-300 dark:bg-slate-600";
 
+type TodoPriority = "high" | "medium" | "low";
+
+function normalizePriority(p: string): TodoPriority {
+  if (p === "high" || p === "low") return p;
+  return "medium";
+}
+
+// ── Priority (click dot to change) ──
+function PriorityDropdown({ currentPriority, onChangePriority }: { currentPriority: string; onChangePriority: (p: TodoPriority) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
+  const norm = normalizePriority(currentPriority);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        type="button"
+        title={t("scheduler.priority")}
+        onClick={() => setOpen(!open)}
+        className="w-5 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-700/50 active:bg-slate-100 dark:active:bg-slate-700/50 transition-colors"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className={cn("w-2 h-2 rounded-full ring-1 ring-offset-1 ring-offset-white dark:ring-offset-slate-800 ring-slate-300/80 dark:ring-slate-600", priorityDot(norm))} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-0.5 z-40 w-32 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl py-1 animate-scale-in">
+          {(["high", "medium", "low"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => { onChangePriority(p); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors",
+                norm === p && "bg-slate-100 dark:bg-slate-700/60 font-medium",
+              )}
+            >
+              <span className={cn("w-2 h-2 rounded-full shrink-0", priorityDot(p))} />
+              <span className="text-slate-700 dark:text-slate-300">{t(`todo.priority.${p}`)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Status Dropdown ──
 function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'waiting' | 'active' | 'completed'; onChangeStatus: (status: 'waiting' | 'active' | 'completed') => void }) {
   const [open, setOpen] = useState(false);
@@ -83,10 +140,11 @@ function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'wai
 }
 
 // ── Sortable Todo Item ──
-function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress }: {
+function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority }: {
   todo: Todo; onStatusChange: (id: number, status: 'waiting' | 'active' | 'completed') => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
+  onUpdatePriority: (id: number, priority: TodoPriority) => void;
 }) {
   const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
@@ -120,11 +178,12 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
         {/* Status */}
         <StatusDropdown currentStatus={effectiveStatus} onChangeStatus={(s) => onStatusChange(todo.id, s)} />
 
+        <PriorityDropdown currentPriority={todo.priority} onChangePriority={(p) => onUpdatePriority(todo.id, p)} />
+
         {/* Content */}
         <div className="flex-1 min-w-0 pr-14">
           {/* Title */}
           <div className="flex items-center gap-1.5">
-            <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priorityDot(todo.priority))} />
             {isEditing ? (
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
                 onBlur={handleSaveTitle} onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditTitle(todo.title); setIsEditing(false); } }}
@@ -465,6 +524,7 @@ export default function TodoList() {
   const handleUpdateTitle = useCallback((id: number, t: string) => updateTodo(id, { title: t }), [updateTodo]);
   const handleUpdateCategory = useCallback((id: number, c: string) => updateTodo(id, { category: c }), [updateTodo]);
   const handleUpdateProgress = useCallback((id: number, p: number) => updateTodo(id, { progress: p }), [updateTodo]);
+  const handleUpdatePriority = useCallback((id: number, priority: TodoPriority) => updateTodo(id, { priority }), [updateTodo]);
 
   // Determine which sections to show based on filter
   const showActiveSection = filter === 'all' || filter === 'active';
@@ -580,7 +640,8 @@ export default function TodoList() {
                     onUpdateDate={handleUpdateDate}
                     onUpdateTitle={handleUpdateTitle}
                     onUpdateCategory={handleUpdateCategory}
-                    onUpdateProgress={handleUpdateProgress} />
+                    onUpdateProgress={handleUpdateProgress}
+                    onUpdatePriority={handleUpdatePriority} />
                 ))}
               </ul>
             </SortableContext>
@@ -618,7 +679,8 @@ export default function TodoList() {
                         onUpdateDate={handleUpdateDate}
                         onUpdateTitle={handleUpdateTitle}
                         onUpdateCategory={handleUpdateCategory}
-                        onUpdateProgress={handleUpdateProgress} />
+                        onUpdateProgress={handleUpdateProgress}
+                        onUpdatePriority={handleUpdatePriority} />
                     ))}
                   </ul>
                 </SortableContext>
