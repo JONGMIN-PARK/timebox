@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search, Clock } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search, Clock, Play } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay,
@@ -151,6 +151,7 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -218,8 +219,29 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
             )}
           </div>
 
-          {/* Progress bar — hidden for waiting todos */}
-          {effectiveStatus !== 'waiting' && (
+          {/* Waiting: quick start / complete; else progress bar */}
+          {effectiveStatus === 'waiting' ? (
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-3">
+              <button
+                type="button"
+                onClick={() => onStatusChange(todo.id, "active")}
+                title={t("todo.active")}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30 dark:hover:bg-blue-500/25 transition-colors"
+              >
+                <Play className="w-3 h-3 shrink-0 fill-current" />
+                {t("todo.waitingStart")}
+              </button>
+              <button
+                type="button"
+                onClick={() => onStatusChange(todo.id, "completed")}
+                title={t("todo.done")}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium bg-green-50 text-green-700 border border-green-200/80 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30 dark:hover:bg-green-500/25 transition-colors"
+              >
+                <CheckCircle2 className="w-3 h-3 shrink-0" />
+                {t("todo.waitingComplete")}
+              </button>
+            </div>
+          ) : (
             <div className="flex items-center gap-2 mt-1.5 ml-3">
               <input
                 type="range"
