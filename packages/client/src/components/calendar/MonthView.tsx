@@ -237,7 +237,6 @@ export default function MonthView({
             {[
               { type: "event", icon: "\u{1F4C5}", label: t("calendar.addEvent") },
               { type: "todo", icon: "\u2705", label: t("calendar.addTodo") },
-              { type: "reminder", icon: "\u23F0", label: t("calendar.addReminder") },
             ].map((item) => (
               <button
                 key={item.type}

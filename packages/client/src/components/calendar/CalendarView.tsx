@@ -24,8 +24,8 @@ import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
 import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendarTypes";
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
-import InputModal from "@/components/ui/InputModal";
 import { showToast } from "@/components/ui/Toast";
+import CalendarTodoAddModal from "./CalendarTodoAddModal";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
@@ -43,9 +43,8 @@ export default function CalendarView() {
   const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
-  const [inputModalOpen, setInputModalOpen] = useState(false);
-  const [inputModalType, setInputModalType] = useState<"todo" | "reminder">("todo");
-  const [inputModalDate, setInputModalDate] = useState<string>("");
+  const [todoAddModalOpen, setTodoAddModalOpen] = useState(false);
+  const [todoAddModalDate, setTodoAddModalDate] = useState("");
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -192,17 +191,6 @@ export default function CalendarView() {
     }
   };
 
-  const handleInputModalSubmit = async (value: string) => {
-    setInputModalOpen(false);
-    try {
-      const priority = inputModalType === "todo" ? "medium" : "low";
-      await addTodo(value, priority, inputModalDate, "personal");
-      showToast("success", t("calendar.todoCreated"));
-    } catch {
-      showToast("error", t("calendar.createFailed"));
-    }
-  };
-
   const handleEditEvent = (ev: CalendarEvent) => {
     setEditingEventId(ev.id);
     setNewEvent({
@@ -325,13 +313,8 @@ export default function CalendarView() {
               setSelectedDate(date);
               setShowAddModal(true);
             } else if (type === "todo") {
-              setInputModalDate(dateStr);
-              setInputModalType("todo");
-              setInputModalOpen(true);
-            } else if (type === "reminder") {
-              setInputModalDate(dateStr);
-              setInputModalType("reminder");
-              setInputModalOpen(true);
+              setTodoAddModalDate(dateStr);
+              setTodoAddModalOpen(true);
             }
           }}
         />
@@ -438,16 +421,17 @@ export default function CalendarView() {
         </div>
       )}
 
-      {/* InputModal for quick-add todo / reminder */}
-      <InputModal
-        open={inputModalOpen}
-        title={inputModalType === "todo" ? t("calendar.addTodo") : t("calendar.addReminder")}
-        placeholder={inputModalType === "todo" ? t("calendar.todoTitle") : t("calendar.reminderTitle")}
-        submitLabel={t("common.add")}
-        cancelLabel={t("common.cancel")}
-        onSubmit={handleInputModalSubmit}
-        onCancel={() => setInputModalOpen(false)}
+      <CalendarTodoAddModal
+        open={todoAddModalOpen}
+        initialDate={todoAddModalDate}
+        onClose={() => setTodoAddModalOpen(false)}
+        onAdd={async (values) => {
+          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status);
+          if (!ok) throw new Error("add failed");
+          showToast("success", t("calendar.todoCreated"));
+        }}
       />
+
     </div>
   );
 }

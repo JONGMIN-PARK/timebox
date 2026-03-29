@@ -19,7 +19,7 @@ interface TodoState {
   setFilter: (filter: "all" | "waiting" | "active" | "completed") => void;
   setCategoryFilter: (cat: string) => void;
   fetchTodos: () => Promise<void>;
-  addTodo: (title: string, priority?: string, dueDate?: string, category?: string, status?: 'waiting' | 'active' | 'completed') => Promise<void>;
+  addTodo: (title: string, priority?: string, dueDate?: string, category?: string, status?: 'waiting' | 'active' | 'completed') => Promise<boolean>;
   toggleTodo: (id: number) => Promise<void>;
   deleteTodo: (id: number) => Promise<void>;
   restoreTodo: (id: number) => Promise<void>;
@@ -74,15 +74,18 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       const res = await todoApi.create({ title, priority, dueDate: date, category, status });
       if (res.success && res.data) {
         set({ todos: get().todos.map(t => t.id === tempId ? res.data! : t) });
+        return true;
       } else {
         const msg = res.error || "Failed to add todo";
         set({ todos: get().todos.filter(t => t.id !== tempId), error: msg });
         showToast("error", msg);
+        return false;
       }
     } catch {
       const msg = "Failed to add todo";
       set({ todos: get().todos.filter(t => t.id !== tempId), error: msg });
       showToast("error", msg);
+      return false;
     }
   },
 
