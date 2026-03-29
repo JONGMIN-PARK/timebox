@@ -56,7 +56,7 @@ export default function MonthView({
           </div>
         ))}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-fr">
+      <div className="flex-shrink-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)]">
         {days.map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
@@ -172,7 +172,7 @@ export default function MonthView({
 
       {/* Selected date detail - events + todos */}
       {selectedDate && (
-        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <div className="flex-1 min-h-0 flex flex-col border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
             <span className="text-sm font-medium text-slate-900 dark:text-white">
               {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
@@ -181,7 +181,7 @@ export default function MonthView({
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <div className="max-h-[40vh] overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
             {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
               <p className="px-4 py-4 text-sm text-slate-400 text-center">No events</p>
             ) : (
