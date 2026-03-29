@@ -71,6 +71,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // Calendar
     "calendar.addEvent": "Add Event",
+    "calendar.editEvent": "Edit Event",
     "calendar.noEvents": "No events",
     "calendar.eventTitle": "Event title",
     "calendar.start": "Start",
@@ -428,6 +429,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // Calendar
     "calendar.addEvent": "\uc77c\uc815 \ucd94\uac00",
+    "calendar.editEvent": "\uc77c\uc815 \uc218\uc815",
     "calendar.noEvents": "\uc77c\uc815 \uc5c6\uc74c",
     "calendar.eventTitle": "\uc77c\uc815 \uc81c\ubaa9",
     "calendar.start": "\uc2dc\uc791",

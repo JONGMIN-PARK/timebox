@@ -20,20 +20,21 @@ import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
-import type { ViewMode, HoverTooltipItem } from "./calendarTypes";
+import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendarTypes";
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
 
 export default function CalendarView() {
-  const { events, fetchEvents, addEvent, deleteEvent } = useEventStore();
+  const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
   const { categories, fetchCategories } = useCategoryStore();
-  const { todos, fetchTodos, addTodo } = useTodoStore();
+  const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo } = useTodoStore();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
   const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -129,21 +130,50 @@ export default function CalendarView() {
     if (!newEvent.title.trim() || !selectedDate) return;
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     const cat = categories.find((c) => c.id === newEvent.categoryId);
-    await addEvent({
-      title: newEvent.title.trim(),
-      startTime: `${dateStr}T${newEvent.startTime}:00`,
-      endTime: `${dateStr}T${newEvent.endTime}:00`,
-      allDay: false,
-      categoryId: newEvent.categoryId || undefined,
-      recurrenceRule: recurrence || undefined,
-      color: cat?.color || "#3b82f6",
-    });
+    if (editingEventId) {
+      await updateEvent(editingEventId, {
+        title: newEvent.title.trim(),
+        startTime: `${dateStr}T${newEvent.startTime}:00`,
+        endTime: `${dateStr}T${newEvent.endTime}:00`,
+        categoryId: newEvent.categoryId || undefined,
+        color: cat?.color || "#3b82f6",
+      });
+    } else {
+      await addEvent({
+        title: newEvent.title.trim(),
+        startTime: `${dateStr}T${newEvent.startTime}:00`,
+        endTime: `${dateStr}T${newEvent.endTime}:00`,
+        allDay: false,
+        categoryId: newEvent.categoryId || undefined,
+        recurrenceRule: recurrence || undefined,
+        color: cat?.color || "#3b82f6",
+      });
+    }
     setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
     setRecurrence("");
+    setEditingEventId(null);
     setShowAddModal(false);
     const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
     const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
+  };
+
+  const handleEditEvent = (ev: CalendarEvent) => {
+    setEditingEventId(ev.id);
+    setNewEvent({
+      title: ev.title,
+      startTime: ev.startTime.slice(11, 16),
+      endTime: ev.endTime.slice(11, 16),
+      categoryId: ev.categoryId || 0,
+    });
+    setShowAddModal(true);
+  };
+
+  const handleEditTodo = (td: Todo) => {
+    const title = prompt("할일 수정:", td.title);
+    if (title !== null && title.trim()) {
+      updateTodo(td.id, { title: title.trim() });
+    }
   };
 
   const getHoverItems = (dateKey: string): HoverTooltipItem[] => {
@@ -238,8 +268,12 @@ export default function CalendarView() {
           getHoverItems={getHoverItems}
           onDayHover={handleDayHover}
           onDayLeave={() => setHoverDateKey(null)}
-          onShowAddModal={() => setShowAddModal(true)}
+          onShowAddModal={() => { setEditingEventId(null); setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 }); setShowAddModal(true); }}
           onDeleteEvent={deleteEvent}
+          onEditEvent={handleEditEvent}
+          onToggleTodo={toggleTodo}
+          onDeleteTodo={deleteTodo}
+          onEditTodo={handleEditTodo}
           onLongPressDate={(date, type) => {
             const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
             if (type === "event") {
@@ -289,14 +323,14 @@ export default function CalendarView() {
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
           >
             <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(selectedDate, "MMM d", { locale: enUS })} {t("calendar.addEvent")}
+              {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
             </h3>
             <input
               type="text"
