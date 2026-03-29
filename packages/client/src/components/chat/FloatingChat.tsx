@@ -113,6 +113,9 @@ export default function FloatingChat() {
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
+  const fabPosRef = useRef(fabPos);
+  fabPosRef.current = fabPos;
+
   const dragState = useRef<{
     dragging: boolean;
     startX: number;
@@ -121,10 +124,11 @@ export default function FloatingChat() {
     startPosY: number;
     moved: boolean;
   } | null>(null);
+  const wasDragging = useRef(false);
   const fabRef = useRef<HTMLButtonElement>(null);
 
   const clampFab = useCallback((x: number, y: number) => {
-    const size = 56; // w-14 = 3.5rem = 56px
+    const size = 56;
     return {
       x: Math.max(4, Math.min(window.innerWidth - size - 4, x)),
       y: Math.max(4, Math.min(window.innerHeight - size - 4, y)),
@@ -140,7 +144,8 @@ export default function FloatingChat() {
   }, []);
 
   const handleDragStart = useCallback((clientX: number, clientY: number) => {
-    const pos = fabPos ?? getDefaultFabPos();
+    const pos = fabPosRef.current ?? getDefaultFabPos();
+    wasDragging.current = false;
     dragState.current = {
       dragging: true,
       startX: clientX,
@@ -149,14 +154,14 @@ export default function FloatingChat() {
       startPosY: pos.y,
       moved: false,
     };
-  }, [fabPos, getDefaultFabPos]);
+  }, [getDefaultFabPos]);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
     const ds = dragState.current;
     if (!ds || !ds.dragging) return;
     const dx = clientX - ds.startX;
     const dy = clientY - ds.startY;
-    if (!ds.moved && Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+    if (!ds.moved && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
     ds.moved = true;
     const clamped = clampFab(ds.startPosX + dx, ds.startPosY + dy);
     setFabPos(clamped);
@@ -165,18 +170,24 @@ export default function FloatingChat() {
   const handleDragEnd = useCallback(() => {
     const ds = dragState.current;
     if (!ds) return;
-    if (ds.moved && fabPos) {
-      // Snap to nearest horizontal edge
-      const midX = window.innerWidth / 2;
-      const snapped = clampFab(
-        fabPos.x + 28 < midX ? 8 : window.innerWidth - 64,
-        fabPos.y,
-      );
-      setFabPos(snapped);
-      localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(snapped));
-    }
+    const didMove = ds.moved;
+    wasDragging.current = didMove;
     dragState.current = null;
-  }, [fabPos, clampFab]);
+    if (didMove) {
+      const cur = fabPosRef.current;
+      if (cur) {
+        const midX = window.innerWidth / 2;
+        const snapped = clampFab(
+          cur.x + 28 < midX ? 8 : window.innerWidth - 64,
+          cur.y,
+        );
+        setFabPos(snapped);
+        localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(snapped));
+      }
+      // Reset wasDragging after click event has had time to fire
+      setTimeout(() => { wasDragging.current = false; }, 300);
+    }
+  }, [clampFab]);
 
   // Mouse drag handlers
   useEffect(() => {
@@ -1024,7 +1035,7 @@ export default function FloatingChat() {
         ref={fabRef}
         onClick={() => {
           // Ignore click if it was a drag
-          if (dragState.current?.moved) return;
+          if (wasDragging.current) return;
           setOpen((prev) => !prev);
           if (!open) {
             setView("contacts");
