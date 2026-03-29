@@ -169,6 +169,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "elon.incomingLinks": "Other blocks link here",
     "elon.brainDump": "Brain dump",
     "elon.brainDumpHint": "Capture everything; scheduling does not remove items here.",
+    "elon.brainTop3LinkHint":
+      "Top 3 placed on the timeline also appears here; deleting that block puts it back in this list and clears the matching Top 3 line when the title matches.",
     "elon.addTaskTitle": "Add a task…",
     "elon.addTaskNotes": "Notes (optional)",
     "elon.brainEmpty": "Add tasks above",
@@ -647,6 +649,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "elon.incomingLinks": "\ub2e4\ub978 \ube14\ub85d\uc5d0\uc11c \uc5f0\uacb0\ub428",
     "elon.brainDump": "\ube0c\ub808\uc778 \ub364\ud504",
     "elon.brainDumpHint": "\uc0dd\uac01\uc744 \ubaa8\ub450 \uc47f\uc5b4\ub0b4\uc138\uc694. \uc2a4\ucf00\uc904\uc5d0 \uc62c\ub824\ub3c4 \uc5ec\uae30\uc120 \uc0ad\uc9c0\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.",
+    "elon.brainTop3LinkHint":
+      "Top 3\ub97c \ud0c0\uc784\ub77c\uc778\uc5d0 \uc62c\ub9ac\uba74 \uc774 \ubaa9\ub85d\uc5d0\ub3c4 \uc5f0\ub3d9\ub429\ub2c8\ub2e4. \ud574\ub2f9 \ube14\ub85d\uc744 \uc9c0\uc6b0\uba74 \ub2e4\uc2dc \uc5ec\uae30\ub85c \ub418\ub3cc\uc544\uac00\uace0, \uc81c\ubaa9\uc774 \uac19\uc73c\uba74 Top 3 \uc785\ub825\uc904\uc744 \ube44\uc6c5\ub2c8\ub2e4.",
     "elon.addTaskTitle": "\ud560 \uc77c \ucd94\uac00\u2026",
     "elon.addTaskNotes": "\uba54\ubaa8 (\uc120\ud0dd)",
     "elon.brainEmpty": "\uc704\uc5d0\uc11c \ud560 \uc77c\uc744 \ucd94\uac00\ud558\uc138\uc694",

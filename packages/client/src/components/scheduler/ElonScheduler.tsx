@@ -88,6 +88,61 @@ const MIN_BLOCK_MIN = 10;
 
 const SKETCH_PALETTE = ["#6366f1", "#e11d48", "#059669", "#d97706", "#64748b"] as const;
 
+/** Top 3 타임라인 블록 ↔ 브레인 덤프 연동 (meta.brainId). */
+function syncBrainForPriorityBlock(
+  brainItems: BrainItem[],
+  meta: TimeBlockMeta,
+  payload: {
+    title: string;
+    notes: string | null;
+    category: TimeBlockCategory;
+    startTime: string;
+    endTime: string;
+  },
+): { nextBrain: BrainItem[]; meta: TimeBlockMeta } {
+  const slot = meta.prioritySlot;
+  if (slot !== 1 && slot !== 2 && slot !== 3) {
+    return { nextBrain: brainItems, meta };
+  }
+  const duration = Math.max(
+    MIN_BLOCK_MIN,
+    parseTimeToMinutes(payload.endTime) - parseTimeToMinutes(payload.startTime),
+  );
+  const notes = payload.notes ?? "";
+  const cat = (payload.category in CATEGORY_CONFIG ? payload.category : "other") as TimeBlockCategory;
+
+  if (meta.brainId) {
+    const idx = brainItems.findIndex((i) => i.id === meta.brainId);
+    if (idx >= 0) {
+      const next = brainItems.map((i) =>
+        i.id === meta.brainId ? { ...i, text: payload.title, notes, category: cat, duration } : i,
+      );
+      return { nextBrain: next, meta };
+    }
+    const item: BrainItem = {
+      id: meta.brainId,
+      text: payload.title,
+      notes,
+      category: cat,
+      duration,
+    };
+    return { nextBrain: [item, ...brainItems], meta };
+  }
+
+  const brainId = uid();
+  const item: BrainItem = {
+    id: brainId,
+    text: payload.title,
+    notes,
+    category: cat,
+    duration,
+  };
+  return {
+    nextBrain: [item, ...brainItems],
+    meta: { ...meta, brainId },
+  };
+}
+
 function nextFreeStart(blocks: TimeBlock[], durationMin: number, snapStep: number): number {
   const segs = blocks
     .map((b) => ({
@@ -495,11 +550,20 @@ export default function ElonScheduler() {
     color: string | null;
     meta: string | null;
   }) => {
+    const parsedMeta = parseBlockMeta(payload.meta);
+    let metaForSave = parsedMeta;
+    if (parsedMeta.prioritySlot === 1 || parsedMeta.prioritySlot === 2 || parsedMeta.prioritySlot === 3) {
+      const { nextBrain, meta } = syncBrainForPriorityBlock(brainItems, parsedMeta, payload);
+      metaForSave = meta;
+      setBrainItems(nextBrain);
+      saveBrainItems(selectedDate, nextBrain);
+    }
+    const metaStr = stringifyBlockMeta(compactMeta(metaForSave));
     const body = {
       date: selectedDate,
       title: payload.title,
       notes: payload.notes,
-      meta: payload.meta,
+      meta: metaStr,
       startTime: normTime(payload.startTime),
       endTime: normTime(payload.endTime),
       category: payload.category,
@@ -512,6 +576,60 @@ export default function ElonScheduler() {
     }
     fetchBlocks(selectedDate);
   };
+
+  const handleBlockDelete = useCallback(
+    async (blockId: number) => {
+      const b = sortedBlocks.find((x) => x.id === blockId);
+      await deleteBlock(blockId);
+      if (b && b.id > 0) {
+        const meta = parseBlockMeta(b.meta ?? null);
+        const duration = Math.max(
+          MIN_BLOCK_MIN,
+          parseTimeToMinutes(b.endTime) - parseTimeToMinutes(b.startTime),
+        );
+        const cat = (b.category in CATEGORY_CONFIG ? b.category : "other") as TimeBlockCategory;
+        if (meta.brainId) {
+          const exists = brainItems.some((i) => i.id === meta.brainId);
+          if (!exists) {
+            const item: BrainItem = {
+              id: meta.brainId,
+              text: b.title,
+              notes: b.notes ?? "",
+              category: cat,
+              duration,
+            };
+            const next = [item, ...brainItems];
+            setBrainItems(next);
+            saveBrainItems(selectedDate, next);
+          }
+        } else if (meta.prioritySlot === 1 || meta.prioritySlot === 2 || meta.prioritySlot === 3) {
+          const item: BrainItem = {
+            id: uid(),
+            text: b.title,
+            notes: b.notes ?? "",
+            category: cat,
+            duration,
+          };
+          const next = [item, ...brainItems];
+          setBrainItems(next);
+          saveBrainItems(selectedDate, next);
+        }
+        if (meta.prioritySlot === 1 || meta.prioritySlot === 2 || meta.prioritySlot === 3) {
+          const idx = meta.prioritySlot - 1;
+          const line = top3[idx]?.trim();
+          if (line && line === b.title.trim()) {
+            const nextTop: Top3Tuple = [...top3];
+            nextTop[idx] = "";
+            setTop3(nextTop);
+            saveTop3(selectedDate, nextTop);
+          }
+        }
+      }
+      setSheet(null);
+      void fetchBlocks(selectedDate);
+    },
+    [sortedBlocks, brainItems, top3, selectedDate, deleteBlock, fetchBlocks],
+  );
 
   const handleMemoChange = (val: string) => {
     setMemoText(val);
@@ -732,6 +850,7 @@ export default function ElonScheduler() {
             <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t("elon.brainDump")}</span>
               <p className="text-[9px] text-slate-400 mt-0.5">{t("elon.brainDumpHint")}</p>
+              <p className="text-[9px] text-slate-400/90 mt-0.5 leading-snug">{t("elon.brainTop3LinkHint")}</p>
             </div>
             <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-700/50 space-y-1.5 shrink-0">
               <input
@@ -830,7 +949,7 @@ export default function ElonScheduler() {
         linkPrioritySlot={sheet?.linkPrioritySlot}
         onClose={() => setSheet(null)}
         onSave={handleSheetSave}
-        onDelete={sheet?.mode === "edit" && sheet.initial.blockId ? (id) => void deleteBlock(id) : undefined}
+        onDelete={sheet?.mode === "edit" && sheet.initial.blockId ? (id) => void handleBlockDelete(id) : undefined}
         onDuplicate={sheet?.mode === "edit" && sheet.initial.blockId ? () => void handleDuplicateBlock() : undefined}
       />
     </div>
