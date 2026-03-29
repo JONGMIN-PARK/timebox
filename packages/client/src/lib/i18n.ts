@@ -72,6 +72,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.waitingExcluded": "Waiting tasks are excluded from progress",
     "todo.waitingStart": "Start",
     "todo.waitingComplete": "Complete",
+    "todo.moveToWaiting": "To waiting",
 
     // Calendar
     "calendar.addEvent": "Add Event",
@@ -445,6 +446,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.waitingExcluded": "\ub300\uae30 \uc791\uc5c5\uc740 \uc9c4\ud589\ub960\uc5d0 \ud3ec\ud568\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4",
     "todo.waitingStart": "\uc9c4\ud589",
     "todo.waitingComplete": "\uc644\ub8cc",
+    "todo.moveToWaiting": "\ub300\uae30\ub85c",
 
     // Calendar
     "calendar.addEvent": "\uc77c\uc815 \ucd94\uac00",

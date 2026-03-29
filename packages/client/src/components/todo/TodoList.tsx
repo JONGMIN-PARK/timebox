@@ -242,15 +242,26 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 mt-1.5 ml-3">
-              <input
-                type="range"
-                min={0} max={100} step={10}
-                value={todo.progress ?? 0}
-                onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
-                className="flex-1 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-              />
-              <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right shrink-0">{todo.progress ?? 0}%</span>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-3">
+              <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                <input
+                  type="range"
+                  min={0} max={100} step={10}
+                  value={todo.progress ?? 0}
+                  onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
+                  className="flex-1 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
+                />
+                <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right shrink-0">{todo.progress ?? 0}%</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onStatusChange(todo.id, "waiting")}
+                title={t("todo.waiting")}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200/80 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/30 dark:hover:bg-amber-500/25 transition-colors shrink-0"
+              >
+                <Clock className="w-3 h-3 shrink-0" />
+                {t("todo.moveToWaiting")}
+              </button>
             </div>
           )}
 
@@ -298,17 +309,36 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
 
 // ── Memoized Completed Todo Item ──
 const CompletedTodoItem = memo(function CompletedTodoItem({
-  todo, onRestore, onDelete,
+  todo, onRestore, onMoveToWaiting, onDelete,
 }: {
-  todo: Todo; onRestore: (id: number) => void; onDelete: (id: number) => void;
+  todo: Todo;
+  onRestore: (id: number) => void;
+  onMoveToWaiting: (id: number) => void;
+  onDelete: (id: number) => void;
 }) {
+  const { t } = useI18n();
   const catInfo = getCategoryInfo(todo.category);
   return (
     <li className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
       <div className="w-4" />
-      <button onClick={() => onRestore(todo.id)} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors">
-        <CheckCircle2 className="w-[18px] h-[18px] text-green-500" />
-      </button>
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onMoveToWaiting(todo.id)}
+          title={t("todo.moveToWaiting")}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 active:bg-amber-50 dark:active:bg-amber-900/25 transition-colors"
+        >
+          <Clock className="w-[18px] h-[18px]" />
+        </button>
+        <button
+          type="button"
+          onClick={() => onRestore(todo.id)}
+          title={t("todo.active")}
+          className="w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors"
+        >
+          <CheckCircle2 className="w-[18px] h-[18px] text-green-500" />
+        </button>
+      </div>
       <div className="flex-1 min-w-0">
         <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
         <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
@@ -419,6 +449,7 @@ export default function TodoList() {
   // Memoized handlers
   const handleStatusChange = useCallback((id: number, status: 'waiting' | 'active' | 'completed') => { updateStatus(id, status); }, [updateStatus]);
   const handleRestore = useCallback((id: number) => { updateStatus(id, 'active'); }, [updateStatus]);
+  const handleMoveToWaiting = useCallback((id: number) => { updateStatus(id, 'waiting'); }, [updateStatus]);
   const handleDelete = useCallback((id: number) => { deleteTodo(id); showToast("success", "Todo deleted"); }, [deleteTodo]);
   const handleUpdateDate = useCallback((id: number, d: string) => updateTodo(id, { dueDate: d }), [updateTodo]);
   const handleUpdateTitle = useCallback((id: number, t: string) => updateTodo(id, { title: t }), [updateTodo]);
@@ -610,6 +641,7 @@ export default function TodoList() {
                     key={todo.id}
                     todo={todo}
                     onRestore={handleRestore}
+                    onMoveToWaiting={handleMoveToWaiting}
                     onDelete={handleDelete}
                   />
                 ))}
