@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { projectTaskApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 
 export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
 
@@ -41,56 +42,104 @@ export const useProjectTaskStore = create<ProjectTaskState>((set, get) => ({
   fetchTasks: async (projectId) => {
     set({ error: null, loading: true });
     try {
-      const res = await api.get<ProjectTask[]>(`/projects/${projectId}/tasks`);
-      if (res.success && res.data) set({ tasks: res.data, loading: false });
-      else set({ error: "Failed", loading: false });
+      const res = await projectTaskApi.getAll(projectId);
+      if (res.success && res.data) {
+        set({ tasks: res.data, loading: false });
+      } else {
+        const msg = res.error || "Failed to fetch tasks";
+        set({ error: msg, loading: false });
+        showToast("error", msg);
+      }
     } catch {
-      set({ error: "Failed", loading: false });
+      const msg = "Failed to fetch tasks";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
     }
   },
 
   addTask: async (projectId, data) => {
     set({ error: null });
     try {
-      const res = await api.post<ProjectTask>(`/projects/${projectId}/tasks`, data);
+      const res = await projectTaskApi.create(projectId, data);
       if (res.success && res.data) {
         set({ tasks: [...get().tasks, res.data] });
         return res.data;
       }
+      const msg = res.error || "Failed to add task";
+      set({ error: msg });
+      showToast("error", msg);
     } catch {
-      set({ error: "Failed to add task" });
+      const msg = "Failed to add task";
+      set({ error: msg });
+      showToast("error", msg);
     }
   },
 
   updateTask: async (projectId, taskId, data) => {
     set({ error: null });
+    // Optimistic update
+    const prev = get().tasks;
+    set({ tasks: prev.map(t => t.id === taskId ? { ...t, ...data } : t) });
+
     try {
-      const res = await api.put<ProjectTask>(`/projects/${projectId}/tasks/${taskId}`, data);
+      const res = await projectTaskApi.update(projectId, taskId, data);
       if (res.success && res.data) {
         set({ tasks: get().tasks.map(t => t.id === taskId ? res.data! : t) });
+      } else {
+        const msg = res.error || "Failed to update task";
+        set({ tasks: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to update task" });
+      const msg = "Failed to update task";
+      set({ tasks: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   deleteTask: async (projectId, taskId) => {
     set({ error: null });
+    // Optimistic delete
+    const prev = get().tasks;
+    set({ tasks: prev.filter(t => t.id !== taskId) });
+
     try {
-      const res = await api.delete(`/projects/${projectId}/tasks/${taskId}`);
-      if (res.success) {
-        set({ tasks: get().tasks.filter(t => t.id !== taskId) });
+      const res = await projectTaskApi.delete(projectId, taskId);
+      if (!res.success) {
+        const msg = res.error || "Failed to delete task";
+        set({ tasks: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to delete task" });
+      const msg = "Failed to delete task";
+      set({ tasks: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   reorderTasks: async (projectId, items) => {
+    // Optimistic reorder
+    const prev = get().tasks;
+    const taskMap = new Map(get().tasks.map(t => [t.id, t]));
+    items.forEach(({ id, sortOrder, status }) => {
+      const task = taskMap.get(id);
+      if (task) taskMap.set(id, { ...task, sortOrder, status: status as TaskStatus });
+    });
+    set({ tasks: Array.from(taskMap.values()) });
+
     try {
-      await api.put(`/projects/${projectId}/tasks/reorder`, { items });
+      const res = await projectTaskApi.reorder(projectId, items);
+      if (!res.success) {
+        set({ tasks: prev });
+        const msg = res.error || "Failed to reorder tasks";
+        set({ error: msg });
+        showToast("error", msg);
+      }
     } catch {
-      console.warn("Failed to persist task reorder");
+      set({ tasks: prev });
+      const msg = "Failed to reorder tasks";
+      set({ error: msg });
+      showToast("error", msg);
     }
   },
 }));

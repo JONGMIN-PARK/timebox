@@ -3,6 +3,8 @@ import { db } from "../db/index.js";
 import { messages, users } from "../db/schema.js";
 import { eq, and, desc, lt, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
+import { asyncHandler } from "../lib/asyncHandler.js";
+import { ValidationError, NotFoundError, ForbiddenError } from "../lib/errors.js";
 
 const router = Router();
 
@@ -10,104 +12,85 @@ const router = Router();
 router.use("/:projectId/messages", projectMemberMiddleware);
 
 // GET /api/projects/:projectId/messages?channel=general&limit=50&before=id
-router.get("/:projectId/messages", async (req: ProjectRequest, res) => {
-  try {
-    const channel = (req.query.channel as string) || "general";
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
-    const before = parseInt(req.query.before as string);
+router.get("/:projectId/messages", asyncHandler<ProjectRequest>(async (req, res) => {
+  const channel = (req.query.channel as string) || "general";
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const before = parseInt(req.query.before as string);
 
-    const conditions = [
-      eq(messages.projectId, req.projectId!),
-      eq(messages.channel, channel),
-    ];
+  const conditions = [
+    eq(messages.projectId, req.projectId!),
+    eq(messages.channel, channel),
+  ];
 
-    if (!isNaN(before) && before > 0) {
-      conditions.push(lt(messages.id, before));
-    }
-
-    const result = await db.select().from(messages)
-      .where(and(...conditions))
-      .orderBy(desc(messages.id))
-      .limit(limit);
-
-    // Attach sender names
-    const senderIds = [...new Set(result.map(m => m.senderId))];
-    const senderUsers = senderIds.length > 0
-      ? await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users).where(inArray(users.id, senderIds))
-      : [];
-    const userMap = new Map(senderUsers.map(u => [u.id, u.displayName || u.username]));
-
-    const data = result.map(m => ({
-      ...m,
-      content: m.deleted ? "" : m.content,
-      senderName: m.deleted ? "" : (userMap.get(m.senderId) || "Unknown"),
-    }));
-
-    // Return in chronological order
-    data.reverse();
-
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error("projectMessages:list", error);
-    res.status(500).json({ success: false, error: "Failed to fetch messages" });
+  if (!isNaN(before) && before > 0) {
+    conditions.push(lt(messages.id, before));
   }
-});
+
+  const result = await db.select().from(messages)
+    .where(and(...conditions))
+    .orderBy(desc(messages.id))
+    .limit(limit);
+
+  // Attach sender names
+  const senderIds = [...new Set(result.map(m => m.senderId))];
+  const senderUsers = senderIds.length > 0
+    ? await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users).where(inArray(users.id, senderIds))
+    : [];
+  const userMap = new Map(senderUsers.map(u => [u.id, u.displayName || u.username]));
+
+  const data = result.map(m => ({
+    ...m,
+    content: m.deleted ? "" : m.content,
+    senderName: m.deleted ? "" : (userMap.get(m.senderId) || "Unknown"),
+  }));
+
+  // Return in chronological order
+  data.reverse();
+
+  res.json({ success: true, data });
+}));
 
 // POST /api/projects/:projectId/messages
-router.post("/:projectId/messages", async (req: ProjectRequest, res) => {
-  try {
-    const { content, channel, type, replyTo } = req.body;
-    if (!content?.trim()) {
-      res.status(400).json({ success: false, error: "Content is required" });
-      return;
-    }
-
-    const result = await db.insert(messages).values({
-      projectId: req.projectId!,
-      senderId: req.userId!,
-      content: content.trim(),
-      channel: channel || "general",
-      type: type || "text",
-      replyTo: replyTo || null,
-    }).returning();
-
-    res.status(201).json({ success: true, data: result[0] });
-  } catch (error) {
-    console.error("projectMessages:send", error);
-    res.status(500).json({ success: false, error: "Failed to send message" });
+router.post("/:projectId/messages", asyncHandler<ProjectRequest>(async (req, res) => {
+  const { content, channel, type, replyTo } = req.body;
+  if (!content?.trim()) {
+    throw new ValidationError("Content is required");
   }
-});
+
+  const result = await db.insert(messages).values({
+    projectId: req.projectId!,
+    senderId: req.userId!,
+    content: content.trim(),
+    channel: channel || "general",
+    type: type || "text",
+    replyTo: replyTo || null,
+  }).returning();
+
+  res.status(201).json({ success: true, data: result[0] });
+}));
 
 // DELETE /:projectId/messages/:messageId - Delete own message
-router.delete("/:projectId/messages/:messageId", async (req: ProjectRequest, res) => {
-  try {
-    const messageId = parseInt(req.params.messageId as string);
-    if (isNaN(messageId)) {
-      res.status(400).json({ success: false, error: "Invalid message ID" });
-      return;
-    }
-
-    const [msg] = await db.select().from(messages)
-      .where(and(eq(messages.id, messageId), eq(messages.projectId, req.projectId!)));
-
-    if (!msg) {
-      res.status(404).json({ success: false, error: "Message not found" });
-      return;
-    }
-
-    if (msg.senderId !== req.userId!) {
-      res.status(403).json({ success: false, error: "Can only delete your own messages" });
-      return;
-    }
-
-    await db.update(messages).set({ deleted: true })
-      .where(eq(messages.id, messageId));
-
-    res.json({ success: true, data: { deleted: true } });
-  } catch (error) {
-    console.error("projectMessages:delete", error);
-    res.status(500).json({ success: false, error: "Failed to delete message" });
+router.delete("/:projectId/messages/:messageId", asyncHandler<ProjectRequest>(async (req, res) => {
+  const messageId = parseInt(req.params.messageId as string);
+  if (isNaN(messageId)) {
+    throw new ValidationError("Invalid message ID");
   }
-});
+
+  const [msg] = await db.select().from(messages)
+    .where(and(eq(messages.id, messageId), eq(messages.projectId, req.projectId!)));
+
+  if (!msg) {
+    throw new NotFoundError("Message");
+  }
+
+  if (msg.senderId !== req.userId!) {
+    throw new ForbiddenError("Can only delete your own messages");
+  }
+
+  await db.update(messages).set({ deleted: true })
+    .where(eq(messages.id, messageId));
+
+  res.json({ success: true, data: { deleted: true } });
+}));
 
 export default router;

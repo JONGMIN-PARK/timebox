@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
-import { getSocket } from "@/lib/socket";
+import { useSocket, useSocketEvent } from "@/lib/SocketProvider";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import {
@@ -75,6 +75,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
 
 export default function FloatingChat() {
   const user = useAuthStore((s) => s.user);
+  const socket = useSocket();
 
   // UI state
   const [open, setOpen] = useState(false);
@@ -105,6 +106,8 @@ export default function FloatingChat() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Draggable FAB state ──
   const FAB_STORAGE_KEY = "floatingChat:position";
@@ -186,7 +189,8 @@ export default function FloatingChat() {
         localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(snapped));
       }
       // Reset wasDragging after click event has had time to fire
-      setTimeout(() => { wasDragging.current = false; }, 300);
+      if (dragResetTimerRef.current) clearTimeout(dragResetTimerRef.current);
+      dragResetTimerRef.current = setTimeout(() => { wasDragging.current = false; }, 300);
     }
   }, [clampFab]);
 
@@ -218,6 +222,14 @@ export default function FloatingChat() {
       document.removeEventListener("touchend", onTouchEnd);
     };
   }, [handleDragMove, handleDragEnd]);
+
+  // ── Cleanup timers on unmount ──
+  useEffect(() => {
+    return () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      if (dragResetTimerRef.current) clearTimeout(dragResetTimerRef.current);
+    };
+  }, []);
 
   // ── Escape key handler ──
 
@@ -278,47 +290,40 @@ export default function FloatingChat() {
 
   // ── Socket: real-time messages ──
 
-  useEffect(() => {
-    if (!user) return;
-    const socket = getSocket();
+  const activeRoomRef = useRef(activeRoom);
+  activeRoomRef.current = activeRoom;
 
-    const handleNewMessage = (data: { userId: number; roomId: string; message: ChatMessage }) => {
-      const msg = data.message;
-      if (!msg) return;
-      if (msg.userId === user.id) return;
+  useSocketEvent("chat:message", useCallback((data: { userId: number; roomId: string; message: ChatMessage }) => {
+    const msg = data.message;
+    if (!msg) return;
+    if (msg.userId === user?.id) return;
 
-      if (activeRoom && String(activeRoom.id) === data.roomId) {
-        setMessages((prev) => [...prev, msg]);
-      } else {
-        // Increment unread count for messages not in active room
-        setUnreadCount((prev) => prev + 1);
-      }
+    if (activeRoomRef.current && String(activeRoomRef.current.id) === data.roomId) {
+      setMessages((prev) => [...prev, msg]);
+    } else {
+      // Increment unread count for messages not in active room
+      setUnreadCount((prev) => prev + 1);
+    }
 
-      // Update recent rooms
-      const roomId = parseInt(data.roomId);
-      setRecentRooms((prev) =>
-        prev.map((r) =>
-          r.id === roomId
-            ? {
-                ...r,
-                lastMessage: {
-                  id: msg.id,
-                  content: msg.content,
-                  type: msg.type,
-                  senderName: msg.senderName,
-                  createdAt: msg.createdAt,
-                },
-              }
-            : r,
-        ),
-      );
-    };
-
-    socket.on("chat:message", handleNewMessage);
-    return () => {
-      socket.off("chat:message", handleNewMessage);
-    };
-  }, [activeRoom, user]);
+    // Update recent rooms
+    const roomId = parseInt(data.roomId);
+    setRecentRooms((prev) =>
+      prev.map((r) =>
+        r.id === roomId
+          ? {
+              ...r,
+              lastMessage: {
+                id: msg.id,
+                content: msg.content,
+                type: msg.type,
+                senderName: msg.senderName,
+                createdAt: msg.createdAt,
+              },
+            }
+          : r,
+      ),
+    );
+  }, [user?.id]));
 
   // ── Auto-scroll on new messages ──
 
@@ -382,8 +387,7 @@ export default function FloatingChat() {
     setInput("");
     setShowCommands(false);
 
-    const socket = getSocket();
-    socket.emit("chat:join", String(room.id));
+    socket?.emit("chat:join", String(room.id));
 
     const res = await api.get<ChatMessage[]>(`/chat/${room.id}/messages`);
     if (res.success && res.data) setMessages(res.data);
@@ -394,15 +398,14 @@ export default function FloatingChat() {
       prev.map((r) => (r.id === room.id ? { ...r, unreadCount: 0 } : r)),
     );
 
-    setTimeout(() => inputRef.current?.focus(), 100);
+    focusTimerRef.current = setTimeout(() => inputRef.current?.focus(), 100);
   };
 
   // ── Leave room ──
 
   const leaveRoom = () => {
     if (activeRoom) {
-      const socket = getSocket();
-      socket.emit("chat:leave", String(activeRoom.id));
+      socket?.emit("chat:leave", String(activeRoom.id));
     }
     setActiveRoom(null);
     setActivePartner(null);
@@ -474,13 +477,12 @@ export default function FloatingChat() {
 
     if (confirmationMsg && activeRoom) {
       // Send confirmation as a system-style message in chat
-      const socket = getSocket();
       const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, {
         content: confirmationMsg,
       });
       if (res.success && res.data) {
         setMessages((prev) => [...prev, res.data!]);
-        socket.emit("chat:message", {
+        socket?.emit("chat:message", {
           roomId: String(activeRoom.id),
           message: res.data,
         });
@@ -506,13 +508,12 @@ export default function FloatingChat() {
       }
     }
 
-    const socket = getSocket();
     const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, {
       content: text,
     });
     if (res.success && res.data) {
       setMessages((prev) => [...prev, res.data!]);
-      socket.emit("chat:message", {
+      socket?.emit("chat:message", {
         roomId: String(activeRoom.id),
         message: res.data,
       });
@@ -974,8 +975,7 @@ export default function FloatingChat() {
                 });
                 if (res.success && res.data) {
                   setMessages(prev => [...prev, res.data!]);
-                  const socket = getSocket();
-                  socket.emit("chat:message", { roomId: String(activeRoom.id), message: res.data });
+                  socket?.emit("chat:message", { roomId: String(activeRoom.id), message: res.data });
                 }
               };
               reader.readAsDataURL(file);

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { categoryApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 import type { Category } from "@timebox/shared";
 
 export type { Category };
@@ -19,14 +20,18 @@ export const useCategoryStore = create<CategoryState>((set) => ({
   fetchCategories: async () => {
     set({ error: null, loading: true });
     try {
-      const res = await api.get<Category[]>("/categories");
+      const res = await categoryApi.getAll();
       if (res.success && res.data) {
         set({ categories: res.data, loading: false });
       } else {
-        set({ error: res.error || "Failed to fetch categories", loading: false });
+        const msg = res.error || "Failed to fetch categories";
+        set({ error: msg, loading: false });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to fetch categories", loading: false });
+      const msg = "Failed to fetch categories";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
     }
   },
 }));

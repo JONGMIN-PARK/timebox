@@ -1,25 +1,10 @@
-import { useState, useEffect, useRef } from "react";
-import { X, Trash2, CalendarDays, ArrowRightLeft, CheckCircle, ListTodo, ClipboardList, Send, Pencil, Trash } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { api } from "@/lib/api";
-import { t } from "@/lib/i18n";
-import { fmtDateTime } from "@/lib/dateUtils";
+import { useState, useEffect } from "react";
 import type { ProjectTask, TaskStatus } from "@/stores/projectTaskStore";
 import type { ProjectMember } from "@/stores/projectStore";
-
-const STATUS_OPTIONS: { key: TaskStatus; label: string }[] = [
-  { key: "backlog", label: "Backlog" },
-  { key: "todo", label: "To Do" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "review", label: "Review" },
-  { key: "done", label: "Done" },
-];
-
-const PRIORITY_OPTIONS = [
-  { key: "high", label: "High", color: "#ef4444" },
-  { key: "medium", label: "Medium", color: "#f59e0b" },
-  { key: "low", label: "Low", color: "#94a3b8" },
-];
+import TaskDetailHeader from "./TaskDetailHeader";
+import TaskDetailBody from "./TaskDetailBody";
+import TaskDetailComments from "./TaskDetailComments";
+import TaskDetailActions from "./TaskDetailActions";
 
 interface TaskDetailModalProps {
   projectId: number;
@@ -40,72 +25,6 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   const [dueDate, setDueDate] = useState(task.dueDate || "");
   const [startDate, setStartDate] = useState(task.startDate || "");
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [addedToTodo, setAddedToTodo] = useState(false);
-
-  // Reactions state
-  const [reactions, setReactions] = useState<{id: number; emoji: string; userId: number; userName: string}[]>([]);
-
-  useEffect(() => {
-    api.get<any[]>(`/projects/${projectId}/tasks/${task.id}/reactions`).then(res => {
-      if (res.success && res.data) setReactions(res.data);
-    });
-  }, [projectId, task.id]);
-
-  const toggleReaction = async (emoji: string) => {
-    await api.post(`/projects/${projectId}/tasks/${task.id}/reactions`, { emoji });
-    const res = await api.get<any[]>(`/projects/${projectId}/tasks/${task.id}/reactions`);
-    if (res.success && res.data) setReactions(res.data);
-  };
-
-  // Work logs state
-  const [workLogs, setWorkLogs] = useState<{id: number; userId: number; userName: string; content: string; createdAt: string}[]>([]);
-  const [newLogContent, setNewLogContent] = useState("");
-  const [addingLog, setAddingLog] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<number | null>(null);
-  const [editingLogContent, setEditingLogContent] = useState("");
-  const logEndRef = useRef<HTMLDivElement>(null);
-
-  const refreshLogs = async () => {
-    const res = await api.get<any[]>(`/projects/${projectId}/tasks/${task.id}/worklogs`);
-    if (res.success && res.data) setWorkLogs(res.data);
-  };
-
-  useEffect(() => { refreshLogs(); }, [projectId, task.id]);
-
-  const handleAddWorkLog = async () => {
-    if (!newLogContent.trim() || addingLog) return;
-    setAddingLog(true);
-    const res = await api.post(`/projects/${projectId}/tasks/${task.id}/worklogs`, { content: newLogContent.trim() });
-    if (res.success) {
-      await refreshLogs();
-      setNewLogContent("");
-      setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    }
-    setAddingLog(false);
-  };
-
-  const handleEditWorkLog = async (logId: number) => {
-    if (!editingLogContent.trim()) return;
-    const res = await api.put(`/projects/${projectId}/tasks/${task.id}/worklogs/${logId}`, { content: editingLogContent.trim() });
-    if (res.success) {
-      await refreshLogs();
-      setEditingLogId(null);
-      setEditingLogContent("");
-    }
-  };
-
-  const handleDeleteWorkLog = async (logId: number) => {
-    const res = await api.delete(`/projects/${projectId}/tasks/${task.id}/worklogs/${logId}`);
-    if (res.success) await refreshLogs();
-  };
-
-  // Transfer state
-  const [showTransfer, setShowTransfer] = useState(false);
-  const [transferToUserId, setTransferToUserId] = useState<number | "">("");
-  const [transferMessage, setTransferMessage] = useState("");
-  const [transferSending, setTransferSending] = useState(false);
-  const [transferResult, setTransferResult] = useState<"sent" | "error" | null>(null);
 
   const hasChanges =
     title !== task.title ||
@@ -133,52 +52,9 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   };
 
   const handleDelete = async () => {
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
     await onDelete(task.id);
     onClose();
   };
-
-  const handleTransfer = async () => {
-    if (!transferToUserId) return;
-    setTransferSending(true);
-    setTransferResult(null);
-    try {
-      const res = await api.post(`/projects/${projectId}/tasks/${task.id}/transfer`, {
-        toUserId: transferToUserId,
-        message: transferMessage.trim() || undefined,
-      });
-      if (res.success) {
-        setTransferResult("sent");
-        setTransferToUserId("");
-        setTransferMessage("");
-        setTimeout(() => setShowTransfer(false), 1500);
-      } else {
-        setTransferResult("error");
-      }
-    } catch {
-      setTransferResult("error");
-    }
-    setTransferSending(false);
-  };
-
-  const handleAddToTodo = async () => {
-    const res = await api.post("/todos", {
-      title: `[${task.status}] ${task.title}`,
-      priority: task.priority || "medium",
-      category: "work",
-      dueDate: task.dueDate || null,
-    });
-    if (res.success) {
-      setAddedToTodo(true);
-      setTimeout(() => setAddedToTodo(false), 2000);
-    }
-  };
-
-  // Members eligible for transfer (exclude current assignee)
-  const transferableMembers = members.filter((m) => m.userId !== task.assigneeId);
 
   // Close on Escape key
   useEffect(() => {
@@ -195,348 +71,57 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl shadow-xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Task #{task.id}</span>
-          <button onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
+        {/* Header: title, status, priority */}
+        <TaskDetailHeader
+          taskId={task.id}
+          title={title}
+          status={status}
+          priority={priority}
+          readOnly={readOnly}
+          onTitleChange={setTitle}
+          onStatusChange={setStatus}
+          onPriorityChange={setPriority}
+          onClose={onClose}
+        />
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 space-y-3 sm:space-y-4">
-          {/* Title */}
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+          {/* Body: assignee, dates, description, reactions, meta */}
+          <TaskDetailBody
+            projectId={projectId}
+            task={task}
+            description={description}
+            assigneeId={assigneeId}
+            startDate={startDate}
+            dueDate={dueDate}
+            members={members}
             readOnly={readOnly}
-            className={cn("w-full text-lg font-semibold bg-transparent text-slate-900 dark:text-white outline-none placeholder-slate-400 rounded-lg px-2 py-1 -mx-2", !readOnly && "focus:ring-2 focus:ring-blue-500/30")}
-            placeholder="Task title"
+            onDescriptionChange={setDescription}
+            onAssigneeChange={setAssigneeId}
+            onStartDateChange={setStartDate}
+            onDueDateChange={setDueDate}
           />
 
-          {/* Status + Priority row */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
-                disabled={readOnly}
-                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s.key} value={s.key}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Priority</label>
-              <div className="flex gap-1.5">
-                {PRIORITY_OPTIONS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => !readOnly && setPriority(p.key)}
-                    disabled={readOnly}
-                    className={cn(
-                      "flex-1 text-xs py-2 rounded-lg border-2 transition-colors text-center font-medium",
-                      priority === p.key
-                        ? "border-current"
-                        : "border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700",
-                    )}
-                    style={priority === p.key ? { color: p.color, borderColor: p.color, backgroundColor: p.color + "18" } : undefined}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Work logs / comments */}
+          <TaskDetailComments
+            projectId={projectId}
+            taskId={task.id}
+          />
 
-          {/* Assignee */}
-          <div>
-            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Assignee</label>
-            <select
-              value={assigneeId ?? ""}
-              onChange={(e) => setAssigneeId(e.target.value ? Number(e.target.value) : null)}
-              disabled={readOnly}
-              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-60"
-            >
-              <option value="">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.userId} value={m.userId}>
-                  {m.displayName || m.username || `User #${m.userId}`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Date range row */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-                <CalendarDays className="w-3 h-3" /> Start date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                readOnly={readOnly}
-                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-                <CalendarDays className="w-3 h-3" /> Due date
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                readOnly={readOnly}
-                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
-              />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              readOnly={readOnly}
-              placeholder="Add a description..."
-              rows={3}
-              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-y min-h-[60px]"
-            />
-          </div>
-
-          {/* Add to personal todo */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleAddToTodo}
-              disabled={addedToTodo}
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-green-600 dark:hover:text-green-400 transition-colors disabled:text-green-500"
-            >
-              {addedToTodo ? (
-                <>
-                  <CheckCircle className="w-3.5 h-3.5" />
-                  {t("task.addedToTodo")}
-                </>
-              ) : (
-                <>
-                  <ListTodo className="w-3.5 h-3.5" />
-                  {t("task.addToTodo")}
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Reactions */}
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-1.5">
-              {["\u{1F44D}", "\u{1F525}", "\u{1F4AA}", "\u26A0\uFE0F", "\u2764\uFE0F", "\u{1F440}", "\u{1F389}", "\u{1F4AC}"].map(emoji => {
-                const count = reactions.filter(r => r.emoji === emoji).length;
-                const myReaction = reactions.some(r => r.emoji === emoji && r.userId === (task.assigneeId || 0));
-                return (
-                  <button
-                    key={emoji}
-                    onClick={() => toggleReaction(emoji)}
-                    className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors",
-                      count > 0
-                        ? "border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-500/10"
-                        : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                    )}
-                    title={reactions.filter(r => r.emoji === emoji).map(r => r.userName).join(", ")}
-                  >
-                    <span>{emoji}</span>
-                    {count > 0 && <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">{count}</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Work Logs section */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <ClipboardList className="w-3.5 h-3.5 text-slate-500" />
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Work Log ({workLogs.length})</span>
-            </div>
-
-            {workLogs.length > 0 && (
-              <div className="max-h-48 overflow-y-auto space-y-2 bg-slate-50 dark:bg-slate-700/30 rounded-lg p-2">
-                {workLogs.map((log) => (
-                  <div key={log.id} className="text-xs group/log">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-700 dark:text-slate-200">{log.userName}</span>
-                      <span className="text-slate-400">{fmtDateTime(log.createdAt)}</span>
-                      <div className="ml-auto flex gap-1 opacity-0 group-hover/log:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => { setEditingLogId(log.id); setEditingLogContent(log.content); }}
-                          className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-400 hover:text-blue-500"
-                          title="Edit"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteWorkLog(log.id)}
-                          className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-400 hover:text-red-500"
-                          title="Delete"
-                        >
-                          <Trash className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                    {editingLogId === log.id ? (
-                      <div className="flex gap-1.5 mt-1">
-                        <textarea
-                          value={editingLogContent}
-                          onChange={(e) => setEditingLogContent(e.target.value)}
-                          rows={2}
-                          className="flex-1 text-xs bg-white dark:bg-slate-700 rounded px-2 py-1.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 resize-none border border-slate-200 dark:border-slate-600"
-                          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleEditWorkLog(log.id); if (e.key === "Escape") { setEditingLogId(null); setEditingLogContent(""); } }}
-                          autoFocus
-                        />
-                        <div className="flex flex-col gap-1">
-                          <button onClick={() => handleEditWorkLog(log.id)} className="px-2 py-1 text-[10px] bg-blue-600 text-white rounded hover:bg-blue-500">Save</button>
-                          <button onClick={() => { setEditingLogId(null); setEditingLogContent(""); }} className="px-2 py-1 text-[10px] bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded hover:bg-slate-300">Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap pl-0.5 mt-0.5">{log.content}</p>
-                    )}
-                  </div>
-                ))}
-                <div ref={logEndRef} />
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <textarea
-                value={newLogContent}
-                onChange={(e) => setNewLogContent(e.target.value)}
-                placeholder="Add work progress update..."
-                rows={2}
-                className="flex-1 text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAddWorkLog(); }}
-              />
-              <button
-                onClick={handleAddWorkLog}
-                disabled={!newLogContent.trim() || addingLog}
-                className="self-end p-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title="Add log (Ctrl+Enter)"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Transfer section */}
-          {!readOnly && <div>
-            {!showTransfer ? (
-              <button
-                onClick={() => setShowTransfer(true)}
-                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-              >
-                <ArrowRightLeft className="w-3.5 h-3.5" />
-                {t("transfer.request")}
-              </button>
-            ) : (
-              <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                    {t("transfer.title")}
-                  </span>
-                  <button
-                    onClick={() => { setShowTransfer(false); setTransferResult(null); }}
-                    className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
-                  >
-                    <X className="w-3 h-3 text-slate-400" />
-                  </button>
-                </div>
-
-                <select
-                  value={transferToUserId}
-                  onChange={(e) => setTransferToUserId(e.target.value ? Number(e.target.value) : "")}
-                  className="w-full text-sm bg-white dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40 border border-slate-200 dark:border-slate-600"
-                >
-                  <option value="">{t("transfer.selectMember")}</option>
-                  {transferableMembers.map((m) => (
-                    <option key={m.userId} value={m.userId}>
-                      {m.displayName || m.username || `User #${m.userId}`}
-                    </option>
-                  ))}
-                </select>
-
-                <input
-                  type="text"
-                  value={transferMessage}
-                  onChange={(e) => setTransferMessage(e.target.value)}
-                  placeholder={t("transfer.message")}
-                  className="w-full text-sm bg-white dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 border border-slate-200 dark:border-slate-600"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleTransfer(); }}
-                />
-
-                {transferResult === "sent" && (
-                  <p className="text-xs text-green-600 dark:text-green-400">{t("transfer.sent")}</p>
-                )}
-                {transferResult === "error" && (
-                  <p className="text-xs text-red-500">Failed to send transfer request</p>
-                )}
-
-                <button
-                  onClick={handleTransfer}
-                  disabled={!transferToUserId || transferSending}
-                  className="w-full text-xs font-medium py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  {transferSending ? "..." : t("transfer.request")}
-                </button>
-              </div>
-            )}
-          </div>}
-
-          {/* Meta info */}
-          <div className="text-[11px] text-slate-400 flex items-center gap-3 pt-1">
-            <span>Created: {new Date(task.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</span>
-            <span>Updated: {new Date(task.updatedAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-          {readOnly ? <div /> : (
-            <button
-              onClick={handleDelete}
-              className={cn(
-                "flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors",
-                confirmDelete
-                  ? "bg-red-500 text-white hover:bg-red-600"
-                  : "text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10",
-              )}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              {confirmDelete ? "Confirm Delete" : "Delete"}
-            </button>
-          )}
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500"
-            >
-              {readOnly ? "Close" : "Cancel"}
-            </button>
-            {!readOnly && <button
-              onClick={handleSave}
-              disabled={!hasChanges || !title.trim() || saving}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>}
-          </div>
+          {/* Transfer + footer actions */}
+          <TaskDetailActions
+            projectId={projectId}
+            taskId={task.id}
+            members={members}
+            assigneeId={task.assigneeId}
+            readOnly={readOnly}
+            hasChanges={hasChanges}
+            titleValid={!!title.trim()}
+            saving={saving}
+            onSave={handleSave}
+            onClose={onClose}
+            onDelete={handleDelete}
+          />
         </div>
       </div>
     </div>

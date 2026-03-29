@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getSocket } from "@/lib/socket";
+import { useSocket, useSocketEvent } from "@/lib/SocketProvider";
 import { api } from "@/lib/api";
 import { MessageCircle, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,15 @@ const AUTO_DISMISS_MS = 30_000;
 
 export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
   const { t } = useI18n();
+  const socket = useSocket();
   const [requests, setRequests] = useState<ChatRequest[]>([]);
   const [dismissing, setDismissing] = useState<Set<number>>(new Set());
   const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
+
+  // Track animation dismiss timeouts for cleanup
+  const animTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const removeRequest = useCallback((fromUserId: number) => {
     setDismissing((prev) => {
@@ -32,14 +36,16 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
       return next;
     });
     // Wait for exit animation before removing from list
-    setTimeout(() => {
+    const animTimer = setTimeout(() => {
       setRequests((prev) => prev.filter((r) => r.fromUserId !== fromUserId));
       setDismissing((prev) => {
         const next = new Set(prev);
         next.delete(fromUserId);
         return next;
       });
+      animTimersRef.current.delete(fromUserId);
     }, 300);
+    animTimersRef.current.set(fromUserId, animTimer);
 
     const timer = timersRef.current.get(fromUserId);
     if (timer) {
@@ -48,61 +54,56 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
     }
   }, []);
 
+  // Cleanup all timers on unmount
   useEffect(() => {
-    const socket = getSocket();
-
-    const handleChatRequest = async (data: {
-      fromUserId: number;
-      fromUserName?: string;
-    }) => {
-      let name = data.fromUserName;
-
-      // Fetch user name if not provided
-      if (!name) {
-        try {
-          const res = await api.get<{ name: string; email: string }>(
-            `/users/${data.fromUserId}`,
-          );
-          if (res.success && res.data) {
-            name = res.data.name;
-          }
-        } catch {
-          // Fallback to userId
-        }
-      }
-
-      const request: ChatRequest = {
-        fromUserId: data.fromUserId,
-        fromUserName: name || `User #${data.fromUserId}`,
-        timestamp: Date.now(),
-      };
-
-      setRequests((prev) => {
-        // Don't add duplicate requests from the same user
-        if (prev.some((r) => r.fromUserId === data.fromUserId)) return prev;
-        return [...prev, request];
-      });
-
-      // Auto-dismiss after 30 seconds
-      const timer = setTimeout(() => {
-        removeRequest(data.fromUserId);
-      }, AUTO_DISMISS_MS);
-      timersRef.current.set(data.fromUserId, timer);
-    };
-
-    socket.on("chat:request", handleChatRequest);
-
     return () => {
-      socket.off("chat:request", handleChatRequest);
-      // Clear all auto-dismiss timers
       timersRef.current.forEach((timer) => clearTimeout(timer));
       timersRef.current.clear();
+      animTimersRef.current.forEach((timer) => clearTimeout(timer));
+      animTimersRef.current.clear();
     };
-  }, [removeRequest]);
+  }, []);
+
+  useSocketEvent("chat:request", useCallback(async (data: {
+    fromUserId: number;
+    fromUserName?: string;
+  }) => {
+    let name = data.fromUserName;
+
+    // Fetch user name if not provided
+    if (!name) {
+      try {
+        const res = await api.get<{ name: string; email: string }>(
+          `/users/${data.fromUserId}`,
+        );
+        if (res.success && res.data) {
+          name = res.data.name;
+        }
+      } catch {
+        // Fallback to userId
+      }
+    }
+
+    const request: ChatRequest = {
+      fromUserId: data.fromUserId,
+      fromUserName: name || `User #${data.fromUserId}`,
+      timestamp: Date.now(),
+    };
+
+    setRequests((prev) => {
+      // Don't add duplicate requests from the same user
+      if (prev.some((r) => r.fromUserId === data.fromUserId)) return prev;
+      return [...prev, request];
+    });
+
+    // Auto-dismiss after 30 seconds
+    const timer = setTimeout(() => {
+      removeRequest(data.fromUserId);
+    }, AUTO_DISMISS_MS);
+    timersRef.current.set(data.fromUserId, timer);
+  }, [removeRequest]));
 
   const handleAccept = async (request: ChatRequest) => {
-    const socket = getSocket();
-
     try {
       const res = await api.post<{ id: number }>("/chat/direct", {
         targetUserId: request.fromUserId,
@@ -111,7 +112,7 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
       if (res.success && res.data) {
         const roomId = res.data.id;
 
-        socket.emit("chat:request:accept", {
+        socket?.emit("chat:request:accept", {
           targetUserId: request.fromUserId,
           roomId,
         });
@@ -125,9 +126,7 @@ export default function ChatRequestPopup({ onAccept }: ChatRequestPopupProps) {
   };
 
   const handleDecline = (request: ChatRequest) => {
-    const socket = getSocket();
-
-    socket.emit("chat:request:decline", {
+    socket?.emit("chat:request:decline", {
       targetUserId: request.fromUserId,
     });
 

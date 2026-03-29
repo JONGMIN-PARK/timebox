@@ -1,4 +1,5 @@
 import { Response } from "express";
+import { logger } from "./logger.js";
 
 export const respond = {
   ok: (res: Response, data?: unknown) => {
@@ -17,7 +18,7 @@ export const respond = {
     res.status(403).json({ success: false, error: message });
   },
   serverError: (res: Response, context: string, error: unknown) => {
-    console.error(`${context}:`, error);
+    logger.error(`${context}`, { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ success: false, error: `Failed: ${context}` });
   },
 };

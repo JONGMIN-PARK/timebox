@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { ddayApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 import type { DDay } from "@timebox/shared";
 
 interface DDayState {
@@ -20,56 +21,83 @@ export const useDDayStore = create<DDayState>((set, get) => ({
   fetchDDays: async () => {
     set({ error: null, loading: true });
     try {
-      const res = await api.get<DDay[]>("/ddays");
+      const res = await ddayApi.getAll();
       if (res.success && res.data) {
         set({ ddays: res.data, loading: false });
       } else {
-        set({ error: res.error || "Failed to fetch d-days", loading: false });
+        const msg = res.error || "Failed to fetch d-days";
+        set({ error: msg, loading: false });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to fetch d-days", loading: false });
+      const msg = "Failed to fetch d-days";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
     }
   },
 
   addDDay: async (title, targetDate, color) => {
     set({ error: null });
+    // Optimistic add
+    const tempId = -Date.now();
+    const tempDDay = { id: tempId, title, targetDate, color: color || "#3b82f6", userId: 0, createdAt: new Date().toISOString() } as DDay;
+    set({ ddays: [...get().ddays, tempDDay] });
+
     try {
-      const res = await api.post<DDay>("/ddays", { title, targetDate, color });
+      const res = await ddayApi.create({ title, targetDate, color });
       if (res.success && res.data) {
-        set({ ddays: [...get().ddays, res.data] });
+        set({ ddays: get().ddays.map(d => d.id === tempId ? res.data! : d) });
       } else {
-        set({ error: res.error || "Failed to add d-day" });
+        const msg = res.error || "Failed to add d-day";
+        set({ ddays: get().ddays.filter(d => d.id !== tempId), error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to add d-day" });
+      const msg = "Failed to add d-day";
+      set({ ddays: get().ddays.filter(d => d.id !== tempId), error: msg });
+      showToast("error", msg);
     }
   },
 
   updateDDay: async (id, updates) => {
     set({ error: null });
+    // Optimistic update
+    const prev = get().ddays;
+    set({ ddays: prev.map(d => d.id === id ? { ...d, ...updates } : d) });
+
     try {
-      const res = await api.put<DDay>(`/ddays/${id}`, updates);
+      const res = await ddayApi.update(id, updates);
       if (res.success && res.data) {
-        set({ ddays: get().ddays.map((d) => (d.id === id ? res.data! : d)) });
+        set({ ddays: get().ddays.map(d => d.id === id ? res.data! : d) });
       } else {
-        set({ error: res.error || "Failed to update d-day" });
+        const msg = res.error || "Failed to update d-day";
+        set({ ddays: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to update d-day" });
+      const msg = "Failed to update d-day";
+      set({ ddays: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   deleteDDay: async (id) => {
     set({ error: null });
+    // Optimistic delete
+    const prev = get().ddays;
+    set({ ddays: prev.filter(d => d.id !== id) });
+
     try {
-      const res = await api.delete(`/ddays/${id}`);
-      if (res.success) {
-        set({ ddays: get().ddays.filter((d) => d.id !== id) });
-      } else {
-        set({ error: res.error || "Failed to delete d-day" });
+      const res = await ddayApi.delete(id);
+      if (!res.success) {
+        const msg = res.error || "Failed to delete d-day";
+        set({ ddays: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to delete d-day" });
+      const msg = "Failed to delete d-day";
+      set({ ddays: prev, error: msg });
+      showToast("error", msg);
     }
   },
 }));

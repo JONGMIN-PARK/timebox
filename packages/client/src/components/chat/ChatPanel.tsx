@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
-import { getSocket } from "@/lib/socket";
+import { useSocket, useSocketEvent } from "@/lib/SocketProvider";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "@/lib/useI18n";
 import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
@@ -65,6 +65,7 @@ export default function ChatPanel() {
   const { t } = useI18n();
   const keyboardHeight = useKeyboardHeight();
   const user = useAuthStore((s) => s.user);
+  const socket = useSocket();
 
   // View state
   const [view, setView] = useState<View>("rooms");
@@ -122,39 +123,33 @@ export default function ChatPanel() {
 
   // ── Socket: real-time messages ──
 
-  useEffect(() => {
-    const socket = getSocket();
+  // Use refs for values needed inside the socket handler to avoid re-subscriptions
+  const activeRoomRef = useRef(activeRoom);
+  activeRoomRef.current = activeRoom;
 
-    const handleNewMessage = (data: { userId: number; roomId: string; message: ChatMessage }) => {
-      const msg = data.message;
-      if (!msg) return;
-      // Skip own messages (already added via REST response)
-      if (msg.userId === user?.id) return;
-      // If we're in the active room, append message
-      if (activeRoom && String(activeRoom.id) === data.roomId) {
-        setMessages((prev) => [...prev, msg]);
-      }
-      // Update room list with latest message
-      const roomId = parseInt(data.roomId);
-      setRooms((prev) =>
-        prev.map((r) => {
-          if (r.id === roomId) {
-            return {
-              ...r,
-              lastMessage: { id: msg.id, content: msg.content, type: msg.type, senderName: msg.senderName, createdAt: msg.createdAt },
-            };
-          }
-          return r;
-        }),
-      );
-    };
-
-    socket.on("chat:message", handleNewMessage);
-
-    return () => {
-      socket.off("chat:message", handleNewMessage);
-    };
-  }, [activeRoom]);
+  useSocketEvent("chat:message", useCallback((data: { userId: number; roomId: string; message: ChatMessage }) => {
+    const msg = data.message;
+    if (!msg) return;
+    // Skip own messages (already added via REST response)
+    if (msg.userId === user?.id) return;
+    // If we're in the active room, append message
+    if (activeRoomRef.current && String(activeRoomRef.current.id) === data.roomId) {
+      setMessages((prev) => [...prev, msg]);
+    }
+    // Update room list with latest message
+    const roomId = parseInt(data.roomId);
+    setRooms((prev) =>
+      prev.map((r) => {
+        if (r.id === roomId) {
+          return {
+            ...r,
+            lastMessage: { id: msg.id, content: msg.content, type: msg.type, senderName: msg.senderName, createdAt: msg.createdAt },
+          };
+        }
+        return r;
+      }),
+    );
+  }, [user?.id]));
 
   // ── Auto-scroll on new messages ──
 
@@ -173,8 +168,7 @@ export default function ChatPanel() {
     setMessagesLoading(true);
     setMessages([]);
 
-    const socket = getSocket();
-    socket.emit("chat:join", String(room.id));
+    socket?.emit("chat:join", String(room.id));
 
     const res = await api.get<ChatMessage[]>(`/chat/${room.id}/messages`);
     if (res.success && res.data) setMessages(res.data);
@@ -191,8 +185,7 @@ export default function ChatPanel() {
 
   const leaveRoom = () => {
     if (activeRoom) {
-      const socket = getSocket();
-      socket.emit("chat:leave", String(activeRoom.id));
+      socket?.emit("chat:leave", String(activeRoom.id));
     }
     setActiveRoom(null);
     setMessages([]);
@@ -208,13 +201,12 @@ export default function ChatPanel() {
     const text = inputText.trim();
     if (!text || !activeRoom) return;
 
-    const socket = getSocket();
     // Save message via REST API, then socket broadcasts it
     const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, { content: text });
     if (res.success && res.data) {
       setMessages(prev => [...prev, res.data!]);
       // Notify others via socket
-      socket.emit("chat:message", {
+      socket?.emit("chat:message", {
         roomId: String(activeRoom.id),
         message: res.data,
       });
@@ -260,8 +252,7 @@ export default function ChatPanel() {
           });
           if (res.success && res.data) {
             setMessages(prev => [...prev, res.data!]);
-            const socket = getSocket();
-            socket.emit("chat:message", { roomId: String(activeRoom.id), message: res.data });
+            socket?.emit("chat:message", { roomId: String(activeRoom.id), message: res.data });
           }
         };
         reader.readAsDataURL(file);

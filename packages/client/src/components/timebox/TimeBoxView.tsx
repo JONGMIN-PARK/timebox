@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, memo, useCallback } from "react";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, Check, Trash2 } from "lucide-react";
@@ -38,6 +38,76 @@ function blockHeight(startTime: string, endTime: string): number {
   const end = timeToMinutes(endTime);
   return ((end - start) / 60) * HOUR_HEIGHT;
 }
+
+// Memoized time block item to avoid re-rendering all blocks when one changes
+const TimeBlockItem = memo(function TimeBlockItem({
+  block,
+  onToggleCompleted,
+  onDeleteBlock,
+}: {
+  block: TimeBlock;
+  onToggleCompleted: (id: number) => void;
+  onDeleteBlock: (id: number) => void;
+}) {
+  const catConfig = CATEGORY_CONFIG[block.category];
+  const color = block.color || catConfig.color;
+  const top = blockTop(block.startTime);
+  const height = blockHeight(block.startTime, block.endTime);
+
+  return (
+    <div
+      className={cn(
+        "absolute left-14 right-2 rounded-lg border-l-4 px-3 py-1.5 cursor-pointer group transition-opacity",
+        block.completed && "opacity-50",
+      )}
+      style={{
+        top,
+        height: Math.max(height, 24),
+        borderLeftColor: color,
+        backgroundColor: color + "18",
+      }}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <div className="flex-1 min-w-0">
+          <p
+            className={cn(
+              "text-sm font-medium truncate",
+              block.completed
+                ? "line-through text-slate-400 dark:text-slate-500"
+                : "text-slate-900 dark:text-white",
+            )}
+          >
+            {catConfig.icon} {block.title}
+          </p>
+          {height >= 40 && (
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              {block.startTime} - {block.endTime}
+            </p>
+          )}
+        </div>
+        <div className="hidden group-hover:flex items-center gap-1">
+          <button
+            onClick={() => onToggleCompleted(block.id)}
+            className={cn(
+              "w-6 h-6 rounded flex items-center justify-center",
+              block.completed
+                ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400",
+            )}
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => onDeleteBlock(block.id)}
+            className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-500 flex items-center justify-center"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function TimeBoxView() {
   const { blocks, loading, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
@@ -88,6 +158,20 @@ export default function TimeBoxView() {
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const showCurrentTime = isToday(parseISO(selectedDate)) && currentMinutes >= START_HOUR * 60;
   const currentTimeTop = ((currentMinutes - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+
+  // Memoize category duration computation for stats bar
+  const categoryDurations = useMemo(() =>
+    sortedBlocks.reduce(
+      (acc, b) => {
+        const dur = timeToMinutes(b.endTime) - timeToMinutes(b.startTime);
+        acc[b.category] = (acc[b.category] || 0) + dur;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ), [sortedBlocks]);
+
+  const handleToggleCompleted = useCallback((id: number) => toggleCompleted(id), [toggleCompleted]);
+  const handleDeleteBlock = useCallback((id: number) => deleteBlock(id), [deleteBlock]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,14 +233,7 @@ export default function TimeBoxView() {
       {/* Stats bar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 overflow-x-auto">
         {Object.entries(
-          sortedBlocks.reduce(
-            (acc, b) => {
-              const dur = timeToMinutes(b.endTime) - timeToMinutes(b.startTime);
-              acc[b.category] = (acc[b.category] || 0) + dur;
-              return acc;
-            },
-            {} as Record<string, number>,
-          ),
+          categoryDurations
         ).map(([cat, mins]) => {
           const config = CATEGORY_CONFIG[cat as TimeBlockCategory];
           return (
@@ -202,67 +279,14 @@ export default function TimeBoxView() {
           )}
 
           {/* Time blocks */}
-          {sortedBlocks.map((block) => {
-            const catConfig = CATEGORY_CONFIG[block.category];
-            const color = block.color || catConfig.color;
-            const top = blockTop(block.startTime);
-            const height = blockHeight(block.startTime, block.endTime);
-
-            return (
-              <div
-                key={block.id}
-                className={cn(
-                  "absolute left-14 right-2 rounded-lg border-l-4 px-3 py-1.5 cursor-pointer group transition-opacity",
-                  block.completed && "opacity-50",
-                )}
-                style={{
-                  top,
-                  height: Math.max(height, 24),
-                  borderLeftColor: color,
-                  backgroundColor: color + "18",
-                }}
-              >
-                <div className="flex items-start justify-between gap-1">
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={cn(
-                        "text-sm font-medium truncate",
-                        block.completed
-                          ? "line-through text-slate-400 dark:text-slate-500"
-                          : "text-slate-900 dark:text-white",
-                      )}
-                    >
-                      {catConfig.icon} {block.title}
-                    </p>
-                    {height >= 40 && (
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {block.startTime} - {block.endTime}
-                      </p>
-                    )}
-                  </div>
-                  <div className="hidden group-hover:flex items-center gap-1">
-                    <button
-                      onClick={() => toggleCompleted(block.id)}
-                      className={cn(
-                        "w-6 h-6 rounded flex items-center justify-center",
-                        block.completed
-                          ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400",
-                      )}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => deleteBlock(block.id)}
-                      className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-500 flex items-center justify-center"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {sortedBlocks.map((block) => (
+            <TimeBlockItem
+              key={block.id}
+              block={block}
+              onToggleCompleted={handleToggleCompleted}
+              onDeleteBlock={handleDeleteBlock}
+            />
+          ))}
         </div>
       </div>
 

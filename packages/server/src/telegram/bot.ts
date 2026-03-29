@@ -841,7 +841,7 @@ ${contextLines.filter(Boolean).join("\n")}`;
       }
     });
 
-    console.log(`[telegram] Gemini AI Q&A enabled (key: ${geminiKey.slice(0, 6)}...)`);
+    console.log("[telegram] Gemini AI Q&A enabled");
   } else {
     console.log("[telegram] Gemini AI disabled - GEMINI_API_KEY not set");
   }

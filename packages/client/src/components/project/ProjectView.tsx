@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
-import { getSocket } from "@/lib/socket";
+import { useSocket, useSocketEvent } from "@/lib/SocketProvider";
 import { CalendarDays, Users } from "lucide-react";
 import KanbanBoard from "./KanbanBoard";
 import ProjectDashboard from "./ProjectDashboard";
@@ -107,30 +107,34 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
     return () => { cancelled = true; };
   }, [projectId]);
 
-  // Join/leave socket room and listen for task updates
+  // Join/leave socket room for project
+  const socket = useSocket();
   useEffect(() => {
-    const socket = getSocket();
-    socket.emit("project:join", projectId);
-
-    const handleTaskUpdate = () => {
-      window.dispatchEvent(new CustomEvent("project-tasks-updated", { detail: { projectId } }));
+    socket?.emit("project:join", projectId);
+    return () => {
+      socket?.emit("project:leave", projectId);
     };
-    socket.on("task:created", handleTaskUpdate);
-    socket.on("task:updated", handleTaskUpdate);
-    socket.on("task:deleted", handleTaskUpdate);
+  }, [socket, projectId]);
 
-    // Refresh header stats on any task change (socket or local kanban drag)
+  // Listen for task updates via socket
+  const projectIdRef = useRef(projectId);
+  projectIdRef.current = projectId;
+
+  const handleTaskUpdate = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("project-tasks-updated", { detail: { projectId: projectIdRef.current } }));
+  }, []);
+  useSocketEvent("task:created", handleTaskUpdate);
+  useSocketEvent("task:updated", handleTaskUpdate);
+  useSocketEvent("task:deleted", handleTaskUpdate);
+
+  // Refresh header stats on any task change (socket or local kanban drag)
+  useEffect(() => {
     const handleStatsRefresh = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail?.projectId === projectId) fetchStats();
     };
     window.addEventListener("project-tasks-updated", handleStatsRefresh);
-
     return () => {
-      socket.emit("project:leave", projectId);
-      socket.off("task:created", handleTaskUpdate);
-      socket.off("task:updated", handleTaskUpdate);
-      socket.off("task:deleted", handleTaskUpdate);
       window.removeEventListener("project-tasks-updated", handleStatsRefresh);
     };
   }, [projectId, fetchStats]);

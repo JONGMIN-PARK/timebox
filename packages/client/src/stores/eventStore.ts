@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { eventApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 import type { CalendarEvent } from "@timebox/shared";
 
 interface EventState {
@@ -20,57 +21,83 @@ export const useEventStore = create<EventState>((set, get) => ({
   fetchEvents: async (start, end) => {
     set({ error: null, loading: true });
     try {
-      const query = start && end ? `?start=${start}&end=${end}` : "";
-      const res = await api.get<CalendarEvent[]>(`/events${query}`);
+      const res = await eventApi.getAll(start, end);
       if (res.success && res.data) {
         set({ events: res.data, loading: false });
       } else {
-        set({ error: res.error || "Failed to fetch events", loading: false });
+        const msg = res.error || "Failed to fetch events";
+        set({ error: msg, loading: false });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to fetch events", loading: false });
+      const msg = "Failed to fetch events";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
     }
   },
 
   addEvent: async (event) => {
     set({ error: null });
+    // Optimistic add
+    const tempId = -Date.now();
+    const tempEvent = { id: tempId, ...event, userId: 0, createdAt: new Date().toISOString() } as CalendarEvent;
+    set({ events: [...get().events, tempEvent] });
+
     try {
-      const res = await api.post<CalendarEvent>("/events", event);
+      const res = await eventApi.create(event);
       if (res.success && res.data) {
-        set({ events: [...get().events, res.data] });
+        set({ events: get().events.map(e => e.id === tempId ? res.data! : e) });
       } else {
-        set({ error: res.error || "Failed to add event" });
+        const msg = res.error || "Failed to add event";
+        set({ events: get().events.filter(e => e.id !== tempId), error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to add event" });
+      const msg = "Failed to add event";
+      set({ events: get().events.filter(e => e.id !== tempId), error: msg });
+      showToast("error", msg);
     }
   },
 
   updateEvent: async (id, updates) => {
     set({ error: null });
+    // Optimistic update
+    const prev = get().events;
+    set({ events: prev.map(e => e.id === id ? { ...e, ...updates } : e) });
+
     try {
-      const res = await api.put<CalendarEvent>(`/events/${id}`, updates);
+      const res = await eventApi.update(id, updates);
       if (res.success && res.data) {
-        set({ events: get().events.map((e) => (e.id === id ? res.data! : e)) });
+        set({ events: get().events.map(e => e.id === id ? res.data! : e) });
       } else {
-        set({ error: res.error || "Failed to update event" });
+        const msg = res.error || "Failed to update event";
+        set({ events: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to update event" });
+      const msg = "Failed to update event";
+      set({ events: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   deleteEvent: async (id) => {
     set({ error: null });
+    // Optimistic delete
+    const prev = get().events;
+    set({ events: prev.filter(e => e.id !== id) });
+
     try {
-      const res = await api.delete(`/events/${id}`);
-      if (res.success) {
-        set({ events: get().events.filter((e) => e.id !== id) });
-      } else {
-        set({ error: res.error || "Failed to delete event" });
+      const res = await eventApi.delete(id);
+      if (!res.success) {
+        const msg = res.error || "Failed to delete event";
+        set({ events: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to delete event" });
+      const msg = "Failed to delete event";
+      set({ events: prev, error: msg });
+      showToast("error", msg);
     }
   },
 }));

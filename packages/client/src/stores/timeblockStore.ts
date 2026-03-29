@@ -1,20 +1,13 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { timeblockApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 import type { TimeBlock } from "@timebox/shared";
 import type { TimeBlockCategory } from "@timebox/shared";
 
 export type { TimeBlock, TimeBlockCategory };
 
-export const CATEGORY_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  deep_work: { label: "Deep Work", color: "#3b82f6", icon: "\u{1F9E0}" },
-  meeting: { label: "Meeting", color: "#8b5cf6", icon: "\u{1F465}" },
-  email: { label: "Email", color: "#f59e0b", icon: "\u{1F4E7}" },
-  exercise: { label: "Exercise", color: "#10b981", icon: "\u{1F4AA}" },
-  break: { label: "Break", color: "#6b7280", icon: "\u2615" },
-  personal: { label: "Personal", color: "#ec4899", icon: "\u{1F3E0}" },
-  admin: { label: "Admin", color: "#f97316", icon: "\u{1F4CB}" },
-  other: { label: "Other", color: "#94a3b8", icon: "\u{1F4CC}" },
-};
+// Re-export from unified config for backward compatibility
+export { TIMEBLOCK_CATEGORIES as CATEGORY_CONFIG } from "@/lib/categories";
 
 interface TimeBlockState {
   blocks: TimeBlock[];
@@ -43,56 +36,83 @@ export const useTimeBlockStore = create<TimeBlockState>((set, get) => ({
   fetchBlocks: async (date) => {
     set({ error: null, loading: true });
     try {
-      const res = await api.get<TimeBlock[]>(`/timeblocks?date=${date}`);
+      const res = await timeblockApi.getAll(date);
       if (res.success && res.data) {
         set({ blocks: res.data, loading: false });
       } else {
-        set({ error: res.error || "Failed to fetch time blocks", loading: false });
+        const msg = res.error || "Failed to fetch time blocks";
+        set({ error: msg, loading: false });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to fetch time blocks", loading: false });
+      const msg = "Failed to fetch time blocks";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
     }
   },
 
   addBlock: async (block) => {
     set({ error: null });
+    // Optimistic add
+    const tempId = -Date.now();
+    const tempBlock = { id: tempId, ...block, userId: 0, createdAt: new Date().toISOString() } as TimeBlock;
+    set({ blocks: [...get().blocks, tempBlock] });
+
     try {
-      const res = await api.post<TimeBlock>("/timeblocks", block);
+      const res = await timeblockApi.create(block);
       if (res.success && res.data) {
-        set({ blocks: [...get().blocks, res.data] });
+        set({ blocks: get().blocks.map(b => b.id === tempId ? res.data! : b) });
       } else {
-        set({ error: res.error || "Failed to add time block" });
+        const msg = res.error || "Failed to add time block";
+        set({ blocks: get().blocks.filter(b => b.id !== tempId), error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to add time block" });
+      const msg = "Failed to add time block";
+      set({ blocks: get().blocks.filter(b => b.id !== tempId), error: msg });
+      showToast("error", msg);
     }
   },
 
   updateBlock: async (id, updates) => {
     set({ error: null });
+    // Optimistic update
+    const prev = get().blocks;
+    set({ blocks: prev.map(b => b.id === id ? { ...b, ...updates } : b) });
+
     try {
-      const res = await api.put<TimeBlock>(`/timeblocks/${id}`, updates);
+      const res = await timeblockApi.update(id, updates);
       if (res.success && res.data) {
-        set({ blocks: get().blocks.map((b) => (b.id === id ? res.data! : b)) });
+        set({ blocks: get().blocks.map(b => b.id === id ? res.data! : b) });
       } else {
-        set({ error: res.error || "Failed to update time block" });
+        const msg = res.error || "Failed to update time block";
+        set({ blocks: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to update time block" });
+      const msg = "Failed to update time block";
+      set({ blocks: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   deleteBlock: async (id) => {
     set({ error: null });
+    // Optimistic delete
+    const prev = get().blocks;
+    set({ blocks: prev.filter(b => b.id !== id) });
+
     try {
-      const res = await api.delete(`/timeblocks/${id}`);
-      if (res.success) {
-        set({ blocks: get().blocks.filter((b) => b.id !== id) });
-      } else {
-        set({ error: res.error || "Failed to delete time block" });
+      const res = await timeblockApi.delete(id);
+      if (!res.success) {
+        const msg = res.error || "Failed to delete time block";
+        set({ blocks: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to delete time block" });
+      const msg = "Failed to delete time block";
+      set({ blocks: prev, error: msg });
+      showToast("error", msg);
     }
   },
 

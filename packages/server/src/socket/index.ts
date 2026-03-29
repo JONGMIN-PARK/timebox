@@ -280,6 +280,17 @@ export function emitToUser(userId: number, event: string, data: unknown): void {
   }
 }
 
+/** Emits an inbox:update event to the specified user so the client refreshes inbox state. */
+export function emitInboxUpdate(userId: number): void {
+  emitToUser(userId, "inbox:update", { timestamp: Date.now() });
+}
+
+/** Emits a presence:update event to all connected clients with the current online user list. */
+export function emitPresenceUpdate(): void {
+  if (!io) return;
+  io.emit("presence:update", { userIds: getOnlineUserIds(), timestamp: Date.now() });
+}
+
 /** Returns the underlying Socket.io Server instance (or null before init). */
 export function getIO(): Server | null {
   return io;

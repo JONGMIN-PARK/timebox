@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search } from "lucide-react";
@@ -218,6 +218,30 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
   );
 }
 
+// ── Memoized Completed Todo Item ──
+const CompletedTodoItem = memo(function CompletedTodoItem({
+  todo, onRestore, onDelete,
+}: {
+  todo: Todo; onRestore: (id: number) => void; onDelete: (id: number) => void;
+}) {
+  const catInfo = getCategoryInfo(todo.category);
+  return (
+    <li className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
+      <div className="w-4" />
+      <button onClick={() => onRestore(todo.id)} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors">
+        <CheckCircle2 className="w-[18px] h-[18px] text-green-500" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
+        <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
+      </div>
+      <button onClick={() => onDelete(todo.id)} className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
+      </button>
+    </li>
+  );
+});
+
 // ── Main TodoList ──
 export default function TodoList() {
   const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, reorderTodos } = useTodoStore();
@@ -286,6 +310,15 @@ export default function TodoList() {
   };
 
   const draggedTodo = dragActiveId ? activeTodos.find((t) => t.id === dragActiveId) : null;
+
+  // Memoized handlers for SortableTodoItem to avoid creating new functions on every render
+  const handleToggle = useCallback((id: number) => { toggleTodo(id); showToast("success", "Todo completed"); }, [toggleTodo]);
+  const handleRestore = useCallback((id: number) => { toggleTodo(id); showToast("success", "Todo restored"); }, [toggleTodo]);
+  const handleDelete = useCallback((id: number) => { deleteTodo(id); showToast("success", "Todo deleted"); }, [deleteTodo]);
+  const handleUpdateDate = useCallback((id: number, d: string) => updateTodo(id, { dueDate: d }), [updateTodo]);
+  const handleUpdateTitle = useCallback((id: number, t: string) => updateTodo(id, { title: t }), [updateTodo]);
+  const handleUpdateCategory = useCallback((id: number, c: string) => updateTodo(id, { category: c }), [updateTodo]);
+  const handleUpdateProgress = useCallback((id: number, p: number) => updateTodo(id, { progress: p }), [updateTodo]);
 
   return (
     <div className="flex flex-col h-full">
@@ -376,12 +409,12 @@ export default function TodoList() {
               <ul className="py-1">
                 {activeTodos.map((todo) => (
                   <SortableTodoItem key={todo.id} todo={todo}
-                    onToggle={(id) => { toggleTodo(id); showToast("success", "Todo completed"); }}
-                    onDelete={(id) => { deleteTodo(id); showToast("success", "Todo deleted"); }}
-                    onUpdateDate={(id, d) => updateTodo(id, { dueDate: d })}
-                    onUpdateTitle={(id, t) => updateTodo(id, { title: t })}
-                    onUpdateCategory={(id, c) => updateTodo(id, { category: c })}
-                    onUpdateProgress={(id, p) => updateTodo(id, { progress: p })} />
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                    onUpdateDate={handleUpdateDate}
+                    onUpdateTitle={handleUpdateTitle}
+                    onUpdateCategory={handleUpdateCategory}
+                    onUpdateProgress={handleUpdateProgress} />
                 ))}
               </ul>
             </SortableContext>
@@ -406,24 +439,14 @@ export default function TodoList() {
             </button>
             {showCompleted && (
               <ul>
-                {completedTodos.map((todo) => {
-                  const catInfo = getCategoryInfo(todo.category);
-                  return (
-                    <li key={todo.id} className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
-                      <div className="w-4" />
-                      <button onClick={() => { toggleTodo(todo.id); showToast("success", "Todo restored"); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors">
-                        <CheckCircle2 className="w-[18px] h-[18px] text-green-500" />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
-                        <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
-                      </div>
-                      <button onClick={() => { deleteTodo(todo.id); showToast("success", "Todo deleted"); }} className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
-                      </button>
-                    </li>
-                  );
-                })}
+                {completedTodos.map((todo) => (
+                  <CompletedTodoItem
+                    key={todo.id}
+                    todo={todo}
+                    onRestore={handleRestore}
+                    onDelete={handleDelete}
+                  />
+                ))}
               </ul>
             )}
           </div>

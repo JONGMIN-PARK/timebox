@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, memo } from "react";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
 import { useAuthStore } from "@/stores/authStore";
@@ -7,6 +7,7 @@ import { Mail, Send, Trash2, Check, CheckCheck, ArrowLeft, Plus, X } from "lucid
 import { formatDateTime } from "@/lib/dateUtils";
 import EmptyState from "@/components/ui/EmptyState";
 import { showToast } from "@/components/ui/Toast";
+import { useSocketEvent } from "@/lib/SocketProvider";
 
 interface InboxMessage {
   id: number;
@@ -30,6 +31,41 @@ interface UserOption {
 }
 
 type View = "list" | "detail" | "compose";
+
+// Memoized inbox message item to avoid re-rendering the full list on state changes
+const InboxMessageItem = memo(function InboxMessageItem({
+  msg, tab, onOpen, formatDate, typeIcon,
+}: {
+  msg: InboxMessage;
+  tab: "inbox" | "sent";
+  onOpen: (msg: InboxMessage) => void;
+  formatDate: (d: string) => string;
+  typeIcon: (type: string) => string;
+}) {
+  return (
+    <button
+      onClick={() => onOpen(msg)}
+      className={cn(
+        "w-full text-left px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
+        !msg.read && tab === "inbox" && "bg-blue-50/50 dark:bg-blue-500/5"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-sm">{typeIcon(msg.type)}</span>
+        <span className={cn("text-[13px] flex-1 truncate", !msg.read && tab === "inbox" ? "font-semibold text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300")}>
+          {msg.subject}
+        </span>
+        <span className="text-[10px] text-slate-400 flex-shrink-0">{formatDate(msg.createdAt)}</span>
+      </div>
+      <div className="flex items-center gap-2 mt-0.5">
+        <span className="text-[11px] text-slate-400 truncate">
+          {tab === "inbox" ? msg.fromName : `\u2192 ${msg.toName}`}
+        </span>
+        {!msg.read && tab === "inbox" && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
+      </div>
+    </button>
+  );
+});
 
 export default function InboxPanel() {
   const { t } = useI18n();
@@ -58,6 +94,15 @@ export default function InboxPanel() {
     setLoading(true);
     fetchMessages();
   }, [fetchMessages]);
+
+  // Listen for real-time inbox updates via socket
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+
+  useSocketEvent("inbox:update", useCallback(() => fetchMessages(), [fetchMessages]));
+  useSocketEvent("inbox:new-message", useCallback(() => {
+    if (tabRef.current === "inbox") fetchMessages();
+  }, [fetchMessages]));
 
   const notifyInboxUpdated = () => window.dispatchEvent(new Event("inbox-updated"));
 
@@ -184,28 +229,14 @@ export default function InboxPanel() {
           />
         ) : (
           messages.map(msg => (
-            <button
+            <InboxMessageItem
               key={msg.id}
-              onClick={() => handleOpenMsg(msg)}
-              className={cn(
-                "w-full text-left px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
-                !msg.read && tab === "inbox" && "bg-blue-50/50 dark:bg-blue-500/5"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm">{typeIcon(msg.type)}</span>
-                <span className={cn("text-[13px] flex-1 truncate", !msg.read && tab === "inbox" ? "font-semibold text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300")}>
-                  {msg.subject}
-                </span>
-                <span className="text-[10px] text-slate-400 flex-shrink-0">{formatDate(msg.createdAt)}</span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[11px] text-slate-400 truncate">
-                  {tab === "inbox" ? msg.fromName : `\u2192 ${msg.toName}`}
-                </span>
-                {!msg.read && tab === "inbox" && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />}
-              </div>
-            </button>
+              msg={msg}
+              tab={tab}
+              onOpen={handleOpenMsg}
+              formatDate={formatDate}
+              typeIcon={typeIcon}
+            />
           ))
         )}
       </div>

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { SocketProvider } from "@/lib/SocketProvider";
 import LoginPage from "@/pages/LoginPage";
 import LandingPage from "@/pages/LandingPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -37,7 +38,9 @@ export default function App() {
           path="/app/*"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <SocketProvider>
+                <DashboardPage />
+              </SocketProvider>
             </ProtectedRoute>
           }
         />

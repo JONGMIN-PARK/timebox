@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import { api, setToken, clearToken, isAuthenticated } from "@/lib/api";
+import { setToken, clearToken, isAuthenticated } from "@/lib/api";
+import { authApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 import { updateAppBadge } from "@/lib/badge";
 
 interface TeamGroupInfo {
@@ -39,25 +41,34 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (username, password) => {
     set({ loading: true, error: null });
-    const res = await api.post<{ token: string; user: User }>("/auth/login", { username, password });
-    if (res.success && res.data) {
-      setToken(res.data.token);
-      // Cache token for service worker
-      const token = res.data.token;
-      if ('caches' in window) {
-        caches.open('timebox-auth').then(cache => {
-          cache.put('/auth-token', new Response(token));
-        });
+    try {
+      const res = await authApi.login(username, password);
+      if (res.success && res.data) {
+        setToken(res.data.token);
+        // Cache token for service worker
+        const token = res.data.token;
+        if ('caches' in window) {
+          caches.open('timebox-auth').then(cache => {
+            cache.put('/auth-token', new Response(token));
+          });
+        }
+        set({ authenticated: true, user: res.data.user, loading: false });
+        return true;
       }
-      set({ authenticated: true, user: res.data.user, loading: false });
-      return true;
+      const msg = res.error || "Login failed";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
+      return false;
+    } catch {
+      const msg = "Login failed";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
+      return false;
     }
-    set({ error: res.error || "Login failed", loading: false });
-    return false;
   },
 
   logout: () => {
-    api.post("/auth/logout", {}).catch(() => {});
+    authApi.logout().catch(() => {});
     clearToken();
     updateAppBadge(0);
     if ('caches' in window) {
@@ -72,11 +83,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   fetchMe: async () => {
-    const res = await api.get<User>("/auth/me");
-    if (res.success && res.data) {
-      set({ user: res.data, authenticated: true });
-    } else {
-      // Token expired or invalid - clear auth state
+    try {
+      const res = await authApi.me();
+      if (res.success && res.data) {
+        set({ user: res.data, authenticated: true });
+      } else {
+        // Token expired or invalid - clear auth state
+        clearToken();
+        updateAppBadge(0);
+        set({ authenticated: false, user: null });
+      }
+    } catch {
       clearToken();
       updateAppBadge(0);
       set({ authenticated: false, user: null });

@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import OnboardingGuide from "@/components/OnboardingGuide";
 import { seedSampleData } from "@/lib/sampleData";
 import Sidebar from "@/components/layout/Sidebar";
@@ -20,7 +20,7 @@ const ChatPanel = lazy(() => import("@/components/chat/ChatPanel"));
 const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashboard"));
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+import { useSocketEvent } from "@/lib/SocketProvider";
 import ToastContainer, { showToast } from "@/components/ui/Toast";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
@@ -53,62 +53,41 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchMe();
-    connectSocket();
     // Check if first-time user
     if (!localStorage.getItem("timebox_onboarding_done")) {
       seedSampleData().then(() => setShowOnboarding(true));
     }
-    return () => disconnectSocket();
   }, []);
 
   // Browser notifications for background events
-  useEffect(() => {
-    const socket = getSocket();
-
-    const showNotif = (title: string, body: string) => {
-      if (document.hidden && Notification.permission === "granted") {
-        const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-        new Notification(title, { body, icon: "/icon-192.png" });
-      }
-    };
-
-    const handleInbox = (data: any) => {
-      const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-      if (prefs.inbox !== false) showNotif("새 메시지", data.fromName ? `${data.fromName}님의 메시지` : "새 메시지가 도착했습니다");
-    };
-
-    const handleChat = (data: any) => {
-      const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-      if (prefs.chat !== false) showNotif("채팅", data.message?.senderName ? `${data.message.senderName}: ${(data.message.content || "").slice(0, 50)}` : "새 채팅 메시지");
-    };
-
-    const handleTask = (data: any) => {
-      const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-      if (prefs.tasks !== false) showNotif("태스크 할당", "새로운 태스크가 할당되었습니다");
-    };
-
-    // Handle missed messages on reconnect
-    const handleMissed = (data: { count: number }) => {
-      if (data.count > 0) {
-        // Refresh inbox unread count
-        window.dispatchEvent(new Event("inbox-updated"));
-        // Show toast
-        showToast("info", `${data.count}개의 새 메시지가 있습니다`);
-      }
-    };
-
-    socket.on("inbox:new-message", handleInbox);
-    socket.on("chat:message", handleChat);
-    socket.on("task:assigned", handleTask);
-    socket.on("sync:messages", handleMissed);
-
-    return () => {
-      socket.off("inbox:new-message", handleInbox);
-      socket.off("chat:message", handleChat);
-      socket.off("task:assigned", handleTask);
-      socket.off("sync:messages", handleMissed);
-    };
+  const showNotif = useCallback((title: string, body: string) => {
+    if (document.hidden && Notification.permission === "granted") {
+      new Notification(title, { body, icon: "/icon-192.png" });
+    }
   }, []);
+
+  useSocketEvent("inbox:new-message", useCallback((data: any) => {
+    const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+    if (prefs.inbox !== false) showNotif("새 메시지", data.fromName ? `${data.fromName}님의 메시지` : "새 메시지가 도착했습니다");
+  }, [showNotif]));
+
+  useSocketEvent("chat:message", useCallback((data: any) => {
+    const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+    if (prefs.chat !== false) showNotif("채팅", data.message?.senderName ? `${data.message.senderName}: ${(data.message.content || "").slice(0, 50)}` : "새 채팅 메시지");
+  }, [showNotif]));
+
+  useSocketEvent("task:assigned", useCallback((_data: any) => {
+    const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
+    if (prefs.tasks !== false) showNotif("태스크 할당", "새로운 태스크가 할당되었습니다");
+  }, [showNotif]));
+
+  // Handle missed messages on reconnect
+  useSocketEvent("sync:messages", useCallback((data: { count: number }) => {
+    if (data.count > 0) {
+      window.dispatchEvent(new Event("inbox-updated"));
+      showToast("info", `${data.count}개의 새 메시지가 있습니다`);
+    }
+  }, []));
 
   // Global keyboard shortcuts
   useEffect(() => {

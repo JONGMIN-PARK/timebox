@@ -1,8 +1,40 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo, useCallback } from "react";
 import { useDDayStore } from "@/stores/ddayStore";
 import { Plus, Trash2, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+
+// Memoized individual D-Day item to prevent unnecessary re-renders in the list
+const DDayItem = memo(function DDayItem({
+  id, title, targetDate, daysLeft, onDelete,
+}: {
+  id: number; title: string; targetDate: string; daysLeft: number; onDelete: (id: number) => void;
+}) {
+  return (
+    <div className="group flex items-center justify-between px-4 py-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">{title}</p>
+        <p className="text-[11px] text-slate-400">{targetDate}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "text-base font-bold tabular-nums",
+            daysLeft === 0 ? "text-red-500"
+              : daysLeft < 0 ? "text-slate-400"
+              : daysLeft <= 7 ? "text-orange-500"
+              : "text-blue-600 dark:text-blue-400",
+          )}
+        >
+          {daysLeft === 0 ? "D-Day" : daysLeft > 0 ? `D-${daysLeft}` : `D+${Math.abs(daysLeft)}`}
+        </span>
+        <button onClick={() => onDelete(id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+          <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 transition-colors" />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export default function DDayWidget() {
   const { ddays, loading, fetchDDays, addDDay, deleteDDay } = useDDayStore();
@@ -64,28 +96,14 @@ export default function DDayWidget() {
 
       <div>
         {ddays.map((d) => (
-          <div key={d.id} className="group flex items-center justify-between px-4 py-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
-            <div className="min-w-0">
-              <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">{d.title}</p>
-              <p className="text-[11px] text-slate-400">{d.targetDate}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "text-base font-bold tabular-nums",
-                  d.daysLeft === 0 ? "text-red-500"
-                    : d.daysLeft < 0 ? "text-slate-400"
-                    : d.daysLeft <= 7 ? "text-orange-500"
-                    : "text-blue-600 dark:text-blue-400",
-                )}
-              >
-                {d.daysLeft === 0 ? "D-Day" : d.daysLeft > 0 ? `D-${d.daysLeft}` : `D+${Math.abs(d.daysLeft)}`}
-              </span>
-              <button onClick={() => deleteDDay(d.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500 transition-colors" />
-              </button>
-            </div>
-          </div>
+          <DDayItem
+            key={d.id}
+            id={d.id}
+            title={d.title}
+            targetDate={d.targetDate}
+            daysLeft={d.daysLeft}
+            onDelete={deleteDDay}
+          />
         ))}
         {ddays.length === 0 && (
           <div className="px-4 py-6 text-center">

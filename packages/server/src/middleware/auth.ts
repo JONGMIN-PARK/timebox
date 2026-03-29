@@ -3,11 +3,12 @@ import jwt from "jsonwebtoken";
 import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { logger } from "../lib/logger.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : "dev-secret-change-me");
 
 if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  console.error("FATAL: JWT_SECRET environment variable is required in production");
+  logger.error("FATAL: JWT_SECRET environment variable is required in production");
   process.exit(1);
 }
 

@@ -1,14 +1,19 @@
 import express from "express";
 import compression from "compression";
 import cors from "cors";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import dotenv from "dotenv";
 import cron from "node-cron";
+import { validateEnv } from "./lib/env.js";
 import { initDb } from "./db/index.js";
 import { authMiddleware, adminMiddleware } from "./middleware/auth.js";
+import { sanitizeMiddleware } from "./middleware/sanitize.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+import { logger } from "./lib/logger.js";
 import authRoutes from "./routes/auth.js";
 import todoRoutes from "./routes/todos.js";
 import eventRoutes from "./routes/events.js";
@@ -35,12 +40,15 @@ import { activityTracker } from "./middleware/activityTracker.js";
 
 dotenv.config();
 
+// Validate all required environment variables at startup
+const env = validateEnv();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT;
 
 // Initialize database (async)
 await initDb();
@@ -51,7 +59,9 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map(s => s.trim())
   : undefined;
 app.use(cors(allowedOrigins ? { origin: allowedOrigins, credentials: true } : undefined));
+app.use(helmet());
 app.use(express.json({ limit: "1mb" }));
+app.use(sanitizeMiddleware);
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -70,10 +80,23 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth/login", authLimiter);
 
+// Per-user rate limiting for authenticated routes
+const perUserLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Use userId from auth token if available, fall back to IP
+    return (req as any).userId?.toString() || req.ip || "unknown";
+  },
+  message: { success: false, error: "Per-user rate limit exceeded, please try again later" },
+});
+
 // Request logging
-if (process.env.NODE_ENV !== "production") {
+if (env.NODE_ENV !== "production") {
   app.use((req, _res, next) => {
-    console.log(`${req.method} ${req.path}`);
+    logger.debug(`${req.method} ${req.path}`);
     next();
   });
 }
@@ -96,29 +119,33 @@ app.use(activityTracker);
 // Public routes
 app.use("/api/auth", authRoutes);
 
-// Protected routes
-app.use("/api/todos", authMiddleware, todoRoutes);
-app.use("/api/events", authMiddleware, eventRoutes);
-app.use("/api/ddays", authMiddleware, ddayRoutes);
-app.use("/api/categories", authMiddleware, categoryRoutes);
-app.use("/api/timeblocks", authMiddleware, timeblockRoutes);
-app.use("/api/telegram", authMiddleware, telegramRoutes);
-app.use("/api/backup", authMiddleware, backupRoutes);
-app.use("/api/files", authMiddleware, fileRoutes);
-app.use("/api/reminders", authMiddleware, reminderRoutes);
-app.use("/api/projects", authMiddleware, projectRoutes);
-app.use("/api/projects", authMiddleware, projectTaskRoutes);
-app.use("/api/projects", authMiddleware, projectPostRoutes);
-app.use("/api/projects", authMiddleware, projectFileRoutes);
-app.use("/api/projects", authMiddleware, projectMessageRoutes);
-app.use("/api/admin/groups", authMiddleware, adminMiddleware, teamGroupRoutes);
-app.use("/api/presence", authMiddleware, presenceRoutes);
-app.use("/api/inbox", authMiddleware, inboxRoutes);
-app.use("/api/chat", authMiddleware, chatRoutes);
-app.use("/api/analytics", authMiddleware, adminMiddleware, analyticsRoutes);
+// Protected routes (auth + per-user rate limiting)
+const protectedMiddleware = [authMiddleware, perUserLimiter];
+app.use("/api/todos", ...protectedMiddleware, todoRoutes);
+app.use("/api/events", ...protectedMiddleware, eventRoutes);
+app.use("/api/ddays", ...protectedMiddleware, ddayRoutes);
+app.use("/api/categories", ...protectedMiddleware, categoryRoutes);
+app.use("/api/timeblocks", ...protectedMiddleware, timeblockRoutes);
+app.use("/api/telegram", ...protectedMiddleware, telegramRoutes);
+app.use("/api/backup", ...protectedMiddleware, backupRoutes);
+app.use("/api/files", ...protectedMiddleware, fileRoutes);
+app.use("/api/reminders", ...protectedMiddleware, reminderRoutes);
+app.use("/api/projects", ...protectedMiddleware, projectRoutes);
+app.use("/api/projects", ...protectedMiddleware, projectTaskRoutes);
+app.use("/api/projects", ...protectedMiddleware, projectPostRoutes);
+app.use("/api/projects", ...protectedMiddleware, projectFileRoutes);
+app.use("/api/projects", ...protectedMiddleware, projectMessageRoutes);
+app.use("/api/admin/groups", authMiddleware, perUserLimiter, adminMiddleware, teamGroupRoutes);
+app.use("/api/presence", ...protectedMiddleware, presenceRoutes);
+app.use("/api/inbox", ...protectedMiddleware, inboxRoutes);
+app.use("/api/chat", ...protectedMiddleware, chatRoutes);
+app.use("/api/analytics", authMiddleware, perUserLimiter, adminMiddleware, analyticsRoutes);
+
+// Global error handler (must be after all routes)
+app.use(errorHandler);
 
 // Serve static files in production
-if (process.env.NODE_ENV === "production") {
+if (env.NODE_ENV === "production") {
   const clientDist = path.join(__dirname, "../../client/dist");
   // Hashed assets (js, css, images) can be cached long-term
   app.use("/assets", express.static(path.join(clientDist, "assets"), {
@@ -144,13 +171,13 @@ if (process.env.NODE_ENV === "production") {
 initSocket(httpServer);
 
 httpServer.listen(PORT, () => {
-  console.log(`TimeBox server running on http://localhost:${PORT}`);
+  logger.info(`TimeBox server running on http://localhost:${PORT}`);
 
   // Initialize Telegram bot only in production (prevents polling conflict with local dev)
-  if (process.env.NODE_ENV === "production") {
+  if (env.NODE_ENV === "production") {
     initTelegramBot()
-      .then(() => console.log("[telegram] Bot initialization complete"))
-      .catch((err) => console.error("[telegram] Bot init failed:", (err as Error).message));
+      .then(() => logger.info("Telegram bot initialization complete"))
+      .catch((err) => logger.error("Telegram bot init failed", { error: (err as Error).message }));
 
     // Notify admins that server started (deploy notification is handled by CI)
     setTimeout(async () => {
@@ -182,13 +209,13 @@ httpServer.listen(PORT, () => {
             await bot.sendMessage(conf.chatId, msg, { parse_mode: "Markdown" });
           }
         }
-        console.log("[deploy] Server start notification sent");
+        logger.info("Server start notification sent to admins");
       } catch (e) {
-        console.error("[deploy] Failed to notify admins:", e);
+        logger.error("Failed to notify admins", { error: (e as Error).message });
       }
     }, 5000);
   } else {
-    console.log("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
+    logger.info("Telegram bot skipped in dev mode (set NODE_ENV=production to enable)");
   }
 
   // Check for due reminders every minute and send Telegram notifications
@@ -209,7 +236,7 @@ httpServer.listen(PORT, () => {
       const ready = dueReminders.filter(r => !r.snoozedUntil || r.snoozedUntil <= now);
 
       if (ready.length > 0) {
-        console.log(`[cron] ${ready.length} due reminder(s) found`);
+        logger.info("Due reminders found", { count: ready.length });
 
         // Send Telegram notification to each reminder's user
         const bot = getTelegramBot();
@@ -222,14 +249,14 @@ httpServer.listen(PORT, () => {
               try {
                 await bot.sendMessage(chatId, msg, { parse_mode: "Markdown" });
               } catch (e) {
-                console.error("telegram-reminder:", e);
+                logger.error("Telegram reminder failed", { error: (e as Error).message });
               }
             }
           }
         }
       }
     } catch (err) {
-      console.error("reminder-cron:", err);
+      logger.error("Reminder cron failed", { error: (err as Error).message });
     }
   });
 
@@ -250,16 +277,16 @@ httpServer.listen(PORT, () => {
       const projectResult = await db.delete(messages)
         .where(and(eq(messages.deleted, true), lte(messages.createdAt, cutoffStr)));
 
-      console.log(`[cron] Cleanup: removed old deleted messages`);
+      logger.info("Cleanup: removed old deleted messages");
     } catch (err) {
-      console.error("cleanup-cron:", err);
+      logger.error("Cleanup cron failed", { error: (err as Error).message });
     }
   });
 });
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down...");
+  logger.info("SIGTERM received, shutting down...");
   httpServer.close();
   process.exit(0);
 });

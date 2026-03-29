@@ -1,67 +1,11 @@
 import { create } from "zustand";
-import { api } from "@/lib/api";
+import { todoApi } from "@/lib/apiService";
+import { showToast } from "@/components/ui/Toast";
 import type { Todo } from "@timebox/shared";
 
-// ── Category definitions ──
-export interface TodoCategoryDef {
-  id: string;
-  label: string;
-  icon: string;
-  color: string;
-  children?: { id: string; label: string }[];
-}
-
-export const TODO_CATEGORIES: TodoCategoryDef[] = [
-  {
-    id: "work", label: "Work", icon: "\u{1F4BC}", color: "#3b82f6",
-    children: [
-      { id: "work.meeting", label: "Meeting" },
-      { id: "work.proposal", label: "Proposal" },
-      { id: "work.dev", label: "Development" },
-      { id: "work.review", label: "Review" },
-      { id: "work.report", label: "Report" },
-      { id: "work.other", label: "Other" },
-    ],
-  },
-  {
-    id: "personal", label: "Personal", icon: "\u{1F3E0}", color: "#8b5cf6",
-    children: [
-      { id: "personal.errand", label: "Errand" },
-      { id: "personal.health", label: "Health" },
-      { id: "personal.finance", label: "Finance" },
-      { id: "personal.other", label: "Other" },
-    ],
-  },
-  {
-    id: "study", label: "Study", icon: "\u{1F4DA}", color: "#f59e0b",
-    children: [
-      { id: "study.course", label: "Course" },
-      { id: "study.reading", label: "Reading" },
-      { id: "study.research", label: "Research" },
-    ],
-  },
-  {
-    id: "project", label: "Project", icon: "\u{1F680}", color: "#10b981",
-    children: [
-      { id: "project.planning", label: "Planning" },
-      { id: "project.design", label: "Design" },
-      { id: "project.implementation", label: "Implementation" },
-    ],
-  },
-  { id: "urgent", label: "Urgent", icon: "\u{1F525}", color: "#ef4444" },
-  { id: "idea", label: "Idea", icon: "\u{1F4A1}", color: "#06b6d4" },
-];
-
-export function getCategoryInfo(catId: string): { label: string; icon: string; color: string; parentLabel?: string } {
-  for (const cat of TODO_CATEGORIES) {
-    if (cat.id === catId) return { label: cat.label, icon: cat.icon, color: cat.color };
-    if (cat.children) {
-      const child = cat.children.find((c) => c.id === catId);
-      if (child) return { label: child.label, icon: cat.icon, color: cat.color, parentLabel: cat.label };
-    }
-  }
-  return { label: catId, icon: "\u{1F4CC}", color: "#94a3b8" };
-}
+// Re-export category definitions from unified config for backward compatibility
+export { TODO_CATEGORIES, getCategoryInfo } from "@/lib/categories";
+export type { TodoCategoryDef } from "@/lib/categories";
 
 // ── Store ──
 export type { Todo };
@@ -95,14 +39,18 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   fetchTodos: async () => {
     set({ error: null, loading: true });
     try {
-      const res = await api.get<Todo[]>("/todos");
+      const res = await todoApi.getAll();
       if (res.success && res.data) {
         set({ todos: res.data, loading: false });
       } else {
-        set({ error: res.error || "Failed to fetch todos", loading: false });
+        const msg = res.error || "Failed to fetch todos";
+        set({ error: msg, loading: false });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to fetch todos", loading: false });
+      const msg = "Failed to fetch todos";
+      set({ error: msg, loading: false });
+      showToast("error", msg);
     }
   },
 
@@ -114,14 +62,18 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ todos: [tempTodo as Todo, ...get().todos] });
 
     try {
-      const res = await api.post<Todo>('/todos', { title, priority, dueDate: date, category });
+      const res = await todoApi.create({ title, priority, dueDate: date, category });
       if (res.success && res.data) {
         set({ todos: get().todos.map(t => t.id === tempId ? res.data! : t) });
       } else {
-        set({ todos: get().todos.filter(t => t.id !== tempId) });
+        const msg = res.error || "Failed to add todo";
+        set({ todos: get().todos.filter(t => t.id !== tempId), error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ todos: get().todos.filter(t => t.id !== tempId) });
+      const msg = "Failed to add todo";
+      set({ todos: get().todos.filter(t => t.id !== tempId), error: msg });
+      showToast("error", msg);
     }
   },
 
@@ -135,55 +87,87 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ todos: prev.map(t => t.id === id ? { ...t, completed: newCompleted, progress: newProgress } : t) });
 
     try {
-      const res = await api.put(`/todos/${id}`, { completed: newCompleted, progress: newProgress });
+      const res = await todoApi.toggle(id, { completed: newCompleted, progress: newProgress });
       if (!res.success) {
         set({ todos: prev });
+        const msg = res.error || "Failed to toggle todo";
+        set({ error: msg });
+        showToast("error", msg);
       }
     } catch {
       set({ todos: prev });
+      const msg = "Failed to toggle todo";
+      set({ error: msg });
+      showToast("error", msg);
     }
   },
 
   deleteTodo: async (id) => {
     set({ error: null });
+    // Optimistic delete
+    const prev = get().todos;
+    set({ todos: prev.filter(t => t.id !== id) });
+
     try {
-      const res = await api.delete(`/todos/${id}`);
-      if (res.success) {
-        set({ todos: get().todos.filter((t) => t.id !== id) });
-      } else {
-        set({ error: res.error || "Failed to delete todo" });
+      const res = await todoApi.delete(id);
+      if (!res.success) {
+        const msg = res.error || "Failed to delete todo";
+        set({ todos: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to delete todo" });
+      const msg = "Failed to delete todo";
+      set({ todos: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   updateTodo: async (id, updates) => {
     set({ error: null });
+    // Optimistic update
+    const prev = get().todos;
+    set({ todos: prev.map(t => t.id === id ? { ...t, ...updates } : t) });
+
     try {
-      const res = await api.put<Todo>(`/todos/${id}`, updates);
+      const res = await todoApi.update(id, updates);
       if (res.success && res.data) {
-        set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
+        set({ todos: get().todos.map(t => t.id === id ? res.data! : t) });
       } else {
-        set({ error: res.error || "Failed to update todo" });
+        const msg = res.error || "Failed to update todo";
+        set({ todos: prev, error: msg });
+        showToast("error", msg);
       }
     } catch {
-      set({ error: "Failed to update todo" });
+      const msg = "Failed to update todo";
+      set({ todos: prev, error: msg });
+      showToast("error", msg);
     }
   },
 
   reorderTodos: async (items) => {
     set({ error: null });
+    // Optimistic reorder
+    const prev = get().todos;
+    const todosMap = new Map(get().todos.map((t) => [t.id, t]));
+    items.forEach(({ id, sortOrder }) => {
+      const todo = todosMap.get(id);
+      if (todo) todosMap.set(id, { ...todo, sortOrder });
+    });
+    set({ todos: Array.from(todosMap.values()) });
+
     try {
-      const todosMap = new Map(get().todos.map((t) => [t.id, t]));
-      items.forEach(({ id, sortOrder }) => {
-        const todo = todosMap.get(id);
-        if (todo) todosMap.set(id, { ...todo, sortOrder });
-      });
-      set({ todos: Array.from(todosMap.values()) });
-      await api.put("/todos/reorder", { items });
+      const res = await todoApi.reorder(items);
+      if (!res.success) {
+        set({ todos: prev });
+        const msg = res.error || "Failed to reorder todos";
+        set({ error: msg });
+        showToast("error", msg);
+      }
     } catch {
-      set({ error: "Failed to reorder todos" });
+      set({ todos: prev });
+      const msg = "Failed to reorder todos";
+      set({ error: msg });
+      showToast("error", msg);
     }
   },
 }));

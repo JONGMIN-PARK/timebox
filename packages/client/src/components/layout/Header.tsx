@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Bell } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
-import { getSocket } from "@/lib/socket";
+import { useSocketEvent } from "@/lib/SocketProvider";
 import { updateAppBadge } from "@/lib/badge";
 import { useAuthStore } from "@/stores/authStore";
 import { fmtDateTime } from "@/lib/dateUtils";
@@ -58,24 +58,21 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
         }
       }
     });
-    const interval = setInterval(fetchUnread, 30000);
+    // Fallback polling at 2-min interval in case socket events are missed
+    const interval = setInterval(fetchUnread, 120000);
     return () => clearInterval(interval);
   }, [pageVisible]);
 
-  // Listen for inbox read events to refresh count immediately
+  // Listen for inbox read events to refresh count immediately (local browser events)
   useEffect(() => {
     const handler = () => fetchUnread();
     window.addEventListener("inbox-updated", handler);
     return () => window.removeEventListener("inbox-updated", handler);
   }, []);
 
-  // Listen for socket events for instant inbox updates
-  useEffect(() => {
-    const socket = getSocket();
-    const handler = () => fetchUnread();
-    socket.on("inbox:new-message", handler);
-    return () => { socket.off("inbox:new-message", handler); };
-  }, []);
+  // Listen for socket events for instant inbox updates (replaces 30s polling)
+  useSocketEvent("inbox:new-message", useCallback(() => fetchUnread(), []));
+  useSocketEvent("inbox:update", useCallback(() => fetchUnread(), []));
 
   return (
     <header className="h-12 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">

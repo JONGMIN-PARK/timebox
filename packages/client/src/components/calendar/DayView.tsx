@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useCallback } from "react";
 import { format, isToday } from "date-fns";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,51 @@ import {
   timeToMinutes,
 } from "./calendarTypes";
 import type { CalendarEvent, Todo } from "./calendarTypes";
+
+// Memoized calendar event item for day timeline view
+const DayEventItem = memo(function DayEventItem({
+  ev, onDelete,
+}: {
+  ev: CalendarEvent;
+  onDelete: (id: number) => void;
+}) {
+  const startMin = timeToMinutes(ev.startTime.slice(11, 16));
+  const endMin = timeToMinutes(ev.endTime.slice(11, 16));
+  const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+  const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 24);
+  return (
+    <div
+      className="absolute left-14 right-3 rounded-lg border-l-4 px-3 py-1.5 group"
+      style={{ top, height, borderLeftColor: ev.color || "#3b82f6", backgroundColor: (ev.color || "#3b82f6") + "18" }}
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
+          {height >= 40 && <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>}
+        </div>
+        <button onClick={() => onDelete(ev.id)} className="hidden group-hover:flex w-5 h-5 items-center justify-center">
+          <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+// Memoized todo chip for day header
+const DayTodoChip = memo(function DayTodoChip({ todo }: { todo: Todo }) {
+  return (
+    <span
+      className={cn(
+        "text-xs px-2 py-0.5 rounded-full",
+        todo.completed
+          ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 line-through"
+          : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+      )}
+    >
+      {todo.title}
+    </span>
+  );
+});
 
 interface DayViewProps {
   currentDate: Date;
@@ -59,17 +104,7 @@ export default function DayView({
         {dayTodos.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap gap-1.5">
             {dayTodos.map((t) => (
-              <span
-                key={t.id}
-                className={cn(
-                  "text-xs px-2 py-0.5 rounded-full",
-                  t.completed
-                    ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 line-through"
-                    : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-                )}
-              >
-                {t.title}
-              </span>
+              <DayTodoChip key={t.id} todo={t} />
             ))}
           </div>
         )}
@@ -89,29 +124,9 @@ export default function DayView({
               <div className="flex-1 h-0.5 bg-red-500" />
             </div>
           )}
-          {dayEvents.map((ev) => {
-            const startMin = timeToMinutes(ev.startTime.slice(11, 16));
-            const endMin = timeToMinutes(ev.endTime.slice(11, 16));
-            const top = ((startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
-            const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 24);
-            return (
-              <div
-                key={ev.id}
-                className="absolute left-14 right-3 rounded-lg border-l-4 px-3 py-1.5 group"
-                style={{ top, height, borderLeftColor: ev.color || "#3b82f6", backgroundColor: (ev.color || "#3b82f6") + "18" }}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
-                    {height >= 40 && <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>}
-                  </div>
-                  <button onClick={() => onDeleteEvent(ev.id)} className="hidden group-hover:flex w-5 h-5 items-center justify-center">
-                    <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {dayEvents.map((ev) => (
+            <DayEventItem key={ev.id} ev={ev} onDelete={onDeleteEvent} />
+          ))}
         </div>
       </div>
     </>

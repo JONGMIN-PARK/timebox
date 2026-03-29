@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3, FolderOpen, FileText, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -8,6 +8,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
 import { fmtDateTime } from "@/lib/dateUtils";
+import { useSocketEvent } from "@/lib/SocketProvider";
 
 interface SidebarProps {
   activeTab: string;
@@ -55,17 +56,28 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     return () => clearInterval(interval);
   }, [user, pageVisible]);
 
-  // Fetch online users every 30 seconds
+  // Fetch online users - initial fetch + listen for socket presence updates
+  const fetchOnline = useCallback(async () => {
+    if (!hasTeamAccess) return;
+    const res = await api.get<{userId: number; displayName: string; username: string}[]>("/presence/online");
+    if (res.success && res.data) setOnlineUsers(res.data);
+  }, [hasTeamAccess]);
+
   useEffect(() => {
     if (!hasTeamAccess || !pageVisible) return;
-    const fetchOnline = async () => {
-      const res = await api.get<{userId: number; displayName: string; username: string}[]>("/presence/online");
-      if (res.success && res.data) setOnlineUsers(res.data);
-    };
     fetchOnline();
-    const interval = setInterval(fetchOnline, 30000);
+    // Fallback polling at 2-min interval in case socket events are missed
+    const interval = setInterval(fetchOnline, 120000);
     return () => clearInterval(interval);
-  }, [hasTeamAccess, pageVisible]);
+  }, [hasTeamAccess, pageVisible, fetchOnline]);
+
+  // Listen for real-time presence updates via socket
+  useSocketEvent("presence:update", useCallback(() => {
+    if (hasTeamAccess) fetchOnline();
+  }, [hasTeamAccess, fetchOnline]));
+  useSocketEvent("presence:online", useCallback(() => {
+    if (hasTeamAccess) fetchOnline();
+  }, [hasTeamAccess, fetchOnline]));
 
   const toggleGroup = (groupId: number) => {
     setOpenGroups(prev => {
