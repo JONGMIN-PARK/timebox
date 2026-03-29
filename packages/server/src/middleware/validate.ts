@@ -43,8 +43,9 @@ export const schemas = {
     title: z.string().min(1, "Title is required").trim(),
     priority: z.enum(["high", "medium", "low"]).optional().default("medium"),
     category: z.string().optional().default("personal"),
-    dueDate: z.string().regex(dateRegex, "Invalid date format").optional().nullable(),
+    dueDate: z.string().optional().nullable(),
     parentId: z.number().optional().nullable(),
+    status: z.enum(["waiting", "active", "completed"]).optional().default("active"),
   }),
 
   createDDay: z.object({

@@ -6,8 +6,23 @@ import { type AuthRequest } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
+
+/** Check if status column exists in DB (cached) */
+let hasStatusColumn: boolean | null = null;
+async function checkStatusColumn() {
+  if (hasStatusColumn !== null) return hasStatusColumn;
+  try {
+    await db.execute(sql`SELECT status FROM todos LIMIT 0`);
+    hasStatusColumn = true;
+  } catch {
+    hasStatusColumn = false;
+    logger.warn("todos.status column not found - running in compatibility mode. Run DB migration to add it.");
+  }
+  return hasStatusColumn;
+}
 
 /** Derive a status field from DB row for backward compatibility */
 function withStatus(row: Record<string, unknown>) {
@@ -18,14 +33,18 @@ function withStatus(row: Record<string, unknown>) {
 router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
   const filter = req.query.filter as string | undefined;
+  const hasStatus = await checkStatusColumn();
   let result;
 
   if (filter === "completed") {
     result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true))).orderBy(desc(todos.updatedAt));
-  } else if (filter === "active") {
+  } else if (filter === "active" && hasStatus) {
     result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), eq(todos.status, "active"))).orderBy(asc(todos.sortOrder));
-  } else if (filter === "waiting") {
+  } else if (filter === "waiting" && hasStatus) {
     result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.status, "waiting"))).orderBy(asc(todos.sortOrder));
+  } else if (filter === "active" || filter === "waiting") {
+    // Fallback: no status column, return all non-completed
+    result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))).orderBy(asc(todos.sortOrder));
   } else {
     result = await db.select().from(todos).where(eq(todos.userId, userId)).orderBy(asc(todos.sortOrder), desc(todos.createdAt));
   }
@@ -36,6 +55,7 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
 router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
   const { title, priority, category, dueDate, parentId, status } = req.body;
+  const hasStatus = await checkStatusColumn();
 
   const validStatuses = ["waiting", "active", "completed"];
   const todoStatus = validStatuses.includes(status) ? status : "active";
@@ -47,7 +67,7 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
     .from(todos)
     .where(eq(todos.userId, userId));
 
-  const result = await db.insert(todos).values({
+  const values: Record<string, unknown> = {
     userId,
     title: title.trim(),
     priority: priority || "medium",
@@ -55,10 +75,14 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
     dueDate: dueDate || null,
     parentId: parentId || null,
     sortOrder: (maxOrder[0]?.max || 0) + 1,
-    status: todoStatus,
     completed,
     progress,
-  }).returning();
+  };
+  if (hasStatus) {
+    values.status = todoStatus;
+  }
+
+  const result = await db.insert(todos).values(values as typeof todos.$inferInsert).returning();
 
   res.status(201).json({ success: true, data: withStatus(result[0]) });
 }));
@@ -83,6 +107,7 @@ router.put("/:id/status", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);
   const userId = req.userId!;
   const { status } = req.body;
+  const hasStatus = await checkStatusColumn();
 
   const validStatuses = ["waiting", "active", "completed"];
   if (!status || !validStatuses.includes(status)) {
@@ -90,9 +115,11 @@ router.put("/:id/status", asyncHandler<AuthRequest>(async (req, res) => {
   }
 
   const updates: Record<string, unknown> = {
-    status,
     updatedAt: new Date().toISOString(),
   };
+  if (hasStatus) {
+    updates.status = status;
+  }
 
   if (status === "completed") {
     updates.completed = true;
@@ -127,9 +154,10 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
 
   // Handle status field
   if (req.body.status !== undefined) {
+    const hasStatus = await checkStatusColumn();
     const validStatuses = ["waiting", "active", "completed"];
     if (validStatuses.includes(req.body.status)) {
-      updates.status = req.body.status;
+      if (hasStatus) updates.status = req.body.status;
       if (req.body.status === "completed") {
         updates.completed = true;
         updates.progress = 100;
