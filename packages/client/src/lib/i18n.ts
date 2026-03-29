@@ -71,6 +71,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // Calendar
     "calendar.addEvent": "Add Event",
+    "calendar.editEvent": "Edit Event",
     "calendar.noEvents": "No events",
     "calendar.eventTitle": "Event title",
     "calendar.start": "Start",
@@ -88,7 +89,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.addReminder": "Add Reminder",
     "calendar.todoTitle": "Todo title",
     "calendar.reminderTitle": "Reminder title",
-    "calendar.quickAdd": "Quick add",
+    "calendar.quickAdd": "Quick Add",
+    "calendar.selectDateHint": "Tap a date to see details",
     "calendar.eventCreated": "Event created",
     "calendar.eventDeleted": "Event deleted",
     "calendar.todoCreated": "Todo created",
@@ -438,6 +440,7 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // Calendar
     "calendar.addEvent": "\uc77c\uc815 \ucd94\uac00",
+    "calendar.editEvent": "\uc77c\uc815 \uc218\uc815",
     "calendar.noEvents": "\uc77c\uc815 \uc5c6\uc74c",
     "calendar.eventTitle": "\uc77c\uc815 \uc81c\ubaa9",
     "calendar.start": "\uc2dc\uc791",
@@ -460,6 +463,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.eventDeleted": "\uc77c\uc815\uc774 \uc0ad\uc81c\ub418\uc5c8\uc2b5\ub2c8\ub2e4",
     "calendar.todoCreated": "\ud560\uc77c\uc774 \uc0dd\uc131\ub418\uc5c8\uc2b5\ub2c8\ub2e4",
     "calendar.createFailed": "\uc0dd\uc131\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4",
+    "calendar.selectDateHint": "날짜를 탭하여 상세 보기",
 
     // D-Day
     "dday.title": "\ub514\ub370\uc774",

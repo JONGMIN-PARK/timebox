@@ -106,6 +106,119 @@ export default function FloatingChat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
+  // ── Draggable FAB state ──
+  const FAB_STORAGE_KEY = "floatingChat:position";
+  const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem(FAB_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const fabPosRef = useRef(fabPos);
+  fabPosRef.current = fabPos;
+
+  const dragState = useRef<{
+    dragging: boolean;
+    startX: number;
+    startY: number;
+    startPosX: number;
+    startPosY: number;
+    moved: boolean;
+  } | null>(null);
+  const wasDragging = useRef(false);
+  const fabRef = useRef<HTMLButtonElement>(null);
+
+  const clampFab = useCallback((x: number, y: number) => {
+    const size = 56;
+    return {
+      x: Math.max(4, Math.min(window.innerWidth - size - 4, x)),
+      y: Math.max(4, Math.min(window.innerHeight - size - 4, y)),
+    };
+  }, []);
+
+  const getDefaultFabPos = useCallback(() => {
+    const isMd = window.innerWidth >= 768;
+    return {
+      x: window.innerWidth - (isMd ? 24 : 16) - 56,
+      y: window.innerHeight - (isMd ? 24 : 72) - 56,
+    };
+  }, []);
+
+  const handleDragStart = useCallback((clientX: number, clientY: number) => {
+    const pos = fabPosRef.current ?? getDefaultFabPos();
+    wasDragging.current = false;
+    dragState.current = {
+      dragging: true,
+      startX: clientX,
+      startY: clientY,
+      startPosX: pos.x,
+      startPosY: pos.y,
+      moved: false,
+    };
+  }, [getDefaultFabPos]);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    const ds = dragState.current;
+    if (!ds || !ds.dragging) return;
+    const dx = clientX - ds.startX;
+    const dy = clientY - ds.startY;
+    if (!ds.moved && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    ds.moved = true;
+    const clamped = clampFab(ds.startPosX + dx, ds.startPosY + dy);
+    setFabPos(clamped);
+  }, [clampFab]);
+
+  const handleDragEnd = useCallback(() => {
+    const ds = dragState.current;
+    if (!ds) return;
+    const didMove = ds.moved;
+    wasDragging.current = didMove;
+    dragState.current = null;
+    if (didMove) {
+      const cur = fabPosRef.current;
+      if (cur) {
+        const midX = window.innerWidth / 2;
+        const snapped = clampFab(
+          cur.x + 28 < midX ? 8 : window.innerWidth - 64,
+          cur.y,
+        );
+        setFabPos(snapped);
+        localStorage.setItem(FAB_STORAGE_KEY, JSON.stringify(snapped));
+      }
+      // Reset wasDragging after click event has had time to fire
+      setTimeout(() => { wasDragging.current = false; }, 300);
+    }
+  }, [clampFab]);
+
+  // Mouse drag handlers
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => handleDragMove(e.clientX, e.clientY);
+    const onMouseUp = () => handleDragEnd();
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [handleDragMove, handleDragEnd]);
+
+  // Touch drag handlers
+  useEffect(() => {
+    const onTouchMove = (e: TouchEvent) => {
+      if (dragState.current?.dragging) {
+        e.preventDefault();
+        handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+    const onTouchEnd = () => handleDragEnd();
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd);
+    return () => {
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [handleDragMove, handleDragEnd]);
+
   // ── Escape key handler ──
 
   useEffect(() => {
@@ -894,26 +1007,38 @@ export default function FloatingChat() {
       <div
         ref={popupRef}
         className={cn(
-          "fixed right-4 bottom-24 w-[350px] h-[480px] rounded-2xl shadow-2xl overflow-hidden",
+          "fixed w-[350px] h-[480px] rounded-2xl shadow-2xl overflow-hidden",
           "bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60",
           "flex flex-col",
-          "transition-all duration-300 ease-out origin-bottom-right",
+          "transition-all duration-300 ease-out",
           // Mobile: full width
-          "max-md:left-2 max-md:right-2 max-md:w-auto max-md:bottom-20",
+          "max-md:left-2 max-md:right-2 max-md:w-auto",
           // Backdrop blur
           "backdrop-blur-sm",
           open
             ? "opacity-100 scale-100 pointer-events-auto translate-y-0"
             : "opacity-0 scale-90 pointer-events-none translate-y-4",
         )}
-        style={{ zIndex: 45 }}
+        style={{
+          zIndex: 45,
+          ...(fabPos
+            ? {
+                // Position popup above the FAB
+                left: Math.max(4, Math.min(fabPos.x, window.innerWidth - 358)),
+                bottom: Math.max(8, window.innerHeight - fabPos.y + 8),
+              }
+            : { right: 16, bottom: 96 }),
+        }}
       >
         {view === "contacts" ? renderContacts() : renderChat()}
       </div>
 
-      {/* Chat Bubble Button */}
+      {/* Chat Bubble Button (draggable) */}
       <button
+        ref={fabRef}
         onClick={() => {
+          // Ignore click if it was a drag
+          if (wasDragging.current) return;
           setOpen((prev) => !prev);
           if (!open) {
             setView("contacts");
@@ -921,17 +1046,32 @@ export default function FloatingChat() {
             fetchContacts();
           }
         }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          handleDragStart(e.clientX, e.clientY);
+        }}
+        onTouchStart={(e) => {
+          handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        }}
         className={cn(
-          "fixed right-4 bottom-[4.5rem] md:right-6 md:bottom-6 w-14 h-14 rounded-full shadow-lg",
-          "flex items-center justify-center transition-all duration-300",
-          "hover:shadow-xl hover:scale-105 active:scale-95",
+          "fixed w-14 h-14 rounded-full shadow-lg",
+          "flex items-center justify-center transition-shadow transition-colors duration-300",
+          "hover:shadow-xl active:scale-95 cursor-grab active:cursor-grabbing",
+          "touch-none select-none",
           open
             ? "bg-slate-600 dark:bg-slate-700 ring-2 ring-slate-400/50"
             : unreadCount > 0
               ? "bg-blue-500 hover:bg-blue-600 ring-2 ring-blue-400/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
               : "bg-slate-400 dark:bg-slate-600 hover:bg-blue-500 dark:hover:bg-blue-600",
         )}
-        style={{ zIndex: 45 }}
+        style={{
+          zIndex: 45,
+          ...(fabPos
+            ? { left: fabPos.x, top: fabPos.y }
+            : { right: 16, bottom: "4.5rem" }),
+          // Disable transform transitions during drag
+          transition: dragState.current?.dragging ? "none" : undefined,
+        }}
       >
         {open ? (
           <X className="w-6 h-6 text-white" />

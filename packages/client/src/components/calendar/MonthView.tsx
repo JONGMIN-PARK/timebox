@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { Plus, X, CheckSquare, Calendar } from "lucide-react";
+import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import type { CalendarEvent, Todo, HoverTooltipItem } from "./calendarTypes";
@@ -23,6 +23,10 @@ interface MonthViewProps {
   onDayLeave: () => void;
   onShowAddModal: () => void;
   onDeleteEvent: (id: number) => void;
+  onEditEvent?: (event: CalendarEvent) => void;
+  onToggleTodo?: (id: number) => void;
+  onDeleteTodo?: (id: number) => void;
+  onEditTodo?: (todo: Todo) => void;
   onLongPressDate?: (date: Date, type: string) => void;
 }
 
@@ -42,6 +46,10 @@ export default function MonthView({
   onDayLeave,
   onShowAddModal,
   onDeleteEvent,
+  onEditEvent,
+  onToggleTodo,
+  onDeleteTodo,
+  onEditTodo,
   onLongPressDate,
 }: MonthViewProps) {
   const { t } = useI18n();
@@ -119,10 +127,10 @@ export default function MonthView({
                     <p className="text-[10px] leading-tight truncate text-slate-700 dark:text-slate-300">{ev.title}</p>
                   </div>
                 ))}
-                {dayTodos.slice(0, 3).map((t) => (
-                  <div key={`t-${t.id}`} className="flex items-center gap-0.5 px-0.5">
-                    <div className={cn("w-1 h-1 rounded-sm shrink-0", t.completed ? "bg-green-400" : "bg-amber-400")} />
-                    <p className={cn("text-[10px] leading-tight truncate", t.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{t.title}</p>
+                {dayTodos.slice(0, 3).map((td) => (
+                  <div key={`t-${td.id}`} className="flex items-center gap-0.5 px-0.5">
+                    <div className={cn("w-1 h-1 rounded-sm shrink-0", td.completed ? "bg-green-400" : "bg-amber-400")} />
+                    <p className={cn("text-[10px] leading-tight truncate", td.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{td.title}</p>
                   </div>
                 ))}
                 {(dayEvents.length + dayTodos.length) > 6 && (
@@ -176,52 +184,96 @@ export default function MonthView({
 
       {/* Selected date detail - events + todos */}
       {selectedDate && (
-        <div className="flex-1 min-h-0 flex flex-col border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
-            <span className="text-sm font-medium text-slate-900 dark:text-white">
-              {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
-            </span>
-            <button onClick={onShowAddModal} className="w-7 h-7 rounded-md bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white">
+        <div className="flex-1 min-h-[180px] flex flex-col border-t-2 border-blue-500/30 dark:border-blue-400/20 bg-white dark:bg-slate-800">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-750/50">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
+              </span>
+              {(selectedDateEvents.length + selectedDateTodos.length) > 0 && (
+                <span className="text-[10px] text-slate-400 bg-slate-200/60 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">
+                  {selectedDateEvents.length + selectedDateTodos.length}
+                </span>
+              )}
+            </div>
+            <button onClick={onShowAddModal} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white shadow-sm transition-colors">
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-400 text-center">{t("calendar.noEvents")}</p>
+              <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+                <Calendar className="w-8 h-8 mb-2 text-slate-300 dark:text-slate-600" />
+                <p className="text-xs">{t("calendar.noEvents")}</p>
+                <button onClick={onShowAddModal} className="mt-2 text-xs text-blue-500 hover:text-blue-600 font-medium">
+                  + {t("calendar.addEvent")}
+                </button>
+              </div>
             ) : (
-              <>
+              <div className="divide-y divide-slate-100 dark:divide-slate-700/30">
                 {/* Events */}
                 {selectedDateEvents.map((ev) => (
-                  <div key={`ev-${ev.id}`} className="group flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <div className="w-1 h-8 rounded-full" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+                  <div key={`ev-${ev.id}`} className="group flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/50 dark:hover:bg-slate-700/40 transition-colors">
+                    <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
                     <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
-                      <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
+                      <p className="text-[11px] text-slate-400 tabular-nums">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
                     </div>
-                    <button onClick={() => onDeleteEvent(ev.id)} className="opacity-0 group-hover:opacity-100">
-                      <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
-                    </button>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
+                      {onEditEvent && (
+                        <button onClick={() => onEditEvent(ev)} className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
+                          <Pencil className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
+                        </button>
+                      )}
+                      <button onClick={() => onDeleteEvent(ev.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {/* Todos */}
-                {selectedDateTodos.map((t) => (
-                  <div key={`td-${t.id}`} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <div className={cn("w-1 h-8 rounded-full", t.completed ? "bg-green-400" : "bg-amber-400")} />
-                    <CheckSquare className={cn("w-3.5 h-3.5 flex-shrink-0", t.completed ? "text-green-500" : "text-amber-500")} />
+                {selectedDateTodos.map((td) => (
+                  <div key={`td-${td.id}`} className="group flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50/30 dark:hover:bg-slate-700/40 transition-colors">
+                    {onToggleTodo ? (
+                      <button onClick={() => onToggleTodo(td.id)} className={cn("w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors", td.completed ? "bg-green-500 border-green-500" : "border-slate-300 dark:border-slate-600 hover:border-amber-400")}>
+                        {td.completed && <Check className="w-3 h-3 text-white" />}
+                      </button>
+                    ) : (
+                      <div className={cn("w-1 self-stretch rounded-full flex-shrink-0", td.completed ? "bg-green-400" : "bg-amber-400")} />
+                    )}
+                    <CheckSquare className={cn("w-3.5 h-3.5 flex-shrink-0", td.completed ? "text-green-500" : "text-amber-500")} />
                     <div className="flex-1 min-w-0">
-                      <p className={cn("text-sm truncate", t.completed ? "line-through text-slate-400" : "text-slate-900 dark:text-white")}>
-                        {t.title}
+                      <p className={cn("text-sm truncate", td.completed ? "line-through text-slate-400" : "font-medium text-slate-900 dark:text-white")}>
+                        {td.title}
                       </p>
-                      <p className="text-xs text-slate-400">
-                        {t.priority === "high" ? "High" : t.priority === "medium" ? "Medium" : "Low"}
+                      <p className="text-[11px] text-slate-400">
+                        {td.priority === "high" ? "High" : td.priority === "medium" ? "Medium" : "Low"}
                       </p>
+                    </div>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
+                      {onEditTodo && (
+                        <button onClick={() => onEditTodo(td)} className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
+                          <Pencil className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
+                        </button>
+                      )}
+                      {onDeleteTodo && (
+                        <button onClick={() => onDeleteTodo(td.id)} className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
-              </>
+              </div>
             )}
           </div>
+        </div>
+      )}
+      {/* No date selected - show hint */}
+      {!selectedDate && (
+        <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-600">
+          <p className="text-xs">{t("calendar.selectDateHint") || "Tap a date to see details"}</p>
         </div>
       )}
     </div>
