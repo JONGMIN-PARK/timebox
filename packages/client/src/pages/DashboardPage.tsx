@@ -222,7 +222,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right overflow-hidden">
+    <div className="flex min-h-0 h-svh flex-col bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right overflow-hidden">
       <div className="flex-1 flex min-h-0">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="flex-1 flex flex-col min-w-0">
@@ -231,7 +231,7 @@ export default function DashboardPage() {
           setActiveTab("inbox");
         }} onVersionClick={() => setShowVersion(true)} />
 
-        <div className="flex-1 flex overflow-hidden pb-[calc(var(--mobile-nav-h)+env(safe-area-inset-bottom,0px))] md:pb-0">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
           {activeProjectId && hasTeamAccess ? (
             <main className="min-h-0 flex-1 overflow-hidden animate-in">
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
