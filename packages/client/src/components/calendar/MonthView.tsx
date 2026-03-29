@@ -48,15 +48,15 @@ export default function MonthView({
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   return (
-    <>
-      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
           <div key={day} className={cn("text-center text-xs font-medium py-2", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
             {day}
           </div>
         ))}
       </div>
-      <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+      <div className="flex-1 min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-fr">
         {days.map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
@@ -172,7 +172,7 @@ export default function MonthView({
 
       {/* Selected date detail - events + todos */}
       {selectedDate && (
-        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-700/50">
             <span className="text-sm font-medium text-slate-900 dark:text-white">
               {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
@@ -181,7 +181,7 @@ export default function MonthView({
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <div className="max-h-48 overflow-y-auto">
+          <div className="max-h-[40vh] overflow-y-auto">
             {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
               <p className="px-4 py-4 text-sm text-slate-400 text-center">No events</p>
             ) : (
@@ -220,6 +220,6 @@ export default function MonthView({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
