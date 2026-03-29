@@ -12,17 +12,18 @@ export type { Todo };
 
 interface TodoState {
   todos: Todo[];
-  filter: "all" | "active" | "completed";
+  filter: "all" | "waiting" | "active" | "completed";
   categoryFilter: string; // "" = all
   loading: boolean;
   error: string | null;
-  setFilter: (filter: "all" | "active" | "completed") => void;
+  setFilter: (filter: "all" | "waiting" | "active" | "completed") => void;
   setCategoryFilter: (cat: string) => void;
   fetchTodos: () => Promise<void>;
-  addTodo: (title: string, priority?: string, dueDate?: string, category?: string) => Promise<void>;
+  addTodo: (title: string, priority?: string, dueDate?: string, category?: string, status?: 'waiting' | 'active' | 'completed') => Promise<void>;
   toggleTodo: (id: number) => Promise<void>;
   deleteTodo: (id: number) => Promise<void>;
   updateTodo: (id: number, updates: Partial<Todo>) => Promise<void>;
+  updateStatus: (id: number, status: 'waiting' | 'active' | 'completed') => Promise<void>;
   reorderTodos: (items: { id: number; sortOrder: number }[]) => Promise<void>;
 }
 
@@ -54,15 +55,15 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }
   },
 
-  addTodo: async (title, priority = "medium", dueDate?, category = "personal") => {
+  addTodo: async (title, priority = "medium", dueDate?, category = "personal", status = "active") => {
     // Optimistic: add temp item
     const tempId = -Date.now();
     const date = dueDate || new Date().toISOString().slice(0, 10);
-    const tempTodo = { id: tempId, title, completed: false, progress: 0, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString() };
+    const tempTodo = { id: tempId, title, completed: status === 'completed', progress: status === 'completed' ? 100 : 0, status, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString() };
     set({ todos: [tempTodo as Todo, ...get().todos] });
 
     try {
-      const res = await todoApi.create({ title, priority, dueDate: date, category });
+      const res = await todoApi.create({ title, priority, dueDate: date, category, status });
       if (res.success && res.data) {
         set({ todos: get().todos.map(t => t.id === tempId ? res.data! : t) });
       } else {
@@ -140,6 +141,35 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     } catch {
       const msg = "Failed to update todo";
       set({ todos: prev, error: msg });
+      showToast("error", msg);
+    }
+  },
+
+  updateStatus: async (id, status) => {
+    const prev = get().todos;
+    const todo = prev.find(t => t.id === id);
+    if (!todo) return;
+    const updates: Partial<Todo> = { status };
+    if (status === 'completed') { updates.completed = true; updates.progress = 100; }
+    else if (status === 'active') { updates.completed = false; }
+    else if (status === 'waiting') { updates.completed = false; updates.progress = 0; }
+    set({ todos: prev.map(t => t.id === id ? { ...t, ...updates } : t) });
+
+    try {
+      const res = await todoApi.updateStatus(id, status);
+      if (res.success && res.data) {
+        set({ todos: get().todos.map(t => t.id === id ? res.data! : t) });
+        showToast("success", status === 'completed' ? "Todo completed" : status === 'waiting' ? "Todo set to waiting" : "Todo activated");
+      } else {
+        set({ todos: prev });
+        const msg = res.error || "Failed to update status";
+        set({ error: msg });
+        showToast("error", msg);
+      }
+    } catch {
+      set({ todos: prev });
+      const msg = "Failed to update status";
+      set({ error: msg });
       showToast("error", msg);
     }
   },

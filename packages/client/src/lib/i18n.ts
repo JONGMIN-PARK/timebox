@@ -68,6 +68,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.priority.high": "High",
     "todo.priority.medium": "Medium",
     "todo.priority.low": "Low",
+    "todo.waiting": "Waiting",
+    "todo.waitingExcluded": "Waiting tasks are excluded from progress",
 
     // Calendar
     "calendar.addEvent": "Add Event",
@@ -437,6 +439,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.priority.high": "\ub192\uc74c",
     "todo.priority.medium": "\ubcf4\ud1b5",
     "todo.priority.low": "\ub0ae\uc74c",
+    "todo.waiting": "\ub300\uae30",
+    "todo.waitingExcluded": "\ub300\uae30 \uc791\uc5c5\uc740 \uc9c4\ud589\ub960\uc5d0 \ud3ec\ud568\ub418\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4",
 
     // Calendar
     "calendar.addEvent": "\uc77c\uc815 \ucd94\uac00",

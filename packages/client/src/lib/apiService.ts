@@ -21,8 +21,11 @@ export type ApiRes<T> = { success: boolean; data?: T; error?: string };
 
 // ── Todo ──────────────────────────────────────────────────────────────
 export const todoApi = {
-  getAll: () => api.get<Todo[]>("/todos"),
-  create: (data: { title: string; priority?: string; dueDate?: string; category?: string }) =>
+  getAll: (filter?: 'waiting' | 'active' | 'completed') => {
+    const query = filter ? `?filter=${filter}` : "";
+    return api.get<Todo[]>(`/todos${query}`);
+  },
+  create: (data: { title: string; priority?: string; dueDate?: string; category?: string; status?: 'waiting' | 'active' | 'completed' }) =>
     api.post<Todo>("/todos", data),
   update: (id: number, data: Partial<Todo>) =>
     api.put<Todo>(`/todos/${id}`, data),
@@ -31,6 +34,8 @@ export const todoApi = {
     api.put<Todo>(`/todos/${id}`, data),
   reorder: (items: { id: number; sortOrder: number }[]) =>
     api.put("/todos/reorder", { items }),
+  updateStatus: (id: number, status: 'waiting' | 'active' | 'completed') =>
+    api.put<Todo>(`/todos/${id}/status`, { status }),
 };
 
 // ── Event ─────────────────────────────────────────────────────────────

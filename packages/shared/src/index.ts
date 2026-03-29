@@ -84,11 +84,14 @@ export interface CreateTimeBlockInput {
 // ── Todo ──
 export type Priority = "high" | "medium" | "low";
 
+export type TodoStatus = 'waiting' | 'active' | 'completed';
+
 export interface Todo {
   id: number;
   userId: number;
   title: string;
   completed: boolean;
+  status: TodoStatus;
   progress: number;
   priority: string;
   category: string;
@@ -106,6 +109,7 @@ export interface CreateTodoInput {
   dueDate?: string;
   parentId?: number;
   category?: string;
+  status?: TodoStatus;
 }
 
 // ── D-Day ──

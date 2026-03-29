@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search, Clock } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay,
@@ -13,6 +13,11 @@ import { CSS } from "@dnd-kit/utilities";
 import { useI18n } from "@/lib/useI18n";
 
 // ── Helpers ──
+function getEffectiveStatus(todo: Todo): 'waiting' | 'active' | 'completed' {
+  if (todo.status) return todo.status;
+  return todo.completed ? 'completed' : 'active';
+}
+
 function getDaysLeft(d: string | null): number | null {
   if (!d) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -22,6 +27,55 @@ function getDaysLeft(d: string | null): number | null {
 function daysLeftLabel(d: number | null) { if (d === null) return ""; return d === 0 ? "D-Day" : d > 0 ? `D-${d}` : `D+${Math.abs(d)}`; }
 function daysLeftColor(d: number | null) { if (d === null) return ""; if (d === 0) return "text-red-500 font-bold"; if (d <= 3) return "text-orange-500"; if (d <= 7) return "text-amber-500"; if (d < 0) return "text-slate-400"; return "text-slate-500"; }
 const priorityDot = (p: string) => p === "high" ? "bg-red-500" : p === "medium" ? "bg-amber-500" : "bg-slate-300 dark:bg-slate-600";
+
+// ── Status Dropdown ──
+function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'waiting' | 'active' | 'completed'; onChangeStatus: (status: 'waiting' | 'active' | 'completed') => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const statusIcon = currentStatus === 'waiting'
+    ? <Clock className="w-4 h-4 text-amber-500" />
+    : currentStatus === 'completed'
+    ? <CheckCircle2 className="w-4 h-4 text-green-500" />
+    : <Circle className="w-4 h-4 text-blue-500 hover:text-blue-600" />;
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button onClick={() => setOpen(!open)} className="w-6 h-7 flex items-center justify-center rounded active:bg-slate-100 dark:active:bg-slate-700/50 transition-colors">
+        {statusIcon}
+      </button>
+      {open && (
+        <div className="absolute left-7 top-0 z-40 w-32 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl py-1 animate-scale-in">
+          {([
+            { status: 'waiting' as const, icon: <Clock className="w-3.5 h-3.5 text-amber-500" />, label: t("todo.waiting") },
+            { status: 'active' as const, icon: <Circle className="w-3.5 h-3.5 text-blue-500" />, label: t("todo.active") },
+            { status: 'completed' as const, icon: <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />, label: t("todo.done") },
+          ]).map((opt) => (
+            <button key={opt.status}
+              onClick={() => { onChangeStatus(opt.status); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors",
+                currentStatus === opt.status && "bg-slate-100 dark:bg-slate-700/60 font-medium",
+              )}>
+              {opt.icon}
+              <span className="text-slate-700 dark:text-slate-300">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Category Picker ──
 function CategoryPicker({ value, onChange, compact }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
@@ -92,8 +146,8 @@ function CategoryPicker({ value, onChange, compact }: { value: string; onChange:
 }
 
 // ── Sortable Todo Item ──
-function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress }: {
-  todo: Todo; onToggle: (id: number) => void; onDelete: (id: number) => void;
+function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress }: {
+  todo: Todo; onStatusChange: (id: number, status: 'waiting' | 'active' | 'completed') => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
 }) {
@@ -104,6 +158,7 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
   const daysLeft = getDaysLeft(todo.dueDate);
   const catInfo = getCategoryInfo(todo.category);
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const effectiveStatus = getEffectiveStatus(todo);
 
   const handleSaveTitle = () => {
     if (editTitle.trim() && editTitle.trim() !== todo.title) onUpdateTitle(todo.id, editTitle.trim());
@@ -116,6 +171,7 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
       className={cn(
         "group relative px-2 sm:px-3 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors",
         isDragging && "opacity-40 shadow-lg rounded-xl bg-white dark:bg-slate-800",
+        effectiveStatus === 'waiting' && "border-l-2 border-amber-400 dark:border-amber-500",
       )}>
       <div className="flex items-start gap-1">
         {/* Drag handle */}
@@ -123,10 +179,8 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
           <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600" />
         </button>
 
-        {/* Toggle */}
-        <button onClick={() => onToggle(todo.id)} className="flex-shrink-0 w-6 h-7 flex items-center justify-center rounded active:bg-blue-50 dark:active:bg-blue-900/20 transition-colors">
-          <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors" />
-        </button>
+        {/* Status */}
+        <StatusDropdown currentStatus={effectiveStatus} onChangeStatus={(s) => onStatusChange(todo.id, s)} />
 
         {/* Content */}
         <div className="flex-1 min-w-0 pr-14">
@@ -164,17 +218,19 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
             )}
           </div>
 
-          {/* Progress bar */}
-          <div className="flex items-center gap-2 mt-1.5 ml-3">
-            <input
-              type="range"
-              min={0} max={100} step={10}
-              value={todo.progress ?? 0}
-              onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
-              className="flex-1 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-            />
-            <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right shrink-0">{todo.progress ?? 0}%</span>
-          </div>
+          {/* Progress bar — hidden for waiting todos */}
+          {effectiveStatus !== 'waiting' && (
+            <div className="flex items-center gap-2 mt-1.5 ml-3">
+              <input
+                type="range"
+                min={0} max={100} step={10}
+                value={todo.progress ?? 0}
+                onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
+                className="flex-1 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right shrink-0">{todo.progress ?? 0}%</span>
+            </div>
+          )}
 
           {showDatePicker && (
             <div className="mt-1.5 ml-3 flex items-center gap-2">
@@ -244,12 +300,14 @@ const CompletedTodoItem = memo(function CompletedTodoItem({
 
 // ── Main TodoList ──
 export default function TodoList() {
-  const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, reorderTodos } = useTodoStore();
+  const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, updateStatus, reorderTodos } = useTodoStore();
   const { t } = useI18n();
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [newCategory, setNewCategory] = useState("personal");
+  const [newAsWaiting, setNewAsWaiting] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showWaiting, setShowWaiting] = useState(true);
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -267,19 +325,32 @@ export default function TodoList() {
       return true;
     }), [todos, categoryFilter]);
 
+  const matchesSearch = useCallback((t: Todo) =>
+    !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    [searchQuery]);
+
+  const waitingTodos = useMemo(() =>
+    filtered.filter((t) => getEffectiveStatus(t) === 'waiting' && matchesSearch(t)),
+    [filtered, matchesSearch]);
+
   const activeTodos = useMemo(() =>
-    filtered.filter((t) => !t.completed && (!searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))).sort((a, b) => a.sortOrder - b.sortOrder),
-    [filtered, searchQuery]);
+    filtered.filter((t) => getEffectiveStatus(t) === 'active' && matchesSearch(t)).sort((a, b) => a.sortOrder - b.sortOrder),
+    [filtered, matchesSearch]);
 
   const completedTodos = useMemo(() =>
-    filtered.filter((t) => t.completed && (!searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))),
-    [filtered, searchQuery]);
+    filtered.filter((t) => getEffectiveStatus(t) === 'completed' && matchesSearch(t)),
+    [filtered, matchesSearch]);
 
   const completionRate = useMemo(() => {
-    if (filtered.length === 0) return 0;
-    const totalProgress = filtered.reduce((sum, t) => sum + (t.completed ? 100 : (t.progress ?? 0)), 0);
-    return Math.round(totalProgress / filtered.length);
+    const nonWaiting = filtered.filter(t => getEffectiveStatus(t) !== 'waiting');
+    if (nonWaiting.length === 0) return 0;
+    const totalProgress = nonWaiting.reduce((sum, t) => sum + (t.completed ? 100 : (t.progress ?? 0)), 0);
+    return Math.round(totalProgress / nonWaiting.length);
   }, [filtered]);
+
+  const nonWaitingCount = useMemo(() => filtered.filter(t => getEffectiveStatus(t) !== 'waiting').length, [filtered]);
+  const completedCount = completedTodos.length;
+  const waitingCount = waitingTodos.length;
 
   // Category counts for filter
   const categoryCounts = useMemo(() =>
@@ -293,7 +364,7 @@ export default function TodoList() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    await addTodo(newTitle.trim(), "medium", newDueDate, newCategory);
+    await addTodo(newTitle.trim(), "medium", newDueDate, newCategory, newAsWaiting ? "waiting" : "active");
     showToast("success", "Todo added");
     setNewTitle("");
     setNewDueDate(new Date().toISOString().slice(0, 10));
@@ -305,20 +376,37 @@ export default function TodoList() {
     if (!over || active.id === over.id) return;
     const oldIndex = activeTodos.findIndex((t) => t.id === active.id);
     const newIndex = activeTodos.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(activeTodos, oldIndex, newIndex);
     reorderTodos(reordered.map((t, i) => ({ id: t.id, sortOrder: i })));
   };
 
-  const draggedTodo = dragActiveId ? activeTodos.find((t) => t.id === dragActiveId) : null;
+  const handleWaitingDragEnd = (event: DragEndEvent) => {
+    setDragActiveId(null);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = waitingTodos.findIndex((t) => t.id === active.id);
+    const newIndex = waitingTodos.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(waitingTodos, oldIndex, newIndex);
+    reorderTodos(reordered.map((t, i) => ({ id: t.id, sortOrder: i })));
+  };
 
-  // Memoized handlers for SortableTodoItem to avoid creating new functions on every render
-  const handleToggle = useCallback((id: number) => { toggleTodo(id); showToast("success", "Todo completed"); }, [toggleTodo]);
-  const handleRestore = useCallback((id: number) => { toggleTodo(id); showToast("success", "Todo restored"); }, [toggleTodo]);
+  const draggedTodo = dragActiveId ? [...activeTodos, ...waitingTodos].find((t) => t.id === dragActiveId) : null;
+
+  // Memoized handlers
+  const handleStatusChange = useCallback((id: number, status: 'waiting' | 'active' | 'completed') => { updateStatus(id, status); }, [updateStatus]);
+  const handleRestore = useCallback((id: number) => { updateStatus(id, 'active'); }, [updateStatus]);
   const handleDelete = useCallback((id: number) => { deleteTodo(id); showToast("success", "Todo deleted"); }, [deleteTodo]);
   const handleUpdateDate = useCallback((id: number, d: string) => updateTodo(id, { dueDate: d }), [updateTodo]);
   const handleUpdateTitle = useCallback((id: number, t: string) => updateTodo(id, { title: t }), [updateTodo]);
   const handleUpdateCategory = useCallback((id: number, c: string) => updateTodo(id, { category: c }), [updateTodo]);
   const handleUpdateProgress = useCallback((id: number, p: number) => updateTodo(id, { progress: p }), [updateTodo]);
+
+  // Determine which sections to show based on filter
+  const showActiveSection = filter === 'all' || filter === 'active';
+  const showWaitingSection = filter === 'all' || filter === 'waiting';
+  const showCompletedSection = filter === 'all' || filter === 'completed';
 
   return (
     <div className="flex flex-col h-full">
@@ -326,7 +414,10 @@ export default function TodoList() {
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">{t("todo.title")}</h2>
-          <span className="text-[11px] text-slate-400 tabular-nums">{completionRate}% · {completedTodos.length}/{filtered.length}</span>
+          <span className="text-[11px] text-slate-400 tabular-nums">
+            {completionRate}% · {completedCount}/{nonWaitingCount}
+            {waitingCount > 0 && <span className="text-amber-500 ml-1">({t("todo.waiting")} {waitingCount})</span>}
+          </span>
         </div>
         <div className="h-1 bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
           <div className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out" style={{ width: `${completionRate}%` }} />
@@ -338,6 +429,16 @@ export default function TodoList() {
         <div className="flex gap-2">
           <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder={t("todo.addPlaceholder")}
             className="input-base flex-1" />
+          <button type="button" onClick={() => setNewAsWaiting(!newAsWaiting)}
+            title={t("todo.waiting")}
+            className={cn(
+              "w-9 h-9 rounded-xl flex items-center justify-center transition-all border",
+              newAsWaiting
+                ? "bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-600 dark:text-amber-400"
+                : "border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-500 hover:border-amber-300",
+            )}>
+            <Clock className="w-4 h-4" />
+          </button>
           <button type="submit" disabled={!newTitle.trim()}
             className="w-9 h-9 rounded-xl btn-primary flex items-center justify-center disabled:opacity-30 disabled:shadow-none">
             <Plus className="w-4 h-4" />
@@ -389,11 +490,12 @@ export default function TodoList() {
         </div>
         {/* Status filter */}
         <div className="flex gap-1">
-          {(["all", "active", "completed"] as const).map((f) => (
+          {(["all", "waiting", "active", "completed"] as const).map((f) => (
             <button key={f} onClick={() => setFilter(f)}
-              className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all",
+              className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1",
                 filter === f ? "bg-slate-200/80 dark:bg-slate-700 text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}>
-              {f === "all" ? t("todo.all") : f === "active" ? t("todo.active") : t("todo.done")}
+              {f === 'waiting' && <Clock className="w-3 h-3" />}
+              {f === "all" ? t("todo.all") : f === "waiting" ? t("todo.waiting") : f === "active" ? t("todo.active") : t("todo.done")}
             </button>
           ))}
         </div>
@@ -401,7 +503,8 @@ export default function TodoList() {
 
       {/* Todo items */}
       <div className="flex-1 overflow-y-auto min-h-[320px]">
-        {filter !== "completed" && (
+        {/* Active section */}
+        {showActiveSection && activeTodos.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter}
             onDragStart={(e) => setDragActiveId(e.active.id as number)}
             onDragEnd={handleDragEnd} onDragCancel={() => setDragActiveId(null)}>
@@ -409,7 +512,7 @@ export default function TodoList() {
               <ul className="py-1">
                 {activeTodos.map((todo) => (
                   <SortableTodoItem key={todo.id} todo={todo}
-                    onToggle={handleToggle}
+                    onStatusChange={handleStatusChange}
                     onDelete={handleDelete}
                     onUpdateDate={handleUpdateDate}
                     onUpdateTitle={handleUpdateTitle}
@@ -430,7 +533,48 @@ export default function TodoList() {
           </DndContext>
         )}
 
-        {filter !== "active" && completedTodos.length > 0 && (
+        {/* Waiting section */}
+        {showWaitingSection && waitingTodos.length > 0 && (
+          <div>
+            <button onClick={() => setShowWaiting(!showWaiting)}
+              className="flex items-center gap-2 px-4 py-2 text-[11px] font-medium text-amber-500 w-full hover:bg-amber-50/50 dark:hover:bg-amber-900/10">
+              {showWaiting ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              <Clock className="w-3 h-3" />
+              {t("todo.waiting")} ({waitingTodos.length})
+            </button>
+            {showWaiting && (
+              <DndContext sensors={sensors} collisionDetection={closestCenter}
+                onDragStart={(e) => setDragActiveId(e.active.id as number)}
+                onDragEnd={handleWaitingDragEnd} onDragCancel={() => setDragActiveId(null)}>
+                <SortableContext items={waitingTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                  <ul className="py-1">
+                    {waitingTodos.map((todo) => (
+                      <SortableTodoItem key={todo.id} todo={todo}
+                        onStatusChange={handleStatusChange}
+                        onDelete={handleDelete}
+                        onUpdateDate={handleUpdateDate}
+                        onUpdateTitle={handleUpdateTitle}
+                        onUpdateCategory={handleUpdateCategory}
+                        onUpdateProgress={handleUpdateProgress} />
+                    ))}
+                  </ul>
+                </SortableContext>
+                <DragOverlay>
+                  {draggedTodo && (
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 shadow-xl rounded-xl border border-amber-300/60 dark:border-amber-600">
+                      <GripVertical className="w-3.5 h-3.5 text-slate-400" />
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-sm text-slate-900 dark:text-white">{draggedTodo.title}</span>
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </div>
+        )}
+
+        {/* Completed section */}
+        {showCompletedSection && completedTodos.length > 0 && (
           <div>
             <button onClick={() => setShowCompleted(!showCompleted)}
               className="flex items-center gap-2 px-4 py-2 text-[11px] font-medium text-slate-400 w-full hover:bg-slate-50/80 dark:hover:bg-slate-700/30">
