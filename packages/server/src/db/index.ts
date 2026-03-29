@@ -378,6 +378,11 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(project_id, category);
       CREATE INDEX IF NOT EXISTS idx_inbox_to_read ON inbox_messages(to_user_id, read);
       CREATE INDEX IF NOT EXISTS idx_inbox_created ON inbox_messages(to_user_id, created_at DESC);
+
+      ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS to_user_trashed_at TEXT;
+      ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS from_user_trashed_at TEXT;
+      ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS to_user_purged_at TEXT;
+      ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS from_user_purged_at TEXT;
       CREATE INDEX IF NOT EXISTS idx_telegram_config_user ON telegram_config(user_id);
       CREATE INDEX IF NOT EXISTS idx_telegram_config_chat ON telegram_config(chat_id);
       CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(project_id, created_at DESC);

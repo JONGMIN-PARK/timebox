@@ -565,8 +565,14 @@ export async function initTelegramBot() {
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
     const { inboxMessages } = await import("../db/schema.js");
-    const unread = await db.select().from(inboxMessages)
-      .where(and(eq(inboxMessages.toUserId, userId), eq(inboxMessages.read, false)));
+    const unread = await db.select().from(inboxMessages).where(
+      and(
+        eq(inboxMessages.toUserId, userId),
+        eq(inboxMessages.read, false),
+        isNull(inboxMessages.toUserTrashedAt),
+        isNull(inboxMessages.toUserPurgedAt),
+      ),
+    );
 
     if (unread.length === 0) { bot!.sendMessage(msg.chat.id, "📭 새 메시지가 없습니다."); return; }
 

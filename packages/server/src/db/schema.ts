@@ -371,6 +371,14 @@ export const inboxMessages = pgTable("inbox_messages", {
   relatedTaskId: integer("related_task_id"),
   read: boolean("read").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`now()`),
+  /** Recipient moved message to trash (soft delete). */
+  toUserTrashedAt: text("to_user_trashed_at"),
+  /** Sender moved message to trash in Sent folder. */
+  fromUserTrashedAt: text("from_user_trashed_at"),
+  /** Recipient permanently removed from trash (hidden forever; row may remain for sender). */
+  toUserPurgedAt: text("to_user_purged_at"),
+  /** Sender permanently removed from trash. */
+  fromUserPurgedAt: text("from_user_purged_at"),
 });
 
 // ── Task Reactions ──
