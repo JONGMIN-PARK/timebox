@@ -51,3 +51,16 @@ export function formatDDay(days: number): string {
   if (days === 0) return "D-Day!";
   return days > 0 ? `D-${days}` : `D+${Math.abs(days)}`;
 }
+
+/** Format ISO string to "YYYY-MM-DD HH:mm" in KST */
+export function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const kst = new Date(d.toLocaleString("en-US", { timeZone: TZ }));
+  const y = kst.getFullYear();
+  const m = String(kst.getMonth() + 1).padStart(2, "0");
+  const dd = String(kst.getDate()).padStart(2, "0");
+  const h = String(kst.getHours()).padStart(2, "0");
+  const min = String(kst.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${dd} ${h}:${min}`;
+}

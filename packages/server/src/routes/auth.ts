@@ -67,8 +67,6 @@ router.post("/login", async (req, res) => {
       getLastLoginAt(user.id),
     ]);
 
-    const currentLoginAt = new Date().toISOString();
-
     // Log login
     db.insert(userActivityLog).values({
       userId: user.id, action: "auth.login", category: "general", targetType: "auth",
@@ -81,7 +79,7 @@ router.post("/login", async (req, res) => {
       success: true,
       data: {
         token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0, lastLoginAt, currentLoginAt },
+        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0, lastLoginAt },
       },
     });
   } catch (error) {

@@ -3,6 +3,7 @@ import { X, Trash2, CalendarDays, ArrowRightLeft, CheckCircle, ListTodo, Clipboa
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { t } from "@/lib/i18n";
+import { fmtDateTime } from "@/lib/dateUtils";
 import type { ProjectTask, TaskStatus } from "@/stores/projectTaskStore";
 import type { ProjectMember } from "@/stores/projectStore";
 
@@ -97,16 +98,6 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   const handleDeleteWorkLog = async (logId: number) => {
     const res = await api.delete(`/projects/${projectId}/tasks/${task.id}/worklogs/${logId}`);
     if (res.success) await refreshLogs();
-  };
-
-  const fmtLogDate = (iso: string) => {
-    const d = new Date(iso);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const h = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${y}-${m}-${dd} ${h}:${min}`;
   };
 
   // Transfer state
@@ -382,7 +373,7 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
                   <div key={log.id} className="text-xs group/log">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-slate-700 dark:text-slate-200">{log.userName}</span>
-                      <span className="text-slate-400">{fmtLogDate(log.createdAt)}</span>
+                      <span className="text-slate-400">{fmtDateTime(log.createdAt)}</span>
                       <div className="ml-auto flex gap-1 opacity-0 group-hover/log:opacity-100 transition-opacity">
                         <button
                           onClick={() => { setEditingLogId(log.id); setEditingLogContent(log.content); }}

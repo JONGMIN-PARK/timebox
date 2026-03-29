@@ -7,6 +7,7 @@ import { useThemeStore } from "@/stores/themeStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
+import { fmtDateTime } from "@/lib/dateUtils";
 
 interface SidebarProps {
   activeTab: string;
@@ -32,17 +33,6 @@ const projectTabs = [
   { id: "project-chat", labelKey: "nav.chat", icon: MessageCircle },
   { id: "project-members", labelKey: "project.members", icon: Users },
 ];
-
-function fmtLoginTime(iso?: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${dd} ${h}:${min}`;
-}
 
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { logout, user } = useAuthStore();
@@ -109,7 +99,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.displayName || user?.username}</span>
           </div>
           <p className="text-[9px] text-slate-400 truncate">
-            {user?.lastLoginAt ? `최근접속 ${fmtLoginTime(user.lastLoginAt)}` : ""}
+            {user?.lastLoginAt ? `최근접속 ${fmtDateTime(user.lastLoginAt)}` : ""}
           </p>
         </div>
       </div>

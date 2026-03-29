@@ -18,7 +18,6 @@ interface User {
   teamGroups?: TeamGroupInfo[];
   hasProjectAccess?: boolean;
   lastLoginAt?: string | null;
-  currentLoginAt?: string | null;
 }
 
 interface AuthState {

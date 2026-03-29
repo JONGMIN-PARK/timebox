@@ -5,23 +5,13 @@ import { usePageVisible } from "@/lib/useVisibility";
 import { getSocket } from "@/lib/socket";
 import { updateAppBadge } from "@/lib/badge";
 import { useAuthStore } from "@/stores/authStore";
+import { fmtDateTime } from "@/lib/dateUtils";
 import DDayChips from "@/components/dday/DDayChips";
 import { APP_VERSION } from "@/lib/version";
 
 interface HeaderProps {
   onInboxClick?: () => void;
   onVersionClick?: () => void;
-}
-
-function fmtLoginTime(iso?: string | null): string {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${dd} ${h}:${min}`;
 }
 
 export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
@@ -99,7 +89,7 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
             <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user?.displayName || user?.username}</span>
           </div>
           <p className="text-[9px] text-slate-400 truncate">
-            {user?.lastLoginAt ? `최근접속 ${fmtLoginTime(user.lastLoginAt)}` : ""}
+            {user?.lastLoginAt ? `최근접속 ${fmtDateTime(user.lastLoginAt)}` : ""}
           </p>
         </div>
       </div>

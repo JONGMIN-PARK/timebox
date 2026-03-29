@@ -437,6 +437,7 @@ export async function initDb() {
       );
       CREATE INDEX IF NOT EXISTS idx_user_activity_user ON user_activity_log(user_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_user_activity_category ON user_activity_log(category, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_user_activity_login ON user_activity_log(user_id, action, created_at DESC);
 
       ALTER TABLE files ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
       ALTER TABLE project_files ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
