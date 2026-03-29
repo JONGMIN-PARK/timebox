@@ -112,91 +112,106 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
 
   return (
     <li ref={setNodeRef} style={style}
-      className={cn("group flex items-start gap-1.5 px-3 sm:px-4 py-2.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors", isDragging && "opacity-40 shadow-lg rounded-xl bg-white dark:bg-slate-800")}>
-      <button {...attributes} {...listeners} className="flex-shrink-0 w-7 h-8 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none rounded-lg">
-        <GripVertical className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
-      </button>
-      <button onClick={() => onToggle(todo.id)} className="flex-shrink-0 w-8 h-8 flex items-center justify-center -ml-1 rounded-lg active:bg-blue-50 dark:active:bg-blue-900/20 transition-colors">
-        <Circle className="w-[18px] h-[18px] text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors" />
-      </button>
-      <div className="flex-1 min-w-0">
-        {/* Title row */}
-        <div className="flex items-center gap-1.5">
-          <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priorityDot(todo.priority))} />
-          {isEditing ? (
-            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
-              onBlur={handleSaveTitle} onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditTitle(todo.title); setIsEditing(false); } }}
-              className="flex-1 text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-0.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
-          ) : (
-            <span className="text-[13px] text-slate-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400"
-              onDoubleClick={() => { setIsEditing(true); setEditTitle(todo.title); }}>{todo.title}</span>
-          )}
-        </div>
-        {/* Meta row - single line */}
-        <div className="flex items-center gap-1.5 mt-0.5 ml-3 text-[10px] text-slate-400 dark:text-slate-500 leading-none">
-          <span className="flex items-center gap-0.5 shrink-0">
-            <span>{catInfo.icon}</span>
-            <CategoryPicker value={todo.category} onChange={(cat) => onUpdateCategory(todo.id, cat)} compact />
-          </span>
-          <span className="text-slate-300 dark:text-slate-600">·</span>
-          <button onClick={() => setShowDatePicker(!showDatePicker)}
-            className={cn("flex items-center gap-0.5 shrink-0 hover:text-blue-500 transition-colors", daysLeft !== null ? daysLeftColor(daysLeft) : "")}>
-            <CalendarDays className="w-2.5 h-2.5" />
-            {todo.dueDate ? <span>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""}</span>
-              : <span>date</span>}
-          </button>
-          {daysLeft !== null && (
-            <>
-              <span className="text-slate-300 dark:text-slate-600">·</span>
-              <span className={cn("font-semibold shrink-0", daysLeftColor(daysLeft))}>{daysLeftLabel(daysLeft)}</span>
-            </>
-          )}
-        </div>
-        {/* Progress bar */}
-        <div className="flex items-center gap-1.5 mt-1 ml-3">
-          <input
-            type="range"
-            min={0} max={100} step={10}
-            value={todo.progress ?? 0}
-            onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
-            className="flex-1 h-1 accent-blue-500 cursor-pointer"
-          />
-          <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right">{todo.progress ?? 0}%</span>
-        </div>
-        {showDatePicker && (
-          <div className="mt-1 ml-3 flex items-center gap-2">
-            <input type="date" value={(todo.dueDate || "").slice(0, 10) || new Date().toISOString().slice(0, 10)}
-              onChange={(e) => {
-                const time = (todo.dueDate || "").includes("T") ? (todo.dueDate || "").slice(10) : "";
-                onUpdateDate(todo.id, e.target.value + time);
-                if (!time) setShowDatePicker(false);
-              }}
-              className="text-xs bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
-            <input type="time" value={(todo.dueDate || "").includes("T") ? (todo.dueDate || "").slice(11, 16) : ""}
-              onChange={(e) => {
-                const dateStr = (todo.dueDate || new Date().toISOString()).slice(0, 10);
-                if (e.target.value) {
-                  onUpdateDate(todo.id, `${dateStr}T${e.target.value}`);
-                } else {
-                  onUpdateDate(todo.id, dateStr);
-                }
-              }}
-              className="text-xs bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" />
-            <button onClick={() => setShowDatePicker(false)} className="text-xs text-slate-400 hover:text-slate-600 px-1">✓</button>
-          </div>
-        )}
-      </div>
-      <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
-        {!isEditing && (
-          <button onClick={() => { setIsEditing(true); setEditTitle(todo.title); }}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <Pencil className="w-3 h-3" />
-          </button>
-        )}
-        <button onClick={() => onDelete(todo.id)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <Trash2 className="w-3 h-3" />
+      className={cn(
+        "group relative px-2 sm:px-3 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors",
+        isDragging && "opacity-40 shadow-lg rounded-xl bg-white dark:bg-slate-800",
+      )}>
+      <div className="flex items-start gap-1">
+        {/* Drag handle */}
+        <button {...attributes} {...listeners} className="flex-shrink-0 w-6 h-7 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none rounded">
+          <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600" />
         </button>
+
+        {/* Toggle */}
+        <button onClick={() => onToggle(todo.id)} className="flex-shrink-0 w-6 h-7 flex items-center justify-center rounded active:bg-blue-50 dark:active:bg-blue-900/20 transition-colors">
+          <Circle className="w-4 h-4 text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors" />
+        </button>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 pr-14">
+          {/* Title */}
+          <div className="flex items-center gap-1.5">
+            <div className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", priorityDot(todo.priority))} />
+            {isEditing ? (
+              <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleSaveTitle} onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditTitle(todo.title); setIsEditing(false); } }}
+                className="flex-1 text-[13px] bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
+            ) : (
+              <span className="text-[13px] text-slate-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 leading-snug"
+                onDoubleClick={() => { setIsEditing(true); setEditTitle(todo.title); }}>{todo.title}</span>
+            )}
+          </div>
+
+          {/* Meta: category · date · D-Day */}
+          <div className="flex items-center gap-1.5 mt-1 ml-3 text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="flex items-center gap-0.5 shrink-0">
+              <span>{catInfo.icon}</span>
+              <CategoryPicker value={todo.category} onChange={(cat) => onUpdateCategory(todo.id, cat)} compact />
+            </span>
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <button onClick={() => setShowDatePicker(!showDatePicker)}
+              className={cn("flex items-center gap-0.5 shrink-0 hover:text-blue-500 transition-colors", daysLeft !== null ? daysLeftColor(daysLeft) : "")}>
+              <CalendarDays className="w-2.5 h-2.5" />
+              {todo.dueDate ? <span>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""}</span>
+                : <span>date</span>}
+            </button>
+            {daysLeft !== null && (
+              <>
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span className={cn("font-semibold shrink-0", daysLeftColor(daysLeft))}>{daysLeftLabel(daysLeft)}</span>
+              </>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          <div className="flex items-center gap-2 mt-1.5 ml-3">
+            <input
+              type="range"
+              min={0} max={100} step={10}
+              value={todo.progress ?? 0}
+              onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
+              className="flex-1 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
+            />
+            <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right shrink-0">{todo.progress ?? 0}%</span>
+          </div>
+
+          {showDatePicker && (
+            <div className="mt-1.5 ml-3 flex items-center gap-2">
+              <input type="date" value={(todo.dueDate || "").slice(0, 10) || new Date().toISOString().slice(0, 10)}
+                onChange={(e) => {
+                  const time = (todo.dueDate || "").includes("T") ? (todo.dueDate || "").slice(10) : "";
+                  onUpdateDate(todo.id, e.target.value + time);
+                  if (!time) setShowDatePicker(false);
+                }}
+                className="text-xs bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
+              <input type="time" value={(todo.dueDate || "").includes("T") ? (todo.dueDate || "").slice(11, 16) : ""}
+                onChange={(e) => {
+                  const dateStr = (todo.dueDate || new Date().toISOString()).slice(0, 10);
+                  if (e.target.value) {
+                    onUpdateDate(todo.id, `${dateStr}T${e.target.value}`);
+                  } else {
+                    onUpdateDate(todo.id, dateStr);
+                  }
+                }}
+                className="text-xs bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" />
+              <button onClick={() => setShowDatePicker(false)} className="text-xs text-slate-400 hover:text-slate-600 px-1">✓</button>
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons — absolutely positioned to avoid overlap */}
+        <div className="absolute right-2 top-2 flex items-center gap-0.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          {!isEditing && (
+            <button onClick={() => { setIsEditing(true); setEditTitle(todo.title); }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
+          <button onClick={() => onDelete(todo.id)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
       </div>
     </li>
   );
