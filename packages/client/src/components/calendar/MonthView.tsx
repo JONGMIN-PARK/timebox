@@ -9,11 +9,12 @@ import HoverTooltip from "./HoverTooltip";
 
 // Memoized event item in the selected-date detail panel
 const MonthEventDetailItem = memo(function MonthEventDetailItem({
-  ev, onDeleteEvent, onEditEvent,
+  ev, onDeleteEvent, onEditEvent, projectLabel,
 }: {
   ev: CalendarEvent;
   onDeleteEvent: (id: number) => void;
   onEditEvent?: (event: CalendarEvent) => void;
+  projectLabel?: string;
 }) {
   return (
     <div className="group flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/50 dark:hover:bg-slate-700/40 transition-colors">
@@ -22,6 +23,9 @@ const MonthEventDetailItem = memo(function MonthEventDetailItem({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
         <p className="text-[11px] text-slate-400 tabular-nums">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
+        {projectLabel && (
+          <p className="text-[10px] text-blue-600 dark:text-blue-400 truncate mt-0.5">{projectLabel}</p>
+        )}
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
         {onEditEvent && (
@@ -39,12 +43,13 @@ const MonthEventDetailItem = memo(function MonthEventDetailItem({
 
 // Memoized todo item in the selected-date detail panel
 const MonthTodoDetailItem = memo(function MonthTodoDetailItem({
-  td, onToggleTodo, onDeleteTodo, onEditTodo,
+  td, onToggleTodo, onDeleteTodo, onEditTodo, projectLabel,
 }: {
   td: Todo;
   onToggleTodo?: (id: number) => void;
   onDeleteTodo?: (id: number) => void;
   onEditTodo?: (todo: Todo) => void;
+  projectLabel?: string;
 }) {
   return (
     <div className="group flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50/30 dark:hover:bg-slate-700/40 transition-colors">
@@ -62,6 +67,7 @@ const MonthTodoDetailItem = memo(function MonthTodoDetailItem({
         </p>
         <p className="text-[11px] text-slate-400">
           {td.priority === "high" ? "High" : td.priority === "medium" ? "Medium" : "Low"}
+          {projectLabel && <span className="text-blue-600 dark:text-blue-400 ml-2">· {projectLabel}</span>}
         </p>
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
@@ -101,6 +107,8 @@ interface MonthViewProps {
   onDeleteTodo?: (id: number) => void;
   onEditTodo?: (todo: Todo) => void;
   onLongPressDate?: (date: Date, type: string) => void;
+  /** projectId → display name for linked personal items */
+  projectNameById?: Record<number, string>;
 }
 
 export default function MonthView({
@@ -124,6 +132,7 @@ export default function MonthView({
   onDeleteTodo,
   onEditTodo,
   onLongPressDate,
+  projectNameById = {},
 }: MonthViewProps) {
   const { t } = useI18n();
   const [longPressDate, setLongPressDate] = useState<string | null>(null);
@@ -195,14 +204,20 @@ export default function MonthView({
               {/* Event & todo titles */}
               <div className="w-full mt-0.5 space-y-0.5 overflow-hidden flex-1 min-h-0">
                 {dayEvents.slice(0, 3).map((ev) => (
-                  <div key={`e-${ev.id}`} className="flex items-center gap-0.5 px-0.5">
+                  <div key={`e-${ev.id}`} className="flex items-center gap-0.5 px-0.5 min-w-0">
                     <div className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+                    {ev.projectId && projectNameById[ev.projectId] && (
+                      <span className="w-1 h-1 rounded-full shrink-0 bg-blue-500" title={projectNameById[ev.projectId]} />
+                    )}
                     <p className="text-[10px] leading-tight truncate text-slate-700 dark:text-slate-300">{ev.title}</p>
                   </div>
                 ))}
                 {dayTodos.slice(0, 3).map((td) => (
-                  <div key={`t-${td.id}`} className="flex items-center gap-0.5 px-0.5">
+                  <div key={`t-${td.id}`} className="flex items-center gap-0.5 px-0.5 min-w-0">
                     <div className={cn("w-1 h-1 rounded-sm shrink-0", td.completed ? "bg-green-400" : "bg-amber-400")} />
+                    {td.projectId && projectNameById[td.projectId] && (
+                      <span className="w-1 h-1 rounded-full shrink-0 bg-blue-500" title={projectNameById[td.projectId]} />
+                    )}
                     <p className={cn("text-[10px] leading-tight truncate", td.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{td.title}</p>
                   </div>
                 ))}
@@ -290,6 +305,7 @@ export default function MonthView({
                     ev={ev}
                     onDeleteEvent={onDeleteEvent}
                     onEditEvent={onEditEvent}
+                    projectLabel={ev.projectId ? projectNameById[ev.projectId] : undefined}
                   />
                 ))}
                 {/* Todos */}
@@ -297,6 +313,7 @@ export default function MonthView({
                   <MonthTodoDetailItem
                     key={`td-${td.id}`}
                     td={td}
+                    projectLabel={td.projectId ? projectNameById[td.projectId] : undefined}
                     onToggleTodo={onToggleTodo}
                     onDeleteTodo={onDeleteTodo}
                     onEditTodo={onEditTodo}

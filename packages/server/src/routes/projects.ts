@@ -1,7 +1,10 @@
+import { createHash, randomBytes } from "crypto";
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projects, projectMembers, projectTasks, users, teamGroupMembers } from "../db/schema.js";
-import { eq, and, desc, inArray, sql, count, or, ilike, notInArray } from "drizzle-orm";
+import {
+  projects, projectMembers, projectTasks, users, teamGroupMembers, events, projectInvites,
+} from "../db/schema.js";
+import { eq, and, desc, inArray, sql, count, or, ilike, notInArray, gte, lte, ne, isNotNull } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { projectMemberMiddleware, projectAdminMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
@@ -183,6 +186,172 @@ router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
   });
 
   res.status(201).json({ success: true, data: { ...result[0], memberCount: 1, myRole: "owner" } });
+}));
+
+function hashInviteToken(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("hex");
+}
+
+// POST /api/projects/invites/accept — join project with link token (authenticated)
+router.post("/invites/accept", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const { token } = req.body as { token?: string };
+  if (!token || typeof token !== "string" || token.length < 16) {
+    throw new ValidationError("Invalid invite token");
+  }
+  const tokenHash = hashInviteToken(token.trim());
+  const rows = await db.select().from(projectInvites).where(eq(projectInvites.tokenHash, tokenHash));
+  const inv = rows[0];
+  if (!inv || inv.revokedAt || inv.usedAt) {
+    throw new ValidationError("Invite is invalid or already used");
+  }
+  if (inv.expiresAt < new Date().toISOString()) {
+    throw new ValidationError("Invite has expired");
+  }
+  const existing = await db.select().from(projectMembers)
+    .where(and(eq(projectMembers.projectId, inv.projectId), eq(projectMembers.userId, userId)));
+  if (existing[0]) {
+    throw new ConflictError("Already a member of this project");
+  }
+  await db.insert(projectMembers).values({
+    projectId: inv.projectId,
+    userId,
+    role: inv.role || "member",
+  });
+  await db.update(projectInvites)
+    .set({ usedAt: new Date().toISOString(), usedByUserId: userId })
+    .where(eq(projectInvites.id, inv.id));
+  const proj = await db.select().from(projects).where(eq(projects.id, inv.projectId));
+  res.json({ success: true, data: { projectId: inv.projectId, projectName: proj[0]?.name } });
+}));
+
+// GET /api/projects/:projectId/calendar?start=&end= — project timeline (member)
+router.get("/:projectId/calendar", projectMemberMiddleware, asyncHandler<ProjectRequest>(async (req, res) => {
+  const projectId = req.projectId!;
+  const userId = req.userId!;
+  const start = req.query.start as string | undefined;
+  const end = req.query.end as string | undefined;
+  if (!start || !end) {
+    throw new ValidationError("start and end query params are required (ISO datetime)");
+  }
+
+  const linkedEvents = await db
+    .select()
+    .from(events)
+    .where(and(
+      eq(events.projectId, projectId),
+      sql`${events.startTime} < ${end}`,
+      sql`${events.endTime} > ${start}`,
+    ));
+
+  const myEvents = linkedEvents.filter((e) => e.userId === userId).map((e) => ({
+    type: "personal_event" as const,
+    id: e.id,
+    title: e.title,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    allDay: e.allDay,
+    color: e.color,
+    userId: e.userId,
+    isMine: true,
+  }));
+
+  const othersBusy = linkedEvents
+    .filter((e) => e.userId !== userId)
+    .map((e) => ({
+      type: "busy" as const,
+      id: e.id,
+      title: "Busy",
+      startTime: e.startTime,
+      endTime: e.endTime,
+      allDay: e.allDay,
+      userId: e.userId,
+      isMine: false,
+    }));
+
+  const taskRows = await db
+    .select()
+    .from(projectTasks)
+    .where(and(
+      eq(projectTasks.projectId, projectId),
+      isNotNull(projectTasks.dueDate),
+      gte(projectTasks.dueDate, start.slice(0, 10)),
+      lte(projectTasks.dueDate, end.slice(0, 10)),
+      ne(projectTasks.status, "done"),
+    ));
+
+  const projectTaskItems = taskRows.map((t) => ({
+    type: "project_task" as const,
+    id: t.id,
+    title: t.title,
+    dueDate: t.dueDate,
+    status: t.status,
+    assigneeId: t.assigneeId,
+    priority: t.priority,
+  }));
+
+  res.json({
+    success: true,
+    data: { myEvents, othersBusy, projectTasks: projectTaskItems },
+  });
+}));
+
+// POST /api/projects/:projectId/invites — create invite link (admin)
+router.post("/:projectId/invites", projectMemberMiddleware, projectAdminMiddleware, asyncHandler<ProjectRequest>(async (req, res) => {
+  const projectId = req.projectId!;
+  const userId = req.userId!;
+  const role = (req.body?.role === "viewer" ? "viewer" : "member") as string;
+  const expiresInDays = Math.min(30, Math.max(1, parseInt(String(req.body?.expiresInDays || 7), 10) || 7));
+  const plain = randomBytes(32).toString("base64url");
+  const tokenHash = hashInviteToken(plain);
+  const expiresAt = new Date(Date.now() + expiresInDays * 86400000).toISOString();
+  const [row] = await db.insert(projectInvites).values({
+    projectId,
+    tokenHash,
+    role,
+    createdBy: userId,
+    expiresAt,
+  }).returning();
+  res.status(201).json({
+    success: true,
+    data: {
+      id: row.id,
+      token: plain,
+      expiresAt: row.expiresAt,
+      role: row.role,
+    },
+  });
+}));
+
+// GET /api/projects/:projectId/invites — list pending invites (admin)
+router.get("/:projectId/invites", projectMemberMiddleware, projectAdminMiddleware, asyncHandler<ProjectRequest>(async (req, res) => {
+  const projectId = req.projectId!;
+  const rows = await db.select({
+    id: projectInvites.id,
+    role: projectInvites.role,
+    expiresAt: projectInvites.expiresAt,
+    revokedAt: projectInvites.revokedAt,
+    usedAt: projectInvites.usedAt,
+    createdAt: projectInvites.createdAt,
+  }).from(projectInvites)
+    .where(eq(projectInvites.projectId, projectId))
+    .orderBy(desc(projectInvites.createdAt));
+  const pending = rows.filter((r) => !r.revokedAt && !r.usedAt && r.expiresAt >= new Date().toISOString());
+  res.json({ success: true, data: { all: rows, pending } });
+}));
+
+// DELETE /api/projects/:projectId/invites/:inviteId — revoke (admin)
+router.delete("/:projectId/invites/:inviteId", projectMemberMiddleware, projectAdminMiddleware, asyncHandler<ProjectRequest>(async (req, res) => {
+  const projectId = req.projectId!;
+  const inviteId = parseInt(req.params.inviteId as string, 10);
+  if (Number.isNaN(inviteId)) throw new ValidationError("Invalid invite id");
+  const rows = await db.select().from(projectInvites)
+    .where(and(eq(projectInvites.id, inviteId), eq(projectInvites.projectId, projectId)));
+  if (!rows[0]) throw new NotFoundError("Invite");
+  await db.update(projectInvites)
+    .set({ revokedAt: new Date().toISOString() })
+    .where(eq(projectInvites.id, inviteId));
+  res.json({ success: true });
 }));
 
 // GET /api/projects/:projectId - get single project

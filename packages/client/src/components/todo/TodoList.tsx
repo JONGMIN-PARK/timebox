@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { TodoCategoryPicker } from "@/components/todo/TodoCategoryPicker";
+import { ProjectPicker } from "@/components/project/ProjectPicker";
+import { useProjectStore } from "@/stores/projectStore";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Search, Clock, Play, RotateCcw } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
@@ -140,11 +142,13 @@ function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'wai
 }
 
 // ── Sortable Todo Item ──
-function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority }: {
+function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject }: {
   todo: Todo; onStatusChange: (id: number, status: 'waiting' | 'active' | 'completed') => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
   onUpdatePriority: (id: number, priority: TodoPriority) => void;
+  projectOptions?: { id: number; name: string }[];
+  onUpdateProject?: (id: number, projectId: number | null) => void;
 }) {
   const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
@@ -220,6 +224,19 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
                 </span>
               )}
             </button>
+            {projectOptions && projectOptions.length > 0 && onUpdateProject && (
+              <select
+                value={todo.projectId ?? ""}
+                onChange={(e) => onUpdateProject(todo.id, e.target.value === "" ? null : parseInt(e.target.value, 10))}
+                className="text-[10px] max-w-[7rem] truncate rounded-md border border-slate-200/80 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 px-1 py-0.5"
+                title={t("project.pickerLabel")}
+              >
+                <option value="">—</option>
+                {projectOptions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Waiting: quick start / complete; else progress bar */}
@@ -404,10 +421,12 @@ const TrashedTodoItem = memo(function TrashedTodoItem({
 // ── Main TodoList ──
 export default function TodoList() {
   const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, restoreTodo, permanentlyDeleteTodo, emptyTrash, updateTodo, updateStatus, reorderTodos } = useTodoStore();
+  const { projects, fetchProjects } = useProjectStore();
   const { t } = useI18n();
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState(new Date().toISOString().slice(0, 10));
   const [newCategory, setNewCategory] = useState("personal");
+  const [newProjectId, setNewProjectId] = useState<number | null>(null);
   const [newAsWaiting, setNewAsWaiting] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [showWaiting, setShowWaiting] = useState(true);
@@ -421,6 +440,12 @@ export default function TodoList() {
   );
 
   useEffect(() => { fetchTodos(); }, [fetchTodos]);
+  useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  const projectOptions = useMemo(
+    () => projects.filter((p) => !p.archived).map((p) => ({ id: p.id, name: p.name })),
+    [projects],
+  );
 
   const matchesSearch = useCallback((t: Todo) =>
     !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -480,11 +505,12 @@ export default function TodoList() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    const ok = await addTodo(newTitle.trim(), "medium", newDueDate, newCategory, newAsWaiting ? "waiting" : "active");
+    const ok = await addTodo(newTitle.trim(), "medium", newDueDate, newCategory, newAsWaiting ? "waiting" : "active", newProjectId);
     if (ok) {
       showToast("success", "Todo added");
       setNewTitle("");
       setNewDueDate(new Date().toISOString().slice(0, 10));
+      setNewProjectId(null);
     }
   };
 
@@ -532,6 +558,7 @@ export default function TodoList() {
     showToast("success", t("todo.trashEmptied"));
   }, [emptyTrash, t]);
   const handleUpdateDate = useCallback((id: number, d: string) => updateTodo(id, { dueDate: d }), [updateTodo]);
+  const handleUpdateProject = useCallback((id: number, projectId: number | null) => updateTodo(id, { projectId: projectId ?? null }), [updateTodo]);
   const handleUpdateTitle = useCallback((id: number, t: string) => updateTodo(id, { title: t }), [updateTodo]);
   const handleUpdateCategory = useCallback((id: number, c: string) => updateTodo(id, { category: c }), [updateTodo]);
   const handleUpdateProgress = useCallback((id: number, p: number) => updateTodo(id, { progress: p }), [updateTodo]);
@@ -578,12 +605,15 @@ export default function TodoList() {
             <Plus className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <TodoCategoryPicker value={newCategory} onChange={setNewCategory} />
           <div className="flex items-center gap-1">
             <CalendarDays className="w-3 h-3 text-slate-400" />
             <input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)}
               className="text-[11px] bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1 text-slate-600 dark:text-slate-300 outline-none" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <ProjectPicker value={newProjectId} onChange={setNewProjectId} />
           </div>
         </div>
       </form>
@@ -652,7 +682,9 @@ export default function TodoList() {
                     onUpdateTitle={handleUpdateTitle}
                     onUpdateCategory={handleUpdateCategory}
                     onUpdateProgress={handleUpdateProgress}
-                    onUpdatePriority={handleUpdatePriority} />
+                    onUpdatePriority={handleUpdatePriority}
+                    projectOptions={projectOptions}
+                    onUpdateProject={handleUpdateProject} />
                 ))}
               </ul>
             </SortableContext>
@@ -691,7 +723,9 @@ export default function TodoList() {
                         onUpdateTitle={handleUpdateTitle}
                         onUpdateCategory={handleUpdateCategory}
                         onUpdateProgress={handleUpdateProgress}
-                        onUpdatePriority={handleUpdatePriority} />
+                        onUpdatePriority={handleUpdatePriority}
+                        projectOptions={projectOptions}
+                        onUpdateProject={handleUpdateProject} />
                     ))}
                   </ul>
                 </SortableContext>

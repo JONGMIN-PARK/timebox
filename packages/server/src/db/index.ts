@@ -448,6 +448,23 @@ export async function initDb() {
 
       ALTER TABLE todos ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE todos ADD COLUMN IF NOT EXISTS deleted_at TEXT;
+      ALTER TABLE todos ADD COLUMN IF NOT EXISTS project_id INTEGER;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS project_id INTEGER;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_feed_token TEXT UNIQUE;
+
+      CREATE TABLE IF NOT EXISTS project_invites (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        role TEXT NOT NULL DEFAULT 'member',
+        created_by INTEGER NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        used_at TEXT,
+        used_by_user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_project_invites_project ON project_invites(project_id);
 
       ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_model TEXT NOT NULL DEFAULT 'gemini-2.0-flash';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_models TEXT NOT NULL DEFAULT '[]';

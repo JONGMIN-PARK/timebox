@@ -7,6 +7,7 @@ import { updateAppBadge } from "@/lib/badge";
 import { useAuthStore } from "@/stores/authStore";
 import { fmtDateTime } from "@/lib/dateUtils";
 import DDayChips from "@/components/dday/DDayChips";
+import WeekSummaryChip from "@/components/layout/WeekSummaryChip";
 import { APP_VERSION } from "@/lib/version";
 
 interface HeaderProps {
@@ -93,6 +94,7 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
 
       <div className="hidden md:flex flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
         <DDayChips />
+        <WeekSummaryChip />
         <button onClick={onVersionClick} className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full ml-1 flex-shrink-0 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
           v{APP_VERSION}
         </button>

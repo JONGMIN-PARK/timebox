@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
@@ -79,7 +80,18 @@ router.post("/login", asyncHandler(async (req, res) => {
     success: true,
     data: {
       token,
-      user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0, lastLoginAt },
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        role: user.role,
+        aiModel: user.aiModel,
+        allowedModels: JSON.parse(user.allowedModels || "[]"),
+        teamGroups: teamGroupsList,
+        hasProjectAccess: hasProjects || teamGroupsList.length > 0,
+        lastLoginAt,
+        hasCalendarFeed: Boolean(user.calendarFeedToken),
+      },
     },
   });
 }));
@@ -220,8 +232,36 @@ router.get("/me", authMiddleware, asyncHandler<AuthRequest>(async (req, res) => 
   ]);
   res.json({
     success: true,
-    data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0, lastLoginAt },
+    data: {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+      aiModel: user.aiModel,
+      allowedModels: JSON.parse(user.allowedModels || "[]"),
+      teamGroups: teamGroupsList,
+      hasProjectAccess: hasProjects || teamGroupsList.length > 0,
+      lastLoginAt,
+      hasCalendarFeed: Boolean(user.calendarFeedToken),
+    },
   });
+}));
+
+// POST /api/auth/calendar-feed/regenerate — new secret URL (invalidates previous)
+router.post("/calendar-feed/regenerate", authMiddleware, asyncHandler<AuthRequest>(async (req, res) => {
+  const token = randomBytes(32).toString("base64url");
+  await db.update(users)
+    .set({ calendarFeedToken: token })
+    .where(eq(users.id, req.userId!));
+  res.json({ success: true, data: { token } });
+}));
+
+// DELETE /api/auth/calendar-feed — revoke feed URL
+router.delete("/calendar-feed", authMiddleware, asyncHandler<AuthRequest>(async (req, res) => {
+  await db.update(users)
+    .set({ calendarFeedToken: null })
+    .where(eq(users.id, req.userId!));
+  res.json({ success: true });
 }));
 
 // POST /api/auth/logout — log logout event

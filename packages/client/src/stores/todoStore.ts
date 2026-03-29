@@ -19,7 +19,7 @@ interface TodoState {
   setFilter: (filter: "all" | "waiting" | "active" | "completed") => void;
   setCategoryFilter: (cat: string) => void;
   fetchTodos: () => Promise<void>;
-  addTodo: (title: string, priority?: string, dueDate?: string, category?: string, status?: 'waiting' | 'active' | 'completed') => Promise<boolean>;
+  addTodo: (title: string, priority?: string, dueDate?: string, category?: string, status?: 'waiting' | 'active' | 'completed', projectId?: number | null) => Promise<boolean>;
   toggleTodo: (id: number) => Promise<void>;
   deleteTodo: (id: number) => Promise<void>;
   restoreTodo: (id: number) => Promise<void>;
@@ -63,15 +63,15 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }
   },
 
-  addTodo: async (title, priority = "medium", dueDate?, category = "personal", status = "active") => {
+  addTodo: async (title, priority = "medium", dueDate?, category = "personal", status = "active", projectId: number | null = null) => {
     // Optimistic: add temp item
     const tempId = -Date.now();
     const date = dueDate || new Date().toISOString().slice(0, 10);
-    const tempTodo = { id: tempId, title, completed: status === 'completed', progress: status === 'completed' ? 100 : 0, status, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null as string | null };
+    const tempTodo = { id: tempId, title, completed: status === 'completed', progress: status === 'completed' ? 100 : 0, status, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null as string | null, projectId: projectId ?? null };
     set({ todos: [tempTodo as Todo, ...get().todos] });
 
     try {
-      const res = await todoApi.create({ title, priority, dueDate: date, category, status });
+      const res = await todoApi.create({ title, priority, dueDate: date, category, status, projectId: projectId ?? undefined });
       if (res.success && res.data) {
         set({ todos: get().todos.map(t => t.id === tempId ? res.data! : t) });
         return true;

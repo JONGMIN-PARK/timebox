@@ -7,6 +7,7 @@ import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { resolveOptionalProjectId } from "../lib/projectAccess.js";
 
 const router = Router();
 
@@ -117,7 +118,7 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
 
 router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
-  const { title, priority, category, dueDate, parentId, status } = req.body;
+  const { title, priority, category, dueDate, parentId, status, projectId: bodyProjectId } = req.body;
   const hasStatus = await checkStatusColumn();
   await ensureDeletedAtColumn();
 
@@ -131,6 +132,8 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
     .from(todos)
     .where(and(eq(todos.userId, userId), notTrashed()));
 
+  const projectId = await resolveOptionalProjectId(userId, bodyProjectId);
+
   const values: Record<string, unknown> = {
     userId,
     title: title.trim(),
@@ -141,6 +144,7 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
     sortOrder: (maxOrder[0]?.max || 0) + 1,
     completed,
     progress,
+    projectId,
   };
   if (hasStatus) {
     values.status = todoStatus;
@@ -279,6 +283,9 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   if (req.body.dueDate !== undefined) updates.dueDate = req.body.dueDate;
   if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
   if (req.body.progress !== undefined) updates.progress = req.body.progress;
+  if (req.body.projectId !== undefined) {
+    updates.projectId = await resolveOptionalProjectId(userId, req.body.projectId);
+  }
 
   // Handle status field
   if (req.body.status !== undefined) {

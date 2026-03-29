@@ -13,10 +13,11 @@ import PostBoard from "./PostBoard";
 import ProjectFileManager from "./ProjectFileManager";
 import ProjectChat from "./ProjectChat";
 import ProjectDocs from "./ProjectDocs";
+import ProjectScheduleCalendar from "./ProjectScheduleCalendar";
 
 const GanttView = lazy(() => import("./GanttView"));
 
-type Tab = "dashboard" | "tasks" | "gantt" | "members" | "board" | "files" | "chat" | "docs";
+type Tab = "dashboard" | "tasks" | "gantt" | "calendar" | "members" | "board" | "files" | "chat" | "docs";
 
 interface ProjectInfo {
   id: number;
@@ -37,6 +38,7 @@ const TAB_KEYS: { key: Tab; labelKey: string }[] = [
   { key: "dashboard", labelKey: "project.dashboard" },
   { key: "tasks", labelKey: "project.tasks" },
   { key: "gantt", labelKey: "project.gantt" },
+  { key: "calendar", labelKey: "project.calendarTab" },
   { key: "board", labelKey: "post.title" },
   { key: "files", labelKey: "files.shared" },
   { key: "chat", labelKey: "chat.title" },
@@ -282,6 +284,9 @@ export default function ProjectView({ projectId, initialTab = "dashboard" }: Pro
           <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
             <GanttView projectId={projectId} />
           </Suspense>
+        </div>
+        <div className={cn("absolute inset-0 overflow-hidden", activeTab === "calendar" ? "block" : "hidden")}>
+          <ProjectScheduleCalendar projectId={projectId} />
         </div>
         <div className={cn("absolute inset-0 overflow-y-auto", activeTab === "board" ? "block" : "hidden")}>
           <PostBoard projectId={projectId} />

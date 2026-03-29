@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
+import { authApi } from "@/lib/apiService";
 import { cn } from "@/lib/utils";
 import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
@@ -66,6 +67,7 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState(
     typeof Notification !== "undefined" ? Notification.permission : "default"
   );
+  const [calendarFeedToken, setCalendarFeedToken] = useState<string | null>(null);
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(() => {
     try {
       const stored = localStorage.getItem("timebox_notification_prefs");
@@ -312,6 +314,71 @@ export default function SettingsPage() {
                 </button>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Calendar feed (iCal) */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{t("settings.calendarFeed")}</h2>
+          <div className="card p-4 space-y-3">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t("settings.calendarFeedHelp")}</p>
+            {user?.hasCalendarFeed && !calendarFeedToken && (
+              <p className="text-[11px] text-amber-700/90 dark:text-amber-300/90">{t("settings.calendarFeedActive")}</p>
+            )}
+            {calendarFeedToken && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{t("settings.calendarFeedUrl")}</label>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/api/calendar/feed.ics?token=${encodeURIComponent(calendarFeedToken)}`}
+                    className="flex-1 min-w-0 text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/calendar/feed.ics?token=${encodeURIComponent(calendarFeedToken)}`;
+                      void navigator.clipboard.writeText(url);
+                      showMsg(t("settings.calendarFeedCopied"));
+                    }}
+                    className="shrink-0 px-3 py-2 text-xs rounded-lg btn-primary"
+                  >
+                    {t("project.inviteLinkCopy")}
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const r = await authApi.regenerateCalendarFeed();
+                  if (r.success && r.data?.token) {
+                    setCalendarFeedToken(r.data.token);
+                    await fetchMe();
+                    showMsg("Calendar feed URL updated");
+                  } else showMsg(r.error || "Failed");
+                }}
+                className="px-3 py-2 text-xs rounded-lg btn-primary font-medium"
+              >
+                {t("settings.calendarFeedGenerate")}
+              </button>
+              <button
+                type="button"
+                disabled={!user?.hasCalendarFeed}
+                onClick={async () => {
+                  const r = await authApi.revokeCalendarFeed();
+                  if (r.success) {
+                    setCalendarFeedToken(null);
+                    await fetchMe();
+                    showMsg("Calendar feed disabled");
+                  } else showMsg(r.error || "Failed");
+                }}
+                className="px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 disabled:opacity-40"
+              >
+                {t("settings.calendarFeedRevoke")}
+              </button>
+            </div>
           </div>
         </section>
 

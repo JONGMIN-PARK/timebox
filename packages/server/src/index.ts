@@ -36,6 +36,8 @@ import chatRoutes from "./routes/chat.js";
 import { initTelegramBot } from "./telegram/bot.js";
 import { initSocket } from "./socket/index.js";
 import analyticsRoutes from "./routes/analytics.js";
+import calendarFeedRoutes from "./routes/calendarFeed.js";
+import summaryRoutes from "./routes/summary.js";
 import { activityTracker } from "./middleware/activityTracker.js";
 
 dotenv.config();
@@ -71,6 +73,29 @@ try {
   logger.info("Auto-migrating: adding deleted_at column to todos table...");
   await db.execute(sql`ALTER TABLE todos ADD COLUMN deleted_at TEXT`);
   logger.info("Auto-migration complete: todos.deleted_at column added");
+}
+try {
+  await db.execute(sql`SELECT project_id FROM events LIMIT 0`);
+} catch {
+  logger.info("Auto-migrating: adding project_id to events / todos, calendar_feed_token, project_invites...");
+  await db.execute(sql`ALTER TABLE events ADD COLUMN IF NOT EXISTS project_id INTEGER`);
+  await db.execute(sql`ALTER TABLE todos ADD COLUMN IF NOT EXISTS project_id INTEGER`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS calendar_feed_token TEXT`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS project_invites (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      role TEXT NOT NULL DEFAULT 'member',
+      created_by INTEGER NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT,
+      used_at TEXT,
+      used_by_user_id INTEGER,
+      created_at TEXT NOT NULL DEFAULT now()
+    )
+  `);
+  logger.info("Auto-migration complete: project bridge columns");
 }
 
 // Middleware
@@ -138,6 +163,7 @@ app.use(activityTracker);
 
 // Public routes
 app.use("/api/auth", authRoutes);
+app.use("/api/calendar", calendarFeedRoutes);
 
 // Protected routes (auth + per-user rate limiting)
 const protectedMiddleware = [authMiddleware, perUserLimiter];
@@ -160,6 +186,7 @@ app.use("/api/presence", ...protectedMiddleware, presenceRoutes);
 app.use("/api/inbox", ...protectedMiddleware, inboxRoutes);
 app.use("/api/chat", ...protectedMiddleware, chatRoutes);
 app.use("/api/analytics", authMiddleware, perUserLimiter, adminMiddleware, analyticsRoutes);
+app.use("/api/summary", ...protectedMiddleware, summaryRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

@@ -20,6 +20,7 @@ interface User {
   teamGroups?: TeamGroupInfo[];
   hasProjectAccess?: boolean;
   lastLoginAt?: string | null;
+  hasCalendarFeed?: boolean;
 }
 
 interface AuthState {

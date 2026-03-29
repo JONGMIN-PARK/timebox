@@ -29,6 +29,7 @@ const projectTabs = [
   { id: "project-dashboard", labelKey: "project.dashboard", icon: LayoutDashboard },
   { id: "project-tasks", labelKey: "project.tasks", icon: ListTodo },
   { id: "project-gantt", labelKey: "project.gantt", icon: BarChart2 },
+  { id: "project-calendar", labelKey: "project.calendarTab", icon: Calendar },
   { id: "project-board", labelKey: "post.title", icon: FileText },
   { id: "project-files", labelKey: "nav.files", icon: FolderOpen },
   { id: "project-chat", labelKey: "nav.chat", icon: MessageCircle },

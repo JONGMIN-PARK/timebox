@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
-import { UserPlus, X, Shield, Eye, Users, Search } from "lucide-react";
+import { projectApi } from "@/lib/apiService";
+import { UserPlus, X, Shield, Eye, Users, Search, Link2 } from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 
@@ -48,6 +50,10 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
   const [selectedUser, setSelectedUser] = useState<SearchUser | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const [pendingInvites, setPendingInvites] = useState<Array<{ id: number; role: string; expiresAt: string }>>([]);
+  const [creatingInviteLink, setCreatingInviteLink] = useState(false);
+  const [freshInviteUrl, setFreshInviteUrl] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +68,16 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
   useEffect(() => {
     fetchMembers();
   }, [projectId]);
+
+  const refreshInvites = useCallback(async () => {
+    if (!canManage) return;
+    const r = await projectApi.listInvites(projectId);
+    if (r.success && r.data?.pending) setPendingInvites(r.data.pending);
+  }, [canManage, projectId]);
+
+  useEffect(() => {
+    void refreshInvites();
+  }, [refreshInvites]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -135,6 +151,35 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
     if (res.success) {
       setMembers((prev) => prev.filter((m) => m.userId !== userId));
     }
+  };
+
+  const handleCreateInviteLink = async () => {
+    setCreatingInviteLink(true);
+    setFreshInviteUrl(null);
+    const r = await projectApi.createInviteLink(projectId, { expiresInDays: 7 });
+    if (r.success && r.data?.token) {
+      const url = `${window.location.origin}/app/join?token=${encodeURIComponent(r.data.token)}`;
+      setFreshInviteUrl(url);
+      showToast("success", t("project.inviteLinkCreated"));
+      await refreshInvites();
+    } else {
+      showToast("error", r.error || "Failed");
+    }
+    setCreatingInviteLink(false);
+  };
+
+  const copyFreshInviteUrl = () => {
+    if (!freshInviteUrl) return;
+    void navigator.clipboard.writeText(freshInviteUrl);
+    showToast("success", t("settings.calendarFeedCopied"));
+  };
+
+  const handleRevokeInviteLink = async (inviteId: number) => {
+    const r = await projectApi.revokeInvite(projectId, inviteId);
+    if (r.success) {
+      showToast("success", t("project.revokeInvite"));
+      await refreshInvites();
+    } else showToast("error", r.error || "Failed");
   };
 
   if (loading) {
@@ -315,6 +360,66 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
             );
           })}
         </div>
+
+        {canManage && (
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60 space-y-3">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
+              <Link2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span className="text-[12px] font-semibold">{t("project.inviteLinkTitle")}</span>
+            </div>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{t("project.inviteLinkHelp")}</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={creatingInviteLink}
+                onClick={() => void handleCreateInviteLink()}
+                className="text-xs px-3 py-2 btn-primary rounded-lg disabled:opacity-50"
+              >
+                {creatingInviteLink ? t("member.inviting") : t("project.inviteLinkGenerate")}
+              </button>
+              {freshInviteUrl && (
+                <button
+                  type="button"
+                  onClick={copyFreshInviteUrl}
+                  className="text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200"
+                >
+                  {t("project.inviteLinkCopy")}
+                </button>
+              )}
+            </div>
+            {freshInviteUrl && (
+              <input
+                readOnly
+                value={freshInviteUrl}
+                className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 font-mono text-slate-800 dark:text-slate-200"
+              />
+            )}
+            {pendingInvites.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{t("project.pendingInvites")}</p>
+                <ul className="space-y-1">
+                  {pendingInvites.map((inv) => (
+                    <li
+                      key={inv.id}
+                      className="flex items-center justify-between gap-2 text-[11px] py-1.5 px-2 rounded-lg bg-slate-50/80 dark:bg-slate-800/40"
+                    >
+                      <span className="text-slate-600 dark:text-slate-300 truncate">
+                        {inv.role} · {new Date(inv.expiresAt).toLocaleString()}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleRevokeInviteLink(inv.id)}
+                        className="shrink-0 text-red-600 dark:text-red-400 hover:underline"
+                      >
+                        {t("project.revokeInvite")}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

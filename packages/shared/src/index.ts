@@ -29,6 +29,8 @@ export interface CalendarEvent {
   categoryId: number | null;
   recurrenceRule: string | null;
   color: string;
+  /** Optional link to a project the user is a member of. */
+  projectId: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +47,7 @@ export interface CreateEventInput {
   categoryId?: number;
   recurrenceRule?: string;
   color?: string;
+  projectId?: number | null;
 }
 
 // ── TimeBlock ──
@@ -103,6 +106,8 @@ export interface Todo {
   updatedAt: string;
   /** Set when the todo is in trash (soft-deleted). Omitted or null = not trashed. */
   deletedAt?: string | null;
+  /** Optional link to a project the user is a member of. */
+  projectId?: number | null;
 }
 
 export interface CreateTodoInput {
@@ -112,6 +117,7 @@ export interface CreateTodoInput {
   parentId?: number;
   category?: string;
   status?: TodoStatus;
+  projectId?: number | null;
 }
 
 // ── D-Day ──

@@ -84,6 +84,7 @@ router.post("/import", asyncHandler<AuthRequest>(async (req, res) => {
         dueDate: t.dueDate || null,
         sortOrder: t.sortOrder || 0,
         parentId: t.parentId || null,
+        projectId: t.projectId ?? null,
       });
       imported.todos++;
     }
@@ -101,6 +102,7 @@ router.post("/import", asyncHandler<AuthRequest>(async (req, res) => {
         allDay: e.allDay || false,
         categoryId: null,
         color: e.color || "#3b82f6",
+        projectId: e.projectId ?? null,
       });
       imported.events++;
     }

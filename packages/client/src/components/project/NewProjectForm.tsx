@@ -66,6 +66,10 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
           {t("project.new")}
         </h2>
 
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed -mt-2">
+          {t("project.visibilityExplain")}
+        </p>
+
         {/* Name */}
         <div>
           <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">

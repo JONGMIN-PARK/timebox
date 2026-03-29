@@ -19,6 +19,7 @@ export interface CalendarEvent {
   allDay: boolean;
   categoryId: number | null;
   color: string;
+  projectId?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +33,7 @@ export interface Todo {
   dueDate: string | null;
   sortOrder: number;
   parentId: number | null;
+  projectId?: number | null;
   createdAt: string;
   updatedAt: string;
 }

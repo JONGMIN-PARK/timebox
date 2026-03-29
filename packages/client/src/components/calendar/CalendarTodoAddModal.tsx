@@ -3,6 +3,7 @@ import { X, CalendarDays, Clock, Circle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { TodoCategoryPicker } from "@/components/todo/TodoCategoryPicker";
+import { ProjectPicker } from "@/components/project/ProjectPicker";
 import type { TodoStatus } from "@timebox/shared";
 
 export interface CalendarTodoAddValues {
@@ -11,6 +12,7 @@ export interface CalendarTodoAddValues {
   dueDate: string;
   priority: string;
   status: TodoStatus;
+  projectId?: number | null;
 }
 
 interface CalendarTodoAddModalProps {
@@ -29,6 +31,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
   const [dueTime, setDueTime] = useState("");
   const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
   const [status, setStatus] = useState<TodoStatus>("active");
+  const [projectId, setProjectId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
       setDueTime("");
       setPriority("medium");
       setStatus("active");
+      setProjectId(null);
       setSubmitting(false);
     }
   }, [open, initialDate]);
@@ -71,6 +75,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
         dueDate: buildDueDate(),
         priority,
         status,
+        projectId,
       });
       onClose();
     } finally {
@@ -110,6 +115,8 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
             <TodoCategoryPicker value={category} onChange={setCategory} />
           </div>
         </div>
+
+        <ProjectPicker value={projectId} onChange={setProjectId} />
 
         <div className="flex flex-wrap gap-3">
           <div>

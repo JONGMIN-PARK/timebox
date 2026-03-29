@@ -26,6 +26,8 @@ import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendar
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
 import { showToast } from "@/components/ui/Toast";
 import CalendarTodoAddModal from "./CalendarTodoAddModal";
+import { ProjectPicker } from "@/components/project/ProjectPicker";
+import { useProjectStore } from "@/stores/projectStore";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
@@ -39,7 +41,22 @@ export default function CalendarView() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+  const [newEvent, setNewEvent] = useState<{ title: string; startTime: string; endTime: string; categoryId: number; projectId: number | null }>({
+    title: "",
+    startTime: "09:00",
+    endTime: "10:00",
+    categoryId: 0,
+    projectId: null,
+  });
+  const { projects, fetchProjects } = useProjectStore();
+  const projectNameById = useMemo(
+    () => Object.fromEntries(projects.filter((p) => !p.archived).map((p) => [p.id, p.name])) as Record<number, string>,
+    [projects],
+  );
+
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
   const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
@@ -156,6 +173,7 @@ export default function CalendarView() {
           endTime: `${dateStr}T${newEvent.endTime}:00`,
           categoryId: newEvent.categoryId || undefined,
           color: cat?.color || "#3b82f6",
+          projectId: newEvent.projectId,
         });
         showToast("success", t("calendar.eventCreated"));
       } else {
@@ -167,13 +185,14 @@ export default function CalendarView() {
           categoryId: newEvent.categoryId || undefined,
           recurrenceRule: recurrence || undefined,
           color: cat?.color || "#3b82f6",
+          projectId: newEvent.projectId,
         });
         showToast("success", t("calendar.eventCreated"));
       }
     } catch {
       showToast("error", t("calendar.createFailed"));
     }
-    setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+    setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
     setRecurrence("");
     setEditingEventId(null);
     setShowAddModal(false);
@@ -198,6 +217,7 @@ export default function CalendarView() {
       startTime: ev.startTime.slice(11, 16),
       endTime: ev.endTime.slice(11, 16),
       categoryId: ev.categoryId || 0,
+      projectId: ev.projectId ?? null,
     });
     setShowAddModal(true);
   };
@@ -301,12 +321,17 @@ export default function CalendarView() {
           getHoverItems={getHoverItems}
           onDayHover={handleDayHover}
           onDayLeave={() => setHoverDateKey(null)}
-          onShowAddModal={() => { setEditingEventId(null); setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 }); setShowAddModal(true); }}
+          onShowAddModal={() => {
+            setEditingEventId(null);
+            setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
+            setShowAddModal(true);
+          }}
           onDeleteEvent={handleDeleteEvent}
           onEditEvent={handleEditEvent}
           onToggleTodo={toggleTodo}
           onDeleteTodo={deleteTodo}
           onEditTodo={handleEditTodo}
+          projectNameById={projectNameById}
           onLongPressDate={(date, type) => {
             const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
             if (type === "event") {
@@ -400,6 +425,7 @@ export default function CalendarView() {
                 <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
               </div>
             </div>
+            <ProjectPicker value={newEvent.projectId} onChange={(pid) => setNewEvent({ ...newEvent, projectId: pid })} />
             <div>
               <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence")}</label>
               <select
@@ -426,7 +452,7 @@ export default function CalendarView() {
         initialDate={todoAddModalDate}
         onClose={() => setTodoAddModalOpen(false)}
         onAdd={async (values) => {
-          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status);
+          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status, values.projectId ?? null);
           if (!ok) throw new Error("add failed");
           showToast("success", t("calendar.todoCreated"));
         }}

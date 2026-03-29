@@ -6,6 +6,7 @@ import { SocketProvider } from "@/lib/SocketProvider";
 import LoginPage from "@/pages/LoginPage";
 import LandingPage from "@/pages/LandingPage";
 import DashboardPage from "@/pages/DashboardPage";
+import JoinProjectPage from "@/pages/JoinProjectPage";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,16 @@ export default function App() {
         <Route
           path="/login"
           element={authenticated ? <Navigate to="/app" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/app/join"
+          element={
+            <ProtectedRoute>
+              <SocketProvider>
+                <JoinProjectPage />
+              </SocketProvider>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/app/*"

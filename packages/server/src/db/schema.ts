@@ -11,6 +11,8 @@ export const users = pgTable("users", {
   active: boolean("active").notNull().default(true),
   aiModel: text("ai_model").notNull().default("gemini-2.0-flash"),
   allowedModels: text("allowed_models").notNull().default("[]"),
+  /** Secret token for read-only iCal feed URL (nullable until generated). */
+  calendarFeedToken: text("calendar_feed_token"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),
@@ -68,6 +70,7 @@ export const events = pgTable("events", {
   updatedAt: text("updated_at")
     .notNull()
     .default(sql`now()`),
+  projectId: integer("project_id"),
 });
 
 // ── TimeBlocks ──
@@ -109,6 +112,7 @@ export const todos = pgTable("todos", {
     .notNull()
     .default(sql`now()`),
   deletedAt: text("deleted_at"), // ISO timestamp when soft-deleted (trash)
+  projectId: integer("project_id"),
 });
 
 // ── D-Days ──
@@ -204,6 +208,20 @@ export const projectMembers = pgTable("project_members", {
   userId: integer("user_id").notNull(),
   role: text("role").notNull().default("member"),
   joinedAt: text("joined_at").notNull().default(sql`now()`),
+});
+
+// ── Project invite links (token shown once; stored as SHA-256 hex) ──
+export const projectInvites = pgTable("project_invites", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  role: text("role").notNull().default("member"),
+  createdBy: integer("created_by").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  revokedAt: text("revoked_at"),
+  usedAt: text("used_at"),
+  usedByUserId: integer("used_by_user_id"),
+  createdAt: text("created_at").notNull().default(sql`now()`),
 });
 
 // ── Project Tasks (Kanban) ──

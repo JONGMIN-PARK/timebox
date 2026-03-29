@@ -6,6 +6,7 @@ import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
+import { resolveOptionalProjectId } from "../lib/projectAccess.js";
 
 const router = Router();
 
@@ -26,7 +27,9 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
 
 router.post("/", validate(schemas.createEvent), asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
-  const { title, description, startTime, endTime, allDay, categoryId, recurrenceRule, color } = req.body;
+  const { title, description, startTime, endTime, allDay, categoryId, recurrenceRule, color, projectId: bodyProjectId } = req.body;
+
+  const projectId = await resolveOptionalProjectId(userId, bodyProjectId);
 
   const result = await db.insert(events).values({
     userId,
@@ -38,6 +41,7 @@ router.post("/", validate(schemas.createEvent), asyncHandler<AuthRequest>(async 
     categoryId: categoryId || null,
     recurrenceRule: recurrenceRule || null,
     color: color || "#3b82f6",
+    projectId,
   }).returning();
 
   res.status(201).json({ success: true, data: result[0] });
@@ -56,6 +60,10 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   if (req.body.allDay !== undefined) updates.allDay = req.body.allDay;
   if (req.body.categoryId !== undefined) updates.categoryId = req.body.categoryId;
   if (req.body.color !== undefined) updates.color = req.body.color;
+  if (req.body.recurrenceRule !== undefined) updates.recurrenceRule = req.body.recurrenceRule;
+  if (req.body.projectId !== undefined) {
+    updates.projectId = await resolveOptionalProjectId(userId, req.body.projectId);
+  }
 
   const result = await db.update(events).set(updates).where(and(eq(events.id, id), eq(events.userId, userId))).returning();
   if (!result[0]) {

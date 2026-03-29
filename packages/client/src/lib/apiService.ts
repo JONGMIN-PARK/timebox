@@ -25,7 +25,7 @@ export const todoApi = {
     const query = filter ? `?filter=${filter}` : "";
     return api.get<Todo[]>(`/todos${query}`);
   },
-  create: (data: { title: string; priority?: string; dueDate?: string; category?: string; status?: 'waiting' | 'active' | 'completed' }) =>
+  create: (data: { title: string; priority?: string; dueDate?: string; category?: string; status?: 'waiting' | 'active' | 'completed'; projectId?: number | null }) =>
     api.post<Todo>("/todos", data),
   update: (id: number, data: Partial<Todo>) =>
     api.put<Todo>(`/todos/${id}`, data),
@@ -104,6 +104,23 @@ export const projectApi = {
     api.post(`/projects/${projectId}/members`, { username, role }),
   removeMember: (projectId: number, userId: number) =>
     api.delete(`/projects/${projectId}/members/${userId}`),
+  getCalendar: (projectId: number, start: string, end: string) =>
+    api.get<{
+      myEvents: Array<{ type: string; id: number; title: string; startTime: string; endTime: string; allDay: boolean; color?: string | null; userId: number; isMine: boolean }>;
+      othersBusy: Array<{ type: string; id: number; title: string; startTime: string; endTime: string; allDay: boolean; userId: number; isMine: boolean }>;
+      projectTasks: Array<{ type: string; id: number; title: string; dueDate: string | null; status: string; assigneeId: number | null; priority: string }>;
+    }>(`/projects/${projectId}/calendar?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+  createInviteLink: (projectId: number, body?: { role?: string; expiresInDays?: number }) =>
+    api.post<{ id: number; token: string; expiresAt: string; role: string }>(`/projects/${projectId}/invites`, body || {}),
+  listInvites: (projectId: number) =>
+    api.get<{
+      all: Array<{ id: number; role: string; expiresAt: string; revokedAt: string | null; usedAt: string | null; createdAt: string }>;
+      pending: Array<{ id: number; role: string; expiresAt: string; revokedAt: string | null; usedAt: string | null; createdAt: string }>;
+    }>(`/projects/${projectId}/invites`),
+  revokeInvite: (projectId: number, inviteId: number) =>
+    api.delete(`/projects/${projectId}/invites/${inviteId}`),
+  acceptInvite: (token: string) =>
+    api.post<{ projectId: number; projectName?: string }>("/projects/invites/accept", { token }),
 };
 
 // ── ProjectTask ───────────────────────────────────────────────────────
@@ -131,6 +148,7 @@ interface AuthUser {
   teamGroups?: { id: number; name: string; color: string }[];
   hasProjectAccess?: boolean;
   lastLoginAt?: string | null;
+  hasCalendarFeed?: boolean;
 }
 
 export const authApi = {
@@ -138,4 +156,15 @@ export const authApi = {
     api.post<{ token: string; user: AuthUser }>("/auth/login", { username, password }),
   logout: () => api.post("/auth/logout", {}),
   me: () => api.get<AuthUser>("/auth/me"),
+  regenerateCalendarFeed: () =>
+    api.post<{ token: string }>("/auth/calendar-feed/regenerate", {}),
+  revokeCalendarFeed: () => api.delete("/auth/calendar-feed"),
+};
+
+export const summaryApi = {
+  week: () =>
+    api.get<{
+      personalTodosDue: Array<{ id: number; title: string; dueDate: string | null; projectId: number | null; priority: string }>;
+      assignedProjectTasks: Array<{ id: number; projectId: number; title: string; dueDate: string | null; status: string; priority: string }>;
+    }>("/summary/week"),
 };

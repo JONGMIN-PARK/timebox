@@ -37,6 +37,7 @@ export const schemas = {
     categoryId: z.number().optional().nullable(),
     recurrenceRule: z.string().optional(),
     color: z.string().optional().default("#3b82f6"),
+    projectId: z.number().int().positive().optional().nullable(),
   }),
 
   createTodo: z.object({
@@ -46,6 +47,7 @@ export const schemas = {
     dueDate: z.string().optional().nullable(),
     parentId: z.number().optional().nullable(),
     status: z.enum(["waiting", "active", "completed"]).optional().default("active"),
+    projectId: z.number().int().positive().optional().nullable(),
   }),
 
   createDDay: z.object({
