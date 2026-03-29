@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Send, MessageCircle, Trash2, Smile } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
+import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
 
 interface ChatMessage {
   id: number;
@@ -34,6 +35,7 @@ function formatDate(dateStr: string): string {
 export default function ProjectChat({ projectId }: ProjectChatProps) {
   const { t } = useI18n();
   const pageVisible = usePageVisible();
+  const keyboardHeight = useKeyboardHeight();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -136,7 +138,7 @@ export default function ProjectChat({ projectId }: ProjectChatProps) {
   let lastDate = "";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white tracking-tight">

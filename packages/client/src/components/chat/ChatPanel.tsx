@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import { getSocket } from "@/lib/socket";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "@/lib/useI18n";
+import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
 import { cn } from "@/lib/utils";
 import {
   MessageCircle,
@@ -62,6 +63,7 @@ const EMOJIS = ["😀","😂","🥰","😎","👍","👏","🔥","❤️","🎉"
 
 export default function ChatPanel() {
   const { t } = useI18n();
+  const keyboardHeight = useKeyboardHeight();
   const user = useAuthStore((s) => s.user);
 
   // View state
@@ -448,7 +450,7 @@ export default function ChatPanel() {
     if (!activeRoom) return null;
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full" style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight : undefined }}>
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
           <button
