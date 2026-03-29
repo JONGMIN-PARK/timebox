@@ -653,6 +653,64 @@ router.post("/:projectId/tasks/:taskId/worklogs", async (req: ProjectRequest, re
   }
 });
 
+// PUT /api/projects/:projectId/tasks/:taskId/worklogs/:logId
+router.put("/:projectId/tasks/:taskId/worklogs/:logId", async (req: ProjectRequest, res) => {
+  try {
+    const logId = parseInt(req.params.logId as string);
+    const { content } = req.body;
+    if (!content?.trim()) {
+      res.status(400).json({ success: false, error: "Content is required" });
+      return;
+    }
+
+    const existing = await db.select().from(taskWorkLogs).where(eq(taskWorkLogs.id, logId));
+    if (!existing[0] || existing[0].projectId !== req.projectId!) {
+      res.status(404).json({ success: false, error: "Work log not found" });
+      return;
+    }
+    // Only author can edit
+    if (existing[0].userId !== req.userId!) {
+      res.status(403).json({ success: false, error: "Not authorized" });
+      return;
+    }
+
+    const result = await db.update(taskWorkLogs)
+      .set({ content: content.trim() })
+      .where(eq(taskWorkLogs.id, logId))
+      .returning();
+
+    res.json({ success: true, data: result[0] });
+  } catch (error) {
+    console.error("taskWorkLogs:update", error);
+    res.status(500).json({ success: false, error: "Failed to update work log" });
+  }
+});
+
+// DELETE /api/projects/:projectId/tasks/:taskId/worklogs/:logId
+router.delete("/:projectId/tasks/:taskId/worklogs/:logId", async (req: ProjectRequest, res) => {
+  try {
+    const logId = parseInt(req.params.logId as string);
+
+    const existing = await db.select().from(taskWorkLogs).where(eq(taskWorkLogs.id, logId));
+    if (!existing[0] || existing[0].projectId !== req.projectId!) {
+      res.status(404).json({ success: false, error: "Work log not found" });
+      return;
+    }
+    // Only author can delete
+    if (existing[0].userId !== req.userId!) {
+      res.status(403).json({ success: false, error: "Not authorized" });
+      return;
+    }
+
+    await db.delete(taskWorkLogs).where(eq(taskWorkLogs.id, logId));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("taskWorkLogs:delete", error);
+    res.status(500).json({ success: false, error: "Failed to delete work log" });
+  }
+});
+
 // GET /api/projects/:projectId/activity
 router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
   try {

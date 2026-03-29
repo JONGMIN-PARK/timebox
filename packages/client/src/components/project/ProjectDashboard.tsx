@@ -67,6 +67,8 @@ function actionIcon(action: string) {
       return <span className="text-red-500">●</span>;
     case "updated":
       return <span className="text-orange-400">●</span>;
+    case "worklog":
+      return <span className="text-purple-500">●</span>;
     default:
       return <span className="text-slate-400">●</span>;
   }
@@ -78,6 +80,7 @@ const ACTION_LABEL_MAP: Record<string, string> = {
   updated: "수정",
   deleted: "삭제",
   commented: "댓글",
+  worklog: "작업 로그 추가",
   transfer_requested: "이관 요청",
   transfer_accepted: "이관 수락",
   transfer_rejected: "이관 거절",
