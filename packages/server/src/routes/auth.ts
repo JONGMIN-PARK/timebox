@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
 import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers, userActivityLog } from "../db/schema.js";
 import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";
-import { eq } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 async function getUserTeamGroups(userId: number) {
   const memberships = await db.select({
@@ -20,6 +20,15 @@ async function hasProjectMembership(userId: number): Promise<boolean> {
   const rows = await db.select({ id: projectMembers.id }).from(projectMembers)
     .where(eq(projectMembers.userId, userId)).limit(1);
   return rows.length > 0;
+}
+
+async function getLastLoginAt(userId: number): Promise<string | null> {
+  const rows = await db.select({ createdAt: userActivityLog.createdAt })
+    .from(userActivityLog)
+    .where(and(eq(userActivityLog.userId, userId), eq(userActivityLog.action, "auth.login")))
+    .orderBy(desc(userActivityLog.createdAt))
+    .limit(1);
+  return rows[0]?.createdAt || null;
 }
 
 const router = Router();
@@ -52,10 +61,13 @@ router.post("/login", async (req, res) => {
     }
 
     const token = signToken(user.id, user.role);
-    const [teamGroupsList, hasProjects] = await Promise.all([
+    const [teamGroupsList, hasProjects, lastLoginAt] = await Promise.all([
       getUserTeamGroups(user.id),
       hasProjectMembership(user.id),
+      getLastLoginAt(user.id),
     ]);
+
+    const currentLoginAt = new Date().toISOString();
 
     // Log login
     db.insert(userActivityLog).values({
@@ -69,7 +81,7 @@ router.post("/login", async (req, res) => {
       success: true,
       data: {
         token,
-        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+        user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0, lastLoginAt, currentLoginAt },
       },
     });
   } catch (error) {
@@ -231,13 +243,14 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res) => {
       res.status(404).json({ success: false, error: "User not found" });
       return;
     }
-    const [teamGroupsList, hasProjects] = await Promise.all([
+    const [teamGroupsList, hasProjects, lastLoginAt] = await Promise.all([
       getUserTeamGroups(user.id),
       hasProjectMembership(user.id),
+      getLastLoginAt(user.id),
     ]);
     res.json({
       success: true,
-      data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+      data: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, aiModel: user.aiModel, allowedModels: JSON.parse(user.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0, lastLoginAt },
     });
   } catch (error) {
     console.error("auth:me", error);

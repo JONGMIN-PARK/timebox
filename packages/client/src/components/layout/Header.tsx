@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
 import { getSocket } from "@/lib/socket";
 import { updateAppBadge } from "@/lib/badge";
+import { useAuthStore } from "@/stores/authStore";
 import DDayChips from "@/components/dday/DDayChips";
 import { APP_VERSION } from "@/lib/version";
 
@@ -12,7 +13,19 @@ interface HeaderProps {
   onVersionClick?: () => void;
 }
 
+function fmtLoginTime(iso?: string | null): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${dd} ${h}:${min}`;
+}
+
 export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
+  const { user } = useAuthStore();
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -76,14 +89,19 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
 
   return (
     <header className="h-12 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">
-      <div className="flex items-center gap-3 md:hidden">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm">
+      <div className="flex items-center gap-2 md:hidden">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm flex-shrink-0">
           <span className="text-white text-[10px] font-bold">TB</span>
         </div>
-        <span className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">TimeBox</span>
-        <button onClick={onVersionClick} className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full ml-1">
-          v{APP_VERSION}
-        </button>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">TimeBox</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user?.displayName || user?.username}</span>
+          </div>
+          <p className="text-[9px] text-slate-400 truncate">
+            {user?.lastLoginAt ? `최근접속 ${fmtLoginTime(user.lastLoginAt)}` : ""}
+          </p>
+        </div>
       </div>
 
       <div className="hidden md:flex flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">

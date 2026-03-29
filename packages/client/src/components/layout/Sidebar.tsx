@@ -33,6 +33,17 @@ const projectTabs = [
   { id: "project-members", labelKey: "project.members", icon: Users },
 ];
 
+function fmtLoginTime(iso?: string | null): string {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${dd} ${h}:${min}`;
+}
+
 export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { logout, user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
@@ -87,14 +98,20 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
   return (
     <aside className="hidden md:flex flex-col w-16 lg:w-[220px] bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-r border-slate-200/80 dark:border-slate-700/60">
-      {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-slate-200/60 dark:border-slate-700/40">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm shadow-blue-600/20">
+      {/* Logo + User info */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm shadow-blue-600/20 flex-shrink-0">
           <Clock className="w-[18px] h-[18px] text-white" />
         </div>
-        <span className="hidden lg:block ml-3 font-semibold text-[15px] text-slate-900 dark:text-white tracking-tight">
-          TimeBox
-        </span>
+        <div className="hidden lg:block min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-[15px] text-slate-900 dark:text-white tracking-tight">TimeBox</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.displayName || user?.username}</span>
+          </div>
+          <p className="text-[9px] text-slate-400 truncate">
+            {user?.lastLoginAt ? `최근접속 ${fmtLoginTime(user.lastLoginAt)}` : ""}
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}
