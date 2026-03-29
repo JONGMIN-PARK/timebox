@@ -55,7 +55,14 @@ export const useTimeBlockStore = create<TimeBlockState>((set, get) => ({
     set({ error: null });
     // Optimistic add
     const tempId = -Date.now();
-    const tempBlock = { id: tempId, ...block, userId: 0, createdAt: new Date().toISOString() } as TimeBlock;
+    const tempBlock = {
+      id: tempId,
+      ...block,
+      userId: 0,
+      notes: block.notes ?? null,
+      meta: block.meta ?? null,
+      createdAt: new Date().toISOString(),
+    } as TimeBlock;
     set({ blocks: [...get().blocks, tempBlock] });
 
     try {

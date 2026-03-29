@@ -70,6 +70,10 @@ export interface TimeBlock {
   title: string;
   category: string;
   color: string | null;
+  /** Extra memo / annotation for this block (shown in scheduler). */
+  notes?: string | null;
+  /** JSON string: e.g. brainId, prioritySlot (1–3), showArrow, variant. */
+  meta?: string | null;
   completed: boolean;
   createdAt: string;
   updatedAt: string;
@@ -82,6 +86,8 @@ export interface CreateTimeBlockInput {
   title: string;
   category: TimeBlockCategory;
   color?: string;
+  notes?: string | null;
+  meta?: string | null;
 }
 
 // ── Todo ──

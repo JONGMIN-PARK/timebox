@@ -133,6 +133,8 @@ router.post("/import", asyncHandler<AuthRequest>(async (req, res) => {
         title: b.title,
         category: b.category || "other",
         color: b.color || null,
+        notes: b.notes ?? null,
+        meta: b.meta ?? null,
         completed: b.completed || false,
       });
       imported.timeBlocks++;

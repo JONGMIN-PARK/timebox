@@ -83,6 +83,9 @@ export const timeBlocks = pgTable("time_blocks", {
   title: text("title").notNull(),
   category: text("category").notNull().default("other"),
   color: text("color"),
+  notes: text("notes"),
+  /** JSON: brainId, prioritySlot, showArrow, variant, etc. */
+  meta: text("meta"),
   completed: boolean("completed").notNull().default(false),
   createdAt: text("created_at")
     .notNull()

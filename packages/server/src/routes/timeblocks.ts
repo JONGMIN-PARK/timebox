@@ -20,8 +20,14 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
 
 router.post("/", validate(schemas.createTimeBlock), asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
-  const { date, startTime, endTime, title, category, color } = req.body;
-  const result = await db.insert(timeBlocks).values({ userId, date, startTime, endTime, title: title.trim(), category: category || "other", color: color || null, completed: false }).returning();
+  const { date, startTime, endTime, title, category, color, notes, meta } = req.body;
+  const result = await db.insert(timeBlocks).values({
+    userId, date, startTime, endTime, title: title.trim(),
+    category: category || "other", color: color || null,
+    notes: notes?.trim() || null,
+    meta: typeof meta === "string" && meta.trim() ? meta.trim() : null,
+    completed: false,
+  }).returning();
   res.status(201).json({ success: true, data: result[0] });
 }));
 
@@ -37,6 +43,8 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   if (req.body.category !== undefined) updates.category = req.body.category;
   if (req.body.color !== undefined) updates.color = req.body.color;
   if (req.body.completed !== undefined) updates.completed = req.body.completed;
+  if (req.body.notes !== undefined) updates.notes = req.body.notes === null || req.body.notes === "" ? null : String(req.body.notes).trim();
+  if (req.body.meta !== undefined) updates.meta = req.body.meta === null || req.body.meta === "" ? null : String(req.body.meta).trim();
 
   const result = await db.update(timeBlocks).set(updates).where(and(eq(timeBlocks.id, id), eq(timeBlocks.userId, userId))).returning();
   if (!result[0]) { throw new NotFoundError("Time block"); }
@@ -88,7 +96,8 @@ router.post("/templates/:id/apply", asyncHandler<AuthRequest>(async (req, res) =
 
   const created = blockData.length > 0 ? await db.insert(timeBlocks).values(blockData.map(b => ({
     userId, date, startTime: b.startTime, endTime: b.endTime,
-    title: b.title, category: b.category || "other", color: b.color || null, completed: false,
+    title: b.title, category: b.category || "other", color: b.color || null,
+    notes: null, meta: null, completed: false,
   }))).returning() : [];
 
   res.json({ success: true, data: created });

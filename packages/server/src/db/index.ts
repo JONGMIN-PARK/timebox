@@ -469,6 +469,9 @@ export async function initDb() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_model TEXT NOT NULL DEFAULT 'gemini-2.0-flash';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_models TEXT NOT NULL DEFAULT '[]';
 
+      ALTER TABLE time_blocks ADD COLUMN IF NOT EXISTS notes TEXT;
+      ALTER TABLE time_blocks ADD COLUMN IF NOT EXISTS meta TEXT;
+
       CREATE TABLE IF NOT EXISTS task_work_logs (
         id SERIAL PRIMARY KEY,
         task_id INTEGER NOT NULL,

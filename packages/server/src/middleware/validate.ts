@@ -64,6 +64,8 @@ export const schemas = {
     title: z.string().min(1, "Title is required").trim(),
     category: z.string().optional().default("other"),
     color: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    meta: z.string().optional().nullable(),
   }),
 
   createReminder: z.object({
