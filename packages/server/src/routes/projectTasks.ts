@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages, telegramConfig, taskReactions } from "../db/schema.js";
+import { projectTasks, projectMembers, taskComments, activityLog, users, taskTransfers, projects, inboxMessages, telegramConfig, taskReactions, taskWorkLogs } from "../db/schema.js";
 import { eq, and, asc, desc, inArray } from "drizzle-orm";
 import { projectMemberMiddleware, projectEditorMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { getTelegramBot } from "../telegram/bot.js";
@@ -581,6 +581,78 @@ router.post("/:projectId/tasks/:taskId/comments", async (req: ProjectRequest, re
   }
 });
 
+// GET /api/projects/:projectId/tasks/:taskId/worklogs
+router.get("/:projectId/tasks/:taskId/worklogs", async (req: ProjectRequest, res) => {
+  try {
+    const taskId = parseInt(req.params.taskId as string);
+    const logs = await db.select().from(taskWorkLogs)
+      .where(and(eq(taskWorkLogs.taskId, taskId), eq(taskWorkLogs.projectId, req.projectId!)))
+      .orderBy(desc(taskWorkLogs.createdAt));
+
+    const userIds = [...new Set(logs.map(l => l.userId))];
+    const logUsers = userIds.length > 0
+      ? await db.select({ id: users.id, displayName: users.displayName, username: users.username }).from(users).where(inArray(users.id, userIds))
+      : [];
+    const userMap = new Map(logUsers.map(u => [u.id, u.displayName || u.username]));
+
+    const data = logs.map(l => ({
+      ...l,
+      userName: userMap.get(l.userId) || "Unknown",
+    }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("taskWorkLogs:list", error);
+    res.status(500).json({ success: false, error: "Failed to fetch work logs" });
+  }
+});
+
+// POST /api/projects/:projectId/tasks/:taskId/worklogs
+router.post("/:projectId/tasks/:taskId/worklogs", async (req: ProjectRequest, res) => {
+  try {
+    const taskId = parseInt(req.params.taskId as string);
+    const { content } = req.body;
+    if (!content?.trim()) {
+      res.status(400).json({ success: false, error: "Content is required" });
+      return;
+    }
+
+    const taskExists = await db.select({ id: projectTasks.id }).from(projectTasks)
+      .where(and(eq(projectTasks.id, taskId), eq(projectTasks.projectId, req.projectId!)));
+    if (!taskExists[0]) {
+      res.status(404).json({ success: false, error: "Task not found" });
+      return;
+    }
+
+    const result = await db.insert(taskWorkLogs).values({
+      taskId,
+      projectId: req.projectId!,
+      userId: req.userId!,
+      content: content.trim(),
+    }).returning();
+
+    // Log activity
+    await db.insert(activityLog).values({
+      projectId: req.projectId!,
+      userId: req.userId!,
+      action: "worklog_added",
+      targetType: "task",
+      targetId: taskId,
+      metadata: JSON.stringify({ title: taskExists[0].id ? content.trim().slice(0, 50) : "" }),
+    });
+
+    const user = await db.select({ displayName: users.displayName, username: users.username }).from(users).where(eq(users.id, req.userId!));
+
+    res.status(201).json({
+      success: true,
+      data: { ...result[0], userName: user[0]?.displayName || user[0]?.username || "Unknown" },
+    });
+  } catch (error) {
+    console.error("taskWorkLogs:add", error);
+    res.status(500).json({ success: false, error: "Failed to add work log" });
+  }
+});
+
 // GET /api/projects/:projectId/activity
 router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
   try {
@@ -600,6 +672,7 @@ router.get("/:projectId/activity", async (req: ProjectRequest, res) => {
       task_completed: "completed",
       task_updated: "updated",
       task_deleted: "deleted",
+      worklog_added: "worklog",
       comment_added: "commented",
       task_transfer_requested: "transfer_requested",
       task_transfer_accepted: "transfer_accepted",

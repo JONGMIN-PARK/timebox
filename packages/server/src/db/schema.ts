@@ -257,6 +257,16 @@ export const taskTransfers = pgTable("task_transfers", {
   respondedAt: text("responded_at"),
 });
 
+// ── Task Work Logs (progress updates) ──
+export const taskWorkLogs = pgTable("task_work_logs", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull(),
+  projectId: integer("project_id").notNull(),
+  userId: integer("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
 // ── Posts (Bulletin Board) ──
 export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
