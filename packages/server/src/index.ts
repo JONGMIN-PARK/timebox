@@ -148,11 +148,9 @@ httpServer.listen(PORT, () => {
 
   // Initialize Telegram bot only in production (prevents polling conflict with local dev)
   if (process.env.NODE_ENV === "production") {
-    try {
-      initTelegramBot();
-    } catch (err) {
-      console.log("Telegram bot init skipped:", (err as Error).message);
-    }
+    initTelegramBot()
+      .then(() => console.log("[telegram] Bot initialization complete"))
+      .catch((err) => console.error("[telegram] Bot init failed:", (err as Error).message));
 
     // Notify admins that server started (deploy notification is handled by CI)
     setTimeout(async () => {
