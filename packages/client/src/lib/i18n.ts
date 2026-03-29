@@ -79,6 +79,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.week": "W",
     "calendar.day": "D",
     "calendar.category": "Category",
+    "calendar.quickAdd": "Quick Add",
+    "calendar.addTodo": "Add Todo",
+    "calendar.addReminder": "Add Reminder",
+    "calendar.selectDateHint": "Tap a date to see details",
 
     // D-Day
     "dday.title": "D-Day",
@@ -432,6 +436,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.week": "\uc8fc",
     "calendar.day": "\uc77c",
     "calendar.category": "\uce74\ud14c\uace0\ub9ac",
+    "calendar.quickAdd": "빠른 추가",
+    "calendar.addTodo": "할일 추가",
+    "calendar.addReminder": "리마인더 추가",
+    "calendar.selectDateHint": "날짜를 탭하여 상세 보기",
 
     // D-Day
     "dday.title": "\ub514\ub370\uc774",
