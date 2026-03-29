@@ -180,10 +180,10 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
 
         <PriorityDropdown currentPriority={todo.priority} onChangePriority={(p) => onUpdatePriority(todo.id, p)} />
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 pr-14">
+        {/* Content — extra right padding so title/meta don’t sit under hover actions */}
+        <div className="flex-1 min-w-0 pr-[4.5rem] sm:pr-20">
           {/* Title */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 pr-1">
             {isEditing ? (
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
                 onBlur={handleSaveTitle} onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditTitle(todo.title); setIsEditing(false); } }}
@@ -194,35 +194,42 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
             )}
           </div>
 
-          {/* Meta: category · date · D-Day */}
-          <div className="flex items-center gap-1.5 mt-1 ml-3 text-[10px] text-slate-400 dark:text-slate-500">
-            <span className="flex items-center gap-0.5 shrink-0">
-              <span>{catInfo.icon}</span>
+          {/* Meta: category + due / D-day (wrap-friendly, grouped for readability) */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 ml-3 text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="flex items-center gap-0.5 min-w-0 max-w-full">
+              <span className="shrink-0">{catInfo.icon}</span>
               <TodoCategoryPicker value={todo.category} onChange={(cat) => onUpdateCategory(todo.id, cat)} compact />
             </span>
-            <span className="text-slate-300 dark:text-slate-600">·</span>
-            <button onClick={() => setShowDatePicker(!showDatePicker)}
-              className={cn("flex items-center gap-0.5 shrink-0 hover:text-blue-500 transition-colors", daysLeft !== null ? daysLeftColor(daysLeft) : "")}>
-              <CalendarDays className="w-2.5 h-2.5" />
-              {todo.dueDate ? <span>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""}</span>
-                : <span>date</span>}
+            <button
+              type="button"
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-1 py-0.5 -mx-1 shrink-0 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-blue-500 transition-colors",
+                daysLeft !== null ? daysLeftColor(daysLeft) : "",
+              )}
+            >
+              <CalendarDays className="w-2.5 h-2.5 shrink-0 opacity-80" />
+              <span className="tabular-nums whitespace-nowrap">
+                {todo.dueDate
+                  ? <>{todo.dueDate.slice(5, 10)}{todo.dueDate.includes("T") ? ` ${todo.dueDate.slice(11, 16)}` : ""}</>
+                  : <span className="text-slate-400">date</span>}
+              </span>
+              {daysLeft !== null && (
+                <span className={cn("font-semibold tabular-nums pl-1 border-l border-slate-300/60 dark:border-slate-600 ml-0.5", daysLeftColor(daysLeft))}>
+                  {daysLeftLabel(daysLeft)}
+                </span>
+              )}
             </button>
-            {daysLeft !== null && (
-              <>
-                <span className="text-slate-300 dark:text-slate-600">·</span>
-                <span className={cn("font-semibold shrink-0", daysLeftColor(daysLeft))}>{daysLeftLabel(daysLeft)}</span>
-              </>
-            )}
           </div>
 
           {/* Waiting: quick start / complete; else progress bar */}
           {effectiveStatus === 'waiting' ? (
-            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-3">
+            <div className="flex flex-wrap items-center gap-2 mt-2 ml-3">
               <button
                 type="button"
                 onClick={() => onStatusChange(todo.id, "active")}
                 title={t("todo.active")}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30 dark:hover:bg-blue-500/25 transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/80 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30 dark:hover:bg-blue-500/25 transition-colors"
               >
                 <Play className="w-3 h-3 shrink-0 fill-current" />
                 {t("todo.waitingStart")}
@@ -231,33 +238,37 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
                 type="button"
                 onClick={() => onStatusChange(todo.id, "completed")}
                 title={t("todo.done")}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium bg-green-50 text-green-700 border border-green-200/80 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30 dark:hover:bg-green-500/25 transition-colors"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium bg-green-50 text-green-700 border border-green-200/80 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:border-green-500/30 dark:hover:bg-green-500/25 transition-colors"
               >
                 <CheckCircle2 className="w-3 h-3 shrink-0" />
                 {t("todo.waitingComplete")}
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-1.5 mt-1.5 ml-3">
-              <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+            <div className="mt-2 ml-3 space-y-2 max-w-full">
+              <div className="flex items-center gap-2 min-w-0">
                 <input
                   type="range"
                   min={0} max={100} step={10}
                   value={todo.progress ?? 0}
                   onChange={(e) => onUpdateProgress(todo.id, Number(e.target.value))}
-                  className="flex-1 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
+                  className="flex-1 min-w-0 h-1.5 accent-blue-500 cursor-pointer appearance-none bg-slate-200/80 dark:bg-slate-700 rounded-full [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
                 />
-                <span className="text-[10px] text-slate-400 tabular-nums w-7 text-right shrink-0">{todo.progress ?? 0}%</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums w-10 text-right shrink-0 font-medium">
+                  {todo.progress ?? 0}%
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => onStatusChange(todo.id, "waiting")}
-                title={t("todo.waiting")}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200/80 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/30 dark:hover:bg-amber-500/25 transition-colors shrink-0"
-              >
-                <Clock className="w-3 h-3 shrink-0" />
-                {t("todo.moveToWaiting")}
-              </button>
+              <div className="flex justify-start sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => onStatusChange(todo.id, "waiting")}
+                  title={t("todo.waiting")}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-medium bg-amber-50 text-amber-800 border border-amber-200/80 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/30 dark:hover:bg-amber-500/25 transition-colors"
+                >
+                  <Clock className="w-3 h-3 shrink-0" />
+                  {t("todo.moveToWaiting")}
+                </button>
+              </div>
             </div>
           )}
 
