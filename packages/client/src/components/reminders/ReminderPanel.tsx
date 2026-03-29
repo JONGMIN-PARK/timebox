@@ -137,13 +137,23 @@ export default function ReminderPanel() {
   };
 
   const handleSnooze = async (id: number, mins: number) => {
-    await api.post(`/reminders/${id}/snooze`, { duration: mins });
+    const res = await api.post(`/reminders/${id}/snooze`, { duration: mins });
+    if (res.success) {
+      showToast("success", `Reminder snoozed for ${mins} min`);
+    } else {
+      showToast("error", "Failed to snooze reminder");
+    }
     setAlertReminder(null);
     fetchReminders();
   };
 
   const handleDelete = async (id: number) => {
-    await api.delete(`/reminders/${id}`);
+    const res = await api.delete(`/reminders/${id}`);
+    if (res.success) {
+      showToast("success", "Reminder deleted");
+    } else {
+      showToast("error", "Failed to delete reminder");
+    }
     if (alertReminder?.id === id) setAlertReminder(null);
     fetchReminders();
   };
