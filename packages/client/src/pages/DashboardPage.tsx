@@ -32,12 +32,17 @@ const ProjectView = lazy(() => import("@/components/project/ProjectView"));
 const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
 import NewProjectForm from "@/components/project/NewProjectForm";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 
 // Only show splash on the very first mount of the app session
 const splashShownRef = { current: false };
 
+type TodoSubTab = "tasks" | "reminders";
+
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("calendar");
+  const [todoSubTab, setTodoSubTab] = useState<TodoSubTab>("tasks");
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showVersion, setShowVersion] = useState(false);
@@ -121,19 +126,64 @@ export default function DashboardPage() {
       case "todo":
         return (
           <div className="flex flex-col h-full min-h-0 overflow-hidden">
-            {/* At least ~4 todo rows visible; reminder / D-Day scroll below on small screens */}
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div
+              className="flex-shrink-0 flex gap-1 p-2 px-3 border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-100/70 dark:bg-slate-800/50"
+              role="tablist"
+              aria-label={t("nav.todos")}
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={todoSubTab === "tasks"}
+                id="todo-subtab-tasks"
+                aria-controls="todo-subtab-panel-tasks"
+                onClick={() => setTodoSubTab("tasks")}
+                className={cn(
+                  "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  todoSubTab === "tasks"
+                    ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200/80 dark:ring-slate-600"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/60",
+                )}
+              >
+                {t("todo.subTab.tasks")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={todoSubTab === "reminders"}
+                id="todo-subtab-reminders"
+                aria-controls="todo-subtab-panel-reminders"
+                onClick={() => setTodoSubTab("reminders")}
+                className={cn(
+                  "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  todoSubTab === "reminders"
+                    ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200/80 dark:ring-slate-600"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/60",
+                )}
+              >
+                {t("todo.subTab.remindersDday")}
+              </button>
+            </div>
+            {todoSubTab === "tasks" ? (
               <div
-                className="flex-1 min-h-0 overflow-y-auto"
-                style={{ minHeight: "clamp(18rem, 50dvh, 32rem)" }}
+                id="todo-subtab-panel-tasks"
+                role="tabpanel"
+                aria-labelledby="todo-subtab-tasks"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
               >
                 <TodoList />
               </div>
-            </div>
-            <div className="lg:hidden flex-shrink-0 border-t border-slate-200/60 dark:border-slate-700/40 max-h-[30dvh] overflow-y-auto p-4 space-y-4">
-              <ReminderPanel />
-              <DDayWidget />
-            </div>
+            ) : (
+              <div
+                id="todo-subtab-panel-reminders"
+                role="tabpanel"
+                aria-labelledby="todo-subtab-reminders"
+                className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 space-y-4"
+              >
+                <ReminderPanel />
+                <DDayWidget />
+              </div>
+            )}
           </div>
         );
       case "scheduler":
@@ -165,7 +215,7 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = !["settings", "scheduler", "chat", "analytics"].includes(activeTab);
+  const showRightPanel = !["settings", "scheduler", "chat", "analytics", "todo"].includes(activeTab);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
@@ -183,14 +233,14 @@ export default function DashboardPage() {
 
         <div className="flex-1 flex overflow-hidden pb-[calc(var(--mobile-nav-h)+env(safe-area-inset-bottom,0px))] md:pb-0">
           {activeProjectId && hasTeamAccess ? (
-            <main className="flex-1 overflow-hidden animate-in">
+            <main className="min-h-0 flex-1 overflow-hidden animate-in">
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
                 <ProjectView projectId={activeProjectId} initialTab={activeTab.startsWith("project-") ? activeTab.replace("project-", "") as any : "dashboard"} />
               </Suspense>
             </main>
           ) : (
             <>
-              <main className="flex-1 overflow-hidden animate-in">
+              <main className="min-h-0 flex-1 overflow-hidden animate-in">
                 <Suspense fallback={<div className="flex-1 flex items-center justify-center"><LoadingSpinner /></div>}>
                   {renderMainContent()}
                 </Suspense>

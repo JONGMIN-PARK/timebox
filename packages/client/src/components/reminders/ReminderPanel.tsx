@@ -246,7 +246,7 @@ export default function ReminderPanel() {
           </form>
         )}
 
-        <div className="max-h-64 overflow-y-auto">
+        <div>
           {/* Upcoming reminders */}
           {upcoming.map((r) => {
             const isDue = r.remindAt <= new Date().toISOString() && (!r.snoozedUntil || r.snoozedUntil <= new Date().toISOString());

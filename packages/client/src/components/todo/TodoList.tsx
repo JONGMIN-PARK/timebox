@@ -543,7 +543,7 @@ export default function TodoList() {
   const showCompletedSection = filter === 'all' || filter === 'completed';
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
         <div className="flex items-center justify-between mb-2">
@@ -635,8 +635,8 @@ export default function TodoList() {
         </div>
       </div>
 
-      {/* Todo items */}
-      <div className="flex-1 overflow-y-auto min-h-[26rem]">
+      {/* Single scroll region: avoids nested scroll with dashboard / sidebar wrappers */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {/* Active section */}
         {showActiveSection && activeTodos.length > 0 && (
           <DndContext sensors={sensors} collisionDetection={closestCenter}

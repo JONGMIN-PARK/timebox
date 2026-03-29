@@ -84,6 +84,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.emptyTrash": "Empty trash",
     "todo.emptyTrashConfirm": "Permanently delete all tasks in the trash? This cannot be undone.",
     "todo.trashEmptied": "Trash emptied",
+    "todo.subTab.tasks": "Tasks",
+    "todo.subTab.remindersDday": "Reminders & D-Day",
 
     // Calendar
     "calendar.addEvent": "Add Event",
@@ -471,6 +473,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "todo.emptyTrash": "\ud734\uc9c0\ud1b5 \ube44\uc6b0\uae30",
     "todo.emptyTrashConfirm": "\ud734\uc9c0\ud1b5\uc758 \ubaa8\ub4e0 \ud560 \uc77c\uc744 \uc644\uc804 \uc0ad\uc81c\ud560\uae4c\uc694? \ub418\ub3cc\ub9b4 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.",
     "todo.trashEmptied": "\ud734\uc9c0\ud1b5\uc744 \ube44\uc6e0\uc2b5\ub2c8\ub2e4",
+    "todo.subTab.tasks": "\ud560 \uc77c",
+    "todo.subTab.remindersDday": "\ub9ac\ub9c8\uc778\ub354 \u00b7 \ub514\ub370\uc774",
 
     // Calendar
     "calendar.addEvent": "\uc77c\uc815 \ucd94\uac00",
