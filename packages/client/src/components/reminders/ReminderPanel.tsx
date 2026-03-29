@@ -119,13 +119,18 @@ export default function ReminderPanel() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.remindAt) return;
-    await api.post("/reminders", {
+    const res = await api.post("/reminders", {
       title: form.title.trim(),
       message: form.message.trim() || null,
       remindAt: new Date(form.remindAt).toISOString(),
       repeatRule: form.repeatRule || null,
       channel: "web_push",
     });
+    if (res.success) {
+      showToast("success", "Reminder created");
+    } else {
+      showToast("error", "Failed to create reminder");
+    }
     setForm({ title: "", remindAt: "", message: "", repeatRule: "" });
     setShowAdd(false);
     fetchReminders();
@@ -244,14 +249,14 @@ export default function ReminderPanel() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">{r.title}</p>
                   <p className={cn("text-[11px]", isDue ? "text-red-500 font-medium" : "text-slate-400")}>
-                    {isDue ? "⏰ 알림 시간!" : formatTime(r.remindAt)}
+                    {isDue ? "⏰ Time's up!" : formatTime(r.remindAt)}
                   </p>
-                  {r.repeatRule && <p className="text-[10px] text-blue-500">🔁 {r.repeatRule === "daily" ? "매일" : r.repeatRule === "weekly" ? "매주" : "매월"}</p>}
+                  {r.repeatRule && <p className="text-[10px] text-blue-500">🔁 {r.repeatRule === "daily" ? "Daily" : r.repeatRule === "weekly" ? "Weekly" : "Monthly"}</p>}
                 </div>
                 <div className="flex items-center gap-0.5 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100">
-                  <button onClick={() => handleSnooze(r.id, 15)} title="15분 후"
+                  <button onClick={() => handleSnooze(r.id, 15)} title="In 15 min"
                     className="w-6 h-6 rounded-lg btn-ghost flex items-center justify-center text-[10px] font-medium text-slate-400">15m</button>
-                  <button onClick={() => handleSnooze(r.id, 60)} title="1시간 후"
+                  <button onClick={() => handleSnooze(r.id, 60)} title="In 1 hour"
                     className="w-6 h-6 rounded-lg btn-ghost flex items-center justify-center text-[10px] font-medium text-slate-400">1h</button>
                   <button onClick={() => handleDelete(r.id)}
                     className="w-6 h-6 rounded-lg btn-ghost flex items-center justify-center">
@@ -263,9 +268,12 @@ export default function ReminderPanel() {
           })}
 
           {upcoming.length === 0 && !showAdd && (
-            <div className="px-4 py-4 text-center">
-              <p className="text-xs text-slate-400">예정된 리마인더 없음</p>
-            </div>
+            <EmptyState
+              icon={Bell}
+              title="No upcoming reminders"
+              description="Add a reminder to get notified"
+              className="py-6"
+            />
           )}
 
           {/* Past reminders toggle */}
@@ -273,14 +281,14 @@ export default function ReminderPanel() {
             <>
               <button onClick={() => setShowPast(!showPast)}
                 className="w-full px-4 py-2 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-left border-t border-slate-100 dark:border-slate-700/50">
-                {showPast ? "▾" : "▸"} 완료된 알림 ({past.length})
+                {showPast ? "▾" : "▸"} Past reminders ({past.length})
               </button>
               {showPast && past.slice(-5).map((r) => (
                 <div key={r.id} className="group flex items-start gap-2 px-4 py-2 opacity-50">
                   <Check className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-500" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] text-slate-500 line-through truncate">{r.title}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(r.remindAt).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-[10px] text-slate-400">{new Date(r.remindAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
                   <button onClick={() => handleDelete(r.id)}
                     className="w-6 h-6 rounded-lg btn-ghost flex items-center justify-center opacity-0 group-hover:opacity-100">
