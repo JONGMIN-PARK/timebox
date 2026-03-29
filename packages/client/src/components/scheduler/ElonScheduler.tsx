@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
-import { usePageVisible } from "@/lib/useVisibility";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
@@ -193,7 +192,6 @@ function SortableBrainRow({
 
 export default function ElonScheduler() {
   const { t } = useI18n();
-  const pageVisible = usePageVisible();
   const { blocks, selectedDate, setSelectedDate, fetchBlocks, addBlock, updateBlock, deleteBlock } = useTimeBlockStore();
 
   const [brainItems, setBrainItems] = useState<BrainItem[]>([]);
@@ -252,13 +250,6 @@ export default function ElonScheduler() {
       setMemoText("");
     }
   }, [selectedDate]);
-
-  useEffect(() => {
-    if (pageVisible) {
-      const today = format(new Date(), "yyyy-MM-dd");
-      if (selectedDate !== today) setSelectedDate(today);
-    }
-  }, [pageVisible, selectedDate, setSelectedDate]);
 
   const sortedBlocks = useMemo(
     () => [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)),
