@@ -101,6 +101,8 @@ export interface Todo {
   children?: Todo[];
   createdAt: string;
   updatedAt: string;
+  /** Set when the todo is in trash (soft-deleted). Omitted or null = not trashed. */
+  deletedAt?: string | null;
 }
 
 export interface CreateTodoInput {

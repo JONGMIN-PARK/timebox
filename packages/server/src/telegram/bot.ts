@@ -2,7 +2,7 @@ import TelegramBot from "node-telegram-bot-api";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../db/index.js";
 import { todos, events, ddays, telegramConfig, timeBlocks, users, files, projects, projectMembers, projectTasks } from "../db/schema.js";
-import { eq, gte, lte, and, inArray } from "drizzle-orm";
+import { eq, gte, lte, and, inArray, isNull } from "drizzle-orm";
 import cron from "node-cron";
 import fs from "fs";
 import path from "path";
@@ -206,7 +206,7 @@ export async function initTelegramBot() {
 
     const todayEvents = await db.select().from(events)
       .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
-    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
+    const allTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), isNull(todos.deletedAt)));
     const active = allTodos.filter((t) => !t.completed);
     const completed = allTodos.filter((t) => t.completed);
     const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
@@ -299,7 +299,7 @@ export async function initTelegramBot() {
 
     if (!text) { bot!.sendMessage(msg.chat.id, "❌ Please provide a task title"); return; }
 
-    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
+    const allTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), isNull(todos.deletedAt)));
     const maxOrder = allTodos.reduce((max, t) => Math.max(max, t.sortOrder), -1);
     await db.insert(todos).values({
       userId, title: text, priority, category, sortOrder: maxOrder + 1, dueDate: new Date().toISOString().slice(0, 10),
@@ -314,7 +314,7 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))))
+    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), isNull(todos.deletedAt))))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (active.length === 0) { bot!.sendMessage(msg.chat.id, "✨ No active todos!"); return; }
@@ -326,7 +326,7 @@ export async function initTelegramBot() {
       if (t.dueDate) text += ` 📅${t.dueDate.slice(5)}`;
       text += "\n";
     });
-    text += `\n_Use /check N to complete, /del N to delete_`;
+    text += `\n_Use /check N to complete, /del N to move to trash (recover in app)_`;
 
     bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
   });
@@ -338,7 +338,7 @@ export async function initTelegramBot() {
     if (!match) return;
 
     const num = parseInt(match[1]);
-    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))))
+    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), isNull(todos.deletedAt))))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (num < 1 || num > active.length) {
@@ -358,7 +358,7 @@ export async function initTelegramBot() {
     if (!match) return;
 
     const num = parseInt(match[1]);
-    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))))
+    const active = (await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), isNull(todos.deletedAt))))
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
     if (num < 1 || num > active.length) {
@@ -367,8 +367,9 @@ export async function initTelegramBot() {
     }
 
     const todo = active[num - 1];
-    await db.delete(todos).where(eq(todos.id, todo.id));
-    bot!.sendMessage(msg.chat.id, `🗑 Deleted: ${todo.title}`);
+    const now = new Date().toISOString();
+    await db.update(todos).set({ deletedAt: now, updatedAt: now }).where(eq(todos.id, todo.id));
+    bot!.sendMessage(msg.chat.id, `🗑 Moved to trash: ${todo.title}`);
   });
 
   // ── /done — Show completed todos ──
@@ -376,7 +377,7 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const completed = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true)));
+    const completed = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true), isNull(todos.deletedAt)));
 
     if (completed.length === 0) { bot!.sendMessage(msg.chat.id, "No completed todos yet"); return; }
 
@@ -440,7 +441,7 @@ export async function initTelegramBot() {
     const weekEvents = await db.select().from(events)
       .where(and(eq(events.userId, userId), gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)));
 
-    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
+    const allTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), isNull(todos.deletedAt)));
     const allBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
     const weekBlocks = allBlocks.filter((b) => b.date >= startStr && b.date <= endStr);
 
@@ -468,7 +469,7 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId));
+    const allTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), isNull(todos.deletedAt)));
     const allEvents = await db.select().from(events).where(eq(events.userId, userId));
     const allBlocks = await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
     const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
@@ -740,7 +741,7 @@ export async function initTelegramBot() {
         if (isAdmin) {
           const [allUsers, allTodos, allEvents, allBlocks, allDdays, allProjects, allTasks] = await Promise.all([
             db.select({ id: users.id, username: users.username, displayName: users.displayName, role: users.role, active: users.active }).from(users),
-            db.select().from(todos).where(eq(todos.completed, false)),
+            db.select().from(todos).where(and(eq(todos.completed, false), isNull(todos.deletedAt))),
             db.select().from(events).where(and(gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
             db.select().from(timeBlocks).where(eq(timeBlocks.date, today)),
             db.select().from(ddays),
@@ -766,7 +767,7 @@ export async function initTelegramBot() {
           );
         } else {
           const [userTodos, userEvents, userBlocks, userDdays, memberOf] = await Promise.all([
-            db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))),
+            db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), isNull(todos.deletedAt))),
             db.select().from(events).where(and(eq(events.userId, userId), gte(events.startTime, today), lte(events.startTime, today + "T23:59:59"))),
             db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today))),
             db.select().from(ddays).where(eq(ddays.userId, userId)),
@@ -874,7 +875,7 @@ async function sendDailyBriefing() {
 
       const todayEvents = await db.select().from(events)
         .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
-      const activeTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false)));
+      const activeTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), isNull(todos.deletedAt)));
       const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
       const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
       const upcoming = allDdays2.filter((d) => {

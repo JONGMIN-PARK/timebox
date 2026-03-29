@@ -108,6 +108,7 @@ export const todos = pgTable("todos", {
   updatedAt: text("updated_at")
     .notNull()
     .default(sql`now()`),
+  deletedAt: text("deleted_at"), // ISO timestamp when soft-deleted (trash)
 });
 
 // ── D-Days ──

@@ -65,6 +65,13 @@ try {
   await db.execute(sql`UPDATE todos SET status = 'active' WHERE completed = false`);
   logger.info("Auto-migration complete: todos.status column added");
 }
+try {
+  await db.execute(sql`SELECT deleted_at FROM todos LIMIT 0`);
+} catch {
+  logger.info("Auto-migrating: adding deleted_at column to todos table...");
+  await db.execute(sql`ALTER TABLE todos ADD COLUMN deleted_at TEXT`);
+  logger.info("Auto-migration complete: todos.deleted_at column added");
+}
 
 // Middleware
 app.use(compression());

@@ -22,6 +22,9 @@ interface TodoState {
   addTodo: (title: string, priority?: string, dueDate?: string, category?: string, status?: 'waiting' | 'active' | 'completed') => Promise<void>;
   toggleTodo: (id: number) => Promise<void>;
   deleteTodo: (id: number) => Promise<void>;
+  restoreTodo: (id: number) => Promise<void>;
+  permanentlyDeleteTodo: (id: number) => Promise<void>;
+  emptyTrash: () => Promise<void>;
   updateTodo: (id: number, updates: Partial<Todo>) => Promise<void>;
   updateStatus: (id: number, status: 'waiting' | 'active' | 'completed') => Promise<void>;
   reorderTodos: (items: { id: number; sortOrder: number }[]) => Promise<void>;
@@ -40,11 +43,16 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   fetchTodos: async () => {
     set({ error: null, loading: true });
     try {
-      const res = await todoApi.getAll();
-      if (res.success && res.data) {
-        set({ todos: res.data, loading: false });
+      const [main, trash] = await Promise.all([todoApi.getAll(), todoApi.getAll("trash")]);
+      if (main.success && main.data && trash.success && trash.data) {
+        set({ todos: [...main.data, ...trash.data], loading: false });
+      } else if (main.success && main.data) {
+        set({ todos: main.data, loading: false });
+        if (!trash.success && trash.error) {
+          showToast("error", trash.error);
+        }
       } else {
-        const msg = res.error || "Failed to fetch todos";
+        const msg = main.error || "Failed to fetch todos";
         set({ error: msg, loading: false });
         showToast("error", msg);
       }
@@ -59,7 +67,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     // Optimistic: add temp item
     const tempId = -Date.now();
     const date = dueDate || new Date().toISOString().slice(0, 10);
-    const tempTodo = { id: tempId, title, completed: status === 'completed', progress: status === 'completed' ? 100 : 0, status, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString() };
+    const tempTodo = { id: tempId, title, completed: status === 'completed', progress: status === 'completed' ? 100 : 0, status, priority, dueDate: date, category, sortOrder: 0, parentId: null, userId: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null as string | null };
     set({ todos: [tempTodo as Todo, ...get().todos] });
 
     try {
@@ -105,13 +113,17 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
   deleteTodo: async (id) => {
     set({ error: null });
-    // Optimistic delete
     const prev = get().todos;
-    set({ todos: prev.filter(t => t.id !== id) });
+    const now = new Date().toISOString();
+    set({
+      todos: prev.map((t) => (t.id === id ? { ...t, deletedAt: now, updatedAt: now } : t)),
+    });
 
     try {
       const res = await todoApi.delete(id);
-      if (!res.success) {
+      if (res.success && res.data) {
+        set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
+      } else {
         const msg = res.error || "Failed to delete todo";
         set({ todos: prev, error: msg });
         showToast("error", msg);
@@ -119,6 +131,70 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     } catch {
       const msg = "Failed to delete todo";
       set({ todos: prev, error: msg });
+      showToast("error", msg);
+    }
+  },
+
+  restoreTodo: async (id) => {
+    set({ error: null });
+    const prev = get().todos;
+    set({
+      todos: prev.map((t) => (t.id === id ? { ...t, deletedAt: null, updatedAt: new Date().toISOString() } : t)),
+    });
+    try {
+      const res = await todoApi.restore(id);
+      if (res.success && res.data) {
+        set({ todos: get().todos.map((t) => (t.id === id ? res.data! : t)) });
+      } else {
+        set({ todos: prev });
+        const msg = res.error || "Failed to restore todo";
+        set({ error: msg });
+        showToast("error", msg);
+      }
+    } catch {
+      set({ todos: prev });
+      const msg = "Failed to restore todo";
+      set({ error: msg });
+      showToast("error", msg);
+    }
+  },
+
+  permanentlyDeleteTodo: async (id) => {
+    set({ error: null });
+    const prev = get().todos;
+    set({ todos: prev.filter((t) => t.id !== id) });
+    try {
+      const res = await todoApi.deletePermanent(id);
+      if (!res.success) {
+        set({ todos: prev });
+        const msg = res.error || "Failed to permanently delete";
+        set({ error: msg });
+        showToast("error", msg);
+      }
+    } catch {
+      set({ todos: prev });
+      const msg = "Failed to permanently delete";
+      set({ error: msg });
+      showToast("error", msg);
+    }
+  },
+
+  emptyTrash: async () => {
+    set({ error: null });
+    const prev = get().todos;
+    set({ todos: prev.filter((t) => !t.deletedAt) });
+    try {
+      const res = await todoApi.emptyTrash();
+      if (!res.success) {
+        set({ todos: prev });
+        const msg = res.error || "Failed to empty trash";
+        set({ error: msg });
+        showToast("error", msg);
+      }
+    } catch {
+      set({ todos: prev });
+      const msg = "Failed to empty trash";
+      set({ error: msg });
       showToast("error", msg);
     }
   },

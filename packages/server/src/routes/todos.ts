@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { todos } from "../db/schema.js";
-import { eq, and, asc, desc, sql } from "drizzle-orm";
+import { eq, and, asc, desc, sql, isNull, isNotNull } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
@@ -33,6 +33,26 @@ async function ensureStatusColumn() {
   return statusColumnReady;
 }
 
+let deletedAtColumnReady: boolean | null = null;
+async function ensureDeletedAtColumn() {
+  if (deletedAtColumnReady !== null) return deletedAtColumnReady;
+  try {
+    await db.execute(sql`SELECT deleted_at FROM todos LIMIT 0`);
+    deletedAtColumnReady = true;
+  } catch {
+    logger.warn("todos.deleted_at column not found - auto-migrating...");
+    try {
+      await db.execute(sql`ALTER TABLE todos ADD COLUMN deleted_at TEXT`);
+      deletedAtColumnReady = true;
+      logger.info("todos.deleted_at column added successfully");
+    } catch (e) {
+      logger.error("Failed to auto-migrate deleted_at column", { error: String(e) });
+      deletedAtColumnReady = false;
+    }
+  }
+  return deletedAtColumnReady;
+}
+
 // Keep backward compat alias
 const checkStatusColumn = ensureStatusColumn;
 
@@ -42,23 +62,54 @@ function withStatus(row: Record<string, unknown>) {
   return { ...row, status };
 }
 
+/** Non-trashed todos only (when column exists). */
+function notTrashed() {
+  return isNull(todos.deletedAt);
+}
+
 router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
   const filter = req.query.filter as string | undefined;
   const hasStatus = await checkStatusColumn();
+  await ensureDeletedAtColumn();
   let result;
 
-  if (filter === "completed") {
-    result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, true))).orderBy(desc(todos.updatedAt));
+  if (filter === "trash") {
+    result = await db
+      .select()
+      .from(todos)
+      .where(and(eq(todos.userId, userId), isNotNull(todos.deletedAt)))
+      .orderBy(desc(todos.updatedAt));
+  } else if (filter === "completed") {
+    result = await db
+      .select()
+      .from(todos)
+      .where(and(eq(todos.userId, userId), eq(todos.completed, true), notTrashed()))
+      .orderBy(desc(todos.updatedAt));
   } else if (filter === "active" && hasStatus) {
-    result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), eq(todos.status, "active"))).orderBy(asc(todos.sortOrder));
+    result = await db
+      .select()
+      .from(todos)
+      .where(and(eq(todos.userId, userId), eq(todos.completed, false), eq(todos.status, "active"), notTrashed()))
+      .orderBy(asc(todos.sortOrder));
   } else if (filter === "waiting" && hasStatus) {
-    result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.status, "waiting"))).orderBy(asc(todos.sortOrder));
+    result = await db
+      .select()
+      .from(todos)
+      .where(and(eq(todos.userId, userId), eq(todos.status, "waiting"), notTrashed()))
+      .orderBy(asc(todos.sortOrder));
   } else if (filter === "active" || filter === "waiting") {
-    // Fallback: no status column, return all non-completed
-    result = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false))).orderBy(asc(todos.sortOrder));
+    result = await db
+      .select()
+      .from(todos)
+      .where(and(eq(todos.userId, userId), eq(todos.completed, false), notTrashed()))
+      .orderBy(asc(todos.sortOrder));
   } else {
-    result = await db.select().from(todos).where(eq(todos.userId, userId)).orderBy(asc(todos.sortOrder), desc(todos.createdAt));
+    result = await db
+      .select()
+      .from(todos)
+      .where(and(eq(todos.userId, userId), notTrashed()))
+      .orderBy(asc(todos.sortOrder), desc(todos.createdAt));
   }
 
   res.json({ success: true, data: result.map(withStatus) });
@@ -68,6 +119,7 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
   const userId = req.userId!;
   const { title, priority, category, dueDate, parentId, status } = req.body;
   const hasStatus = await checkStatusColumn();
+  await ensureDeletedAtColumn();
 
   const validStatuses = ["waiting", "active", "completed"];
   const todoStatus = validStatuses.includes(status) ? status : "active";
@@ -77,7 +129,7 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
   const maxOrder = await db
     .select({ max: sql<number>`COALESCE(MAX(sort_order), 0)` })
     .from(todos)
-    .where(eq(todos.userId, userId));
+    .where(and(eq(todos.userId, userId), notTrashed()));
 
   const values: Record<string, unknown> = {
     userId,
@@ -107,7 +159,8 @@ router.put("/reorder", asyncHandler<AuthRequest>(async (req, res) => {
   }
 
   for (const item of items) {
-    await db.update(todos)
+    await db
+      .update(todos)
       .set({ sortOrder: item.sortOrder, updatedAt: new Date().toISOString() })
       .where(and(eq(todos.id, item.id), eq(todos.userId, userId)));
   }
@@ -115,11 +168,69 @@ router.put("/reorder", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true });
 }));
 
+/** Permanently delete every todo in trash for this user. */
+router.delete("/trash", asyncHandler<AuthRequest>(async (req, res) => {
+  await ensureDeletedAtColumn();
+  const userId = req.userId!;
+  const removed = await db
+    .delete(todos)
+    .where(and(eq(todos.userId, userId), isNotNull(todos.deletedAt)))
+    .returning({ id: todos.id });
+  res.json({ success: true, data: { count: removed.length } });
+}));
+
+router.post("/:id/restore", asyncHandler<AuthRequest>(async (req, res) => {
+  await ensureDeletedAtColumn();
+  const id = parseInt(req.params.id as string, 10);
+  const userId = req.userId!;
+  if (Number.isNaN(id)) {
+    throw new ValidationError("Invalid todo id");
+  }
+
+  const existing = await db.select().from(todos).where(and(eq(todos.id, id), eq(todos.userId, userId)));
+  if (!existing[0]) {
+    throw new NotFoundError("Todo");
+  }
+  if (!existing[0].deletedAt) {
+    res.json({ success: true, data: withStatus(existing[0] as Record<string, unknown>) });
+    return;
+  }
+
+  const result = await db
+    .update(todos)
+    .set({ deletedAt: null, updatedAt: new Date().toISOString() })
+    .where(and(eq(todos.id, id), eq(todos.userId, userId)))
+    .returning();
+
+  res.json({ success: true, data: withStatus(result[0] as Record<string, unknown>) });
+}));
+
+router.delete("/:id/permanent", asyncHandler<AuthRequest>(async (req, res) => {
+  await ensureDeletedAtColumn();
+  const id = parseInt(req.params.id as string, 10);
+  const userId = req.userId!;
+  if (Number.isNaN(id)) {
+    throw new ValidationError("Invalid todo id");
+  }
+
+  const existing = await db.select().from(todos).where(and(eq(todos.id, id), eq(todos.userId, userId)));
+  if (!existing[0]) {
+    throw new NotFoundError("Todo");
+  }
+  if (!existing[0].deletedAt) {
+    throw new ValidationError("Todo must be in trash before permanent delete");
+  }
+
+  await db.delete(todos).where(and(eq(todos.id, id), eq(todos.userId, userId)));
+  res.json({ success: true, data: withStatus(existing[0] as Record<string, unknown>) });
+}));
+
 router.put("/:id/status", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);
   const userId = req.userId!;
   const { status } = req.body;
   const hasStatus = await checkStatusColumn();
+  await ensureDeletedAtColumn();
 
   const validStatuses = ["waiting", "active", "completed"];
   if (!status || !validStatuses.includes(status)) {
@@ -143,7 +254,11 @@ router.put("/:id/status", asyncHandler<AuthRequest>(async (req, res) => {
     updates.progress = 0;
   }
 
-  const result = await db.update(todos).set(updates).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning();
+  const result = await db
+    .update(todos)
+    .set(updates)
+    .where(and(eq(todos.id, id), eq(todos.userId, userId), notTrashed()))
+    .returning();
   if (!result[0]) {
     throw new NotFoundError("Todo");
   }
@@ -155,6 +270,7 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);
   const userId = req.userId!;
   const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  await ensureDeletedAtColumn();
 
   if (req.body.title !== undefined) updates.title = req.body.title.trim();
   if (req.body.completed !== undefined) updates.completed = req.body.completed;
@@ -183,7 +299,11 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
     }
   }
 
-  const result = await db.update(todos).set(updates).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning();
+  const result = await db
+    .update(todos)
+    .set(updates)
+    .where(and(eq(todos.id, id), eq(todos.userId, userId), notTrashed()))
+    .returning();
   if (!result[0]) {
     throw new NotFoundError("Todo");
   }
@@ -192,13 +312,30 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
 }));
 
 router.delete("/:id", asyncHandler<AuthRequest>(async (req, res) => {
-  const id = parseInt(req.params.id as string);
+  await ensureDeletedAtColumn();
+  const id = parseInt(req.params.id as string, 10);
   const userId = req.userId!;
-  const result = await db.delete(todos).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning();
-  if (!result[0]) {
+  if (Number.isNaN(id)) {
+    throw new ValidationError("Invalid todo id");
+  }
+
+  const existing = await db.select().from(todos).where(and(eq(todos.id, id), eq(todos.userId, userId)));
+  if (!existing[0]) {
     throw new NotFoundError("Todo");
   }
-  res.json({ success: true, data: withStatus(result[0]) });
+  if (existing[0].deletedAt) {
+    res.json({ success: true, data: withStatus(existing[0] as Record<string, unknown>) });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const result = await db
+    .update(todos)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(and(eq(todos.id, id), eq(todos.userId, userId)))
+    .returning();
+
+  res.json({ success: true, data: withStatus(result[0] as Record<string, unknown>) });
 }));
 
 export default router;

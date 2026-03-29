@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search, Clock, Play } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Search, Clock, Play, RotateCcw } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay,
@@ -16,6 +16,10 @@ import { useI18n } from "@/lib/useI18n";
 function getEffectiveStatus(todo: Todo): 'waiting' | 'active' | 'completed' {
   if (todo.status) return todo.status;
   return todo.completed ? 'completed' : 'active';
+}
+
+function isTrashed(todo: Todo): boolean {
+  return Boolean(todo.deletedAt);
 }
 
 function getDaysLeft(d: string | null): number | null {
@@ -297,8 +301,8 @@ function SortableTodoItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpda
               <Pencil className="w-3 h-3" />
             </button>
           )}
-          <button onClick={() => onDelete(todo.id)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          <button type="button" onClick={() => onDelete(todo.id)} title={t("todo.moveToTrash")}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>
@@ -343,8 +347,52 @@ const CompletedTodoItem = memo(function CompletedTodoItem({
         <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
         <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
       </div>
-      <button onClick={() => onDelete(todo.id)} className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-        <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
+      <button type="button" onClick={() => onDelete(todo.id)} title={t("todo.moveToTrash")}
+        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <Trash2 className="w-3 h-3 text-slate-400 hover:text-amber-600" />
+      </button>
+    </li>
+  );
+});
+
+// ── Trashed (soft-deleted) row ──
+const TrashedTodoItem = memo(function TrashedTodoItem({
+  todo, onRestore, onPermanentDelete,
+}: {
+  todo: Todo;
+  onRestore: (id: number) => void;
+  onPermanentDelete: (id: number) => void;
+}) {
+  const { t } = useI18n();
+  const catInfo = getCategoryInfo(todo.category);
+  const st = getEffectiveStatus(todo);
+  const statusLabel = st === "waiting" ? t("todo.waiting") : st === "completed" ? t("todo.done") : t("todo.active");
+  return (
+    <li className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors border-l-2 border-slate-300/80 dark:border-slate-600">
+      <Trash2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <span className="text-[13px] text-slate-600 dark:text-slate-300 truncate block">{todo.title}</span>
+        <span className="text-[10px] text-slate-400">
+          {catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}
+          <span className="text-slate-300 dark:text-slate-600 mx-1">·</span>
+          {statusLabel}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => onRestore(todo.id)}
+        title={t("todo.restore")}
+        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/15 transition-colors"
+      >
+        <RotateCcw className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onPermanentDelete(todo.id)}
+        title={t("todo.deletePermanently")}
+        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+      >
+        <Trash2 className="w-3.5 h-3.5" />
       </button>
     </li>
   );
@@ -352,7 +400,7 @@ const CompletedTodoItem = memo(function CompletedTodoItem({
 
 // ── Main TodoList ──
 export default function TodoList() {
-  const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, updateStatus, reorderTodos } = useTodoStore();
+  const { todos, filter, categoryFilter, loading, setFilter, setCategoryFilter, fetchTodos, addTodo, toggleTodo, deleteTodo, restoreTodo, permanentlyDeleteTodo, emptyTrash, updateTodo, updateStatus, reorderTodos } = useTodoStore();
   const { t } = useI18n();
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState(new Date().toISOString().slice(0, 10));
@@ -360,6 +408,7 @@ export default function TodoList() {
   const [newAsWaiting, setNewAsWaiting] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [showWaiting, setShowWaiting] = useState(true);
+  const [showTrash, setShowTrash] = useState(false);
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -370,16 +419,25 @@ export default function TodoList() {
 
   useEffect(() => { fetchTodos(); }, [fetchTodos]);
 
-  // Apply filters
+  const matchesSearch = useCallback((t: Todo) =>
+    !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    [searchQuery]);
+
+  // Active lists: exclude soft-deleted
   const filtered = useMemo(() =>
     todos.filter((t) => {
+      if (isTrashed(t)) return false;
       if (categoryFilter && !t.category.startsWith(categoryFilter)) return false;
       return true;
     }), [todos, categoryFilter]);
 
-  const matchesSearch = useCallback((t: Todo) =>
-    !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()),
-    [searchQuery]);
+  const trashedFiltered = useMemo(() =>
+    todos.filter((t) => {
+      if (!isTrashed(t)) return false;
+      if (categoryFilter && !t.category.startsWith(categoryFilter)) return false;
+      return true;
+    }).filter((t) => matchesSearch(t)),
+    [todos, categoryFilter, matchesSearch]);
 
   const waitingTodos = useMemo(() =>
     filtered.filter((t) => getEffectiveStatus(t) === 'waiting' && matchesSearch(t)),
@@ -407,11 +465,14 @@ export default function TodoList() {
   // Category counts for filter
   const categoryCounts = useMemo(() =>
     todos.reduce((acc, t) => {
+      if (isTrashed(t)) return acc;
       const root = t.category.split(".")[0];
       acc[root] = (acc[root] || 0) + 1;
       return acc;
     }, {} as Record<string, number>),
     [todos]);
+
+  const activeTodoCount = useMemo(() => todos.filter((t) => !isTrashed(t)).length, [todos]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -450,7 +511,21 @@ export default function TodoList() {
   const handleStatusChange = useCallback((id: number, status: 'waiting' | 'active' | 'completed') => { updateStatus(id, status); }, [updateStatus]);
   const handleRestore = useCallback((id: number) => { updateStatus(id, 'active'); }, [updateStatus]);
   const handleMoveToWaiting = useCallback((id: number) => { updateStatus(id, 'waiting'); }, [updateStatus]);
-  const handleDelete = useCallback((id: number) => { deleteTodo(id); showToast("success", "Todo deleted"); }, [deleteTodo]);
+  const handleDelete = useCallback((id: number) => { deleteTodo(id); showToast("success", t("todo.movedToTrash")); }, [deleteTodo, t]);
+
+  const handleRestoreFromTrash = useCallback((id: number) => { restoreTodo(id); showToast("success", t("todo.restored")); }, [restoreTodo, t]);
+
+  const handlePermanentDelete = useCallback((id: number) => {
+    if (!window.confirm(t("todo.permanentDeleteConfirm"))) return;
+    permanentlyDeleteTodo(id);
+    showToast("success", t("todo.permanentlyDeleted"));
+  }, [permanentlyDeleteTodo, t]);
+
+  const handleEmptyTrash = useCallback(() => {
+    if (!window.confirm(t("todo.emptyTrashConfirm"))) return;
+    emptyTrash();
+    showToast("success", t("todo.trashEmptied"));
+  }, [emptyTrash, t]);
   const handleUpdateDate = useCallback((id: number, d: string) => updateTodo(id, { dueDate: d }), [updateTodo]);
   const handleUpdateTitle = useCallback((id: number, t: string) => updateTodo(id, { title: t }), [updateTodo]);
   const handleUpdateCategory = useCallback((id: number, c: string) => updateTodo(id, { category: c }), [updateTodo]);
@@ -528,7 +603,7 @@ export default function TodoList() {
           <button onClick={() => setCategoryFilter("")}
             className={cn("px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap",
               !categoryFilter ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/50")}>
-            {t("todo.all")} ({todos.length})
+            {t("todo.all")} ({activeTodoCount})
           </button>
           {TODO_CATEGORIES.filter((c) => categoryCounts[c.id]).map((cat) => (
             <button key={cat.id} onClick={() => setCategoryFilter(categoryFilter === cat.id ? "" : cat.id)}
@@ -646,6 +721,40 @@ export default function TodoList() {
                   />
                 ))}
               </ul>
+            )}
+          </div>
+        )}
+
+        {trashedFiltered.length > 0 && (
+          <div className="border-t border-slate-100 dark:border-slate-700/50">
+            <button type="button" onClick={() => setShowTrash(!showTrash)}
+              className="flex items-center gap-2 px-4 py-2 text-[11px] font-medium text-slate-500 w-full hover:bg-slate-50/80 dark:hover:bg-slate-700/30">
+              {showTrash ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              <Trash2 className="w-3 h-3" />
+              {t("todo.trash")} ({trashedFiltered.length})
+            </button>
+            {showTrash && (
+              <>
+                <div className="px-4 py-1.5 flex justify-end border-b border-slate-100/80 dark:border-slate-700/40">
+                  <button
+                    type="button"
+                    onClick={handleEmptyTrash}
+                    className="text-[10px] font-medium text-red-600 dark:text-red-400 hover:underline px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    {t("todo.emptyTrash")}
+                  </button>
+                </div>
+                <ul>
+                  {trashedFiltered.map((todo) => (
+                    <TrashedTodoItem
+                      key={todo.id}
+                      todo={todo}
+                      onRestore={handleRestoreFromTrash}
+                      onPermanentDelete={handlePermanentDelete}
+                    />
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         )}

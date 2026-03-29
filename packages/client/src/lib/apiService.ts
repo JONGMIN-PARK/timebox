@@ -21,7 +21,7 @@ export type ApiRes<T> = { success: boolean; data?: T; error?: string };
 
 // ── Todo ──────────────────────────────────────────────────────────────
 export const todoApi = {
-  getAll: (filter?: 'waiting' | 'active' | 'completed') => {
+  getAll: (filter?: 'waiting' | 'active' | 'completed' | 'trash') => {
     const query = filter ? `?filter=${filter}` : "";
     return api.get<Todo[]>(`/todos${query}`);
   },
@@ -29,7 +29,10 @@ export const todoApi = {
     api.post<Todo>("/todos", data),
   update: (id: number, data: Partial<Todo>) =>
     api.put<Todo>(`/todos/${id}`, data),
-  delete: (id: number) => api.delete(`/todos/${id}`),
+  delete: (id: number) => api.delete<Todo>(`/todos/${id}`),
+  restore: (id: number) => api.post<Todo>(`/todos/${id}/restore`, {}),
+  deletePermanent: (id: number) => api.delete<Todo>(`/todos/${id}/permanent`),
+  emptyTrash: () => api.delete<{ count: number }>("/todos/trash"),
   toggle: (id: number, data: { completed: boolean; progress: number }) =>
     api.put<Todo>(`/todos/${id}`, data),
   reorder: (items: { id: number; sortOrder: number }[]) =>
