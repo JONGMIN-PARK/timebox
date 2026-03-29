@@ -44,7 +44,7 @@ router.get("/", async (req: AuthRequest, res) => {
     const lastMsgsResult = roomIds.length > 0 ? await db.execute(sql`
       SELECT DISTINCT ON (room_id) room_id, id, content, type, user_id, created_at
       FROM chat_messages
-      WHERE room_id = ANY(${roomIds})
+      WHERE room_id IN (${sql.join(roomIds.map(id => sql`${id}`), sql`, `)})
       ORDER BY room_id, id DESC
     `) : { rows: [] };
     const lastMessageMap = new Map<number, { id: number; content: string; type: string; userId: number; createdAt: string }>();
