@@ -5,6 +5,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { Mail, Send, Trash2, Check, CheckCheck, ArrowLeft, Plus, X } from "lucide-react";
 import { formatDateTime } from "@/lib/dateUtils";
+import EmptyState from "@/components/ui/EmptyState";
+import { showToast } from "@/components/ui/Toast";
 
 interface InboxMessage {
   id: number;
@@ -63,17 +65,24 @@ export default function InboxPanel() {
     setSelectedMsg(msg);
     setView("detail");
     if (!msg.read && tab === "inbox") {
-      await api.put(`/inbox/${msg.id}/read`, {});
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m));
-      notifyInboxUpdated();
+      const res = await api.put(`/inbox/${msg.id}/read`, {});
+      if (res.success) {
+        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, read: true } : m));
+        notifyInboxUpdated();
+      }
     }
   };
 
   const handleDelete = async (id: number) => {
-    await api.delete(`/inbox/${id}`);
-    setMessages(prev => prev.filter(m => m.id !== id));
-    if (selectedMsg?.id === id) { setView("list"); setSelectedMsg(null); }
-    notifyInboxUpdated();
+    const res = await api.delete(`/inbox/${id}`);
+    if (res.success) {
+      setMessages(prev => prev.filter(m => m.id !== id));
+      if (selectedMsg?.id === id) { setView("list"); setSelectedMsg(null); }
+      notifyInboxUpdated();
+      showToast("success", t("inbox.deleteSuccess") ?? "Message deleted");
+    } else {
+      showToast("error", t("inbox.deleteFailed") ?? "Failed to delete message");
+    }
   };
 
   const handleMarkAllRead = async () => {
@@ -102,9 +111,12 @@ export default function InboxPanel() {
       content: content.trim(),
     });
     if (res.success) {
+      showToast("success", t("inbox.sendSuccess") ?? "Message sent");
       setView("list");
       setTab("inbox");
       fetchMessages();
+    } else {
+      showToast("error", t("inbox.sendFailed") ?? "Failed to send message");
     }
     setSending(false);
   };
@@ -165,10 +177,11 @@ export default function InboxPanel() {
         {loading ? (
           <div className="py-8 text-center text-slate-400 text-sm">{t("common.loading")}</div>
         ) : messages.length === 0 ? (
-          <div className="py-12 text-center text-slate-400">
-            <Mail className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm">{t("inbox.empty")}</p>
-          </div>
+          <EmptyState
+            icon={Mail}
+            title={t("inbox.empty") ?? "No messages"}
+            action={{ label: t("inbox.compose"), onClick: openCompose }}
+          />
         ) : (
           messages.map(msg => (
             <button

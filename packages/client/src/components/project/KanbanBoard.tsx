@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { Plus, GripVertical, CalendarDays, Loader2, Clock, Pencil, User } from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import {
   DndContext,
@@ -52,7 +53,7 @@ function stableSort(tasks: ProjectTask[]) {
 }
 
 const PRIORITY_LABEL: Record<string, string> = {
-  urgent: "긴급", high: "높음", medium: "보통", low: "낮음",
+  urgent: "Urgent", high: "High", medium: "Medium", low: "Low",
 };
 
 // ── Draggable task card ──
@@ -152,7 +153,7 @@ const TaskCard = React.memo(function TaskCard({
             <button
               onClick={handleEditClick}
               className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-opacity flex-shrink-0"
-              title="수정"
+              title="Edit"
             >
               <Pencil className="w-3 h-3 text-slate-400 hover:text-blue-500" />
             </button>
@@ -230,11 +231,11 @@ const TaskCard = React.memo(function TaskCard({
             </p>
           )}
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-700">
-            <span>우선순위: <strong className="text-slate-700 dark:text-slate-300">{PRIORITY_LABEL[task.priority] || task.priority}</strong></span>
-            {task.dueDate && <span>마감: <strong className="text-slate-700 dark:text-slate-300">{task.dueDate}</strong></span>}
-            {task.startDate && <span>시작: <strong className="text-slate-700 dark:text-slate-300">{task.startDate}</strong></span>}
-            {assignee && <span>담당: <strong className="text-slate-700 dark:text-slate-300">{assignee.displayName || assignee.username}</strong></span>}
-            <span>수정: <strong className="text-slate-700 dark:text-slate-300">{fmtDateTime(task.updatedAt)}</strong></span>
+            <span>Priority: <strong className="text-slate-700 dark:text-slate-300">{PRIORITY_LABEL[task.priority] || task.priority}</strong></span>
+            {task.dueDate && <span>Due: <strong className="text-slate-700 dark:text-slate-300">{task.dueDate}</strong></span>}
+            {task.startDate && <span>Start: <strong className="text-slate-700 dark:text-slate-300">{task.startDate}</strong></span>}
+            {assignee && <span>Assignee: <strong className="text-slate-700 dark:text-slate-300">{assignee.displayName || assignee.username}</strong></span>}
+            <span>Updated: <strong className="text-slate-700 dark:text-slate-300">{fmtDateTime(task.updatedAt)}</strong></span>
           </div>
         </div>
       )}
@@ -476,6 +477,7 @@ export default function KanbanBoard({ projectId, myRole }: KanbanBoardProps) {
       }
     }
     // Notify stats refresh on any status change
+    showToast("success", "Task status changed");
     notifyTaskChange();
   }, [tasks, projectId, updateTask, reorderTasks, notifyTaskChange]);
 
@@ -493,16 +495,19 @@ export default function KanbanBoard({ projectId, myRole }: KanbanBoardProps) {
       sortOrder: maxSort + 1,
       assigneeId: currentUserId || undefined,
     });
+    showToast("success", "Task created");
     notifyTaskChange();
   }, [projectId, addTask, tasksByStatus, currentUserId, notifyTaskChange]);
 
   const handleUpdateTask = useCallback(async (taskId: number, data: Partial<ProjectTask>) => {
     await updateTask(projectId, taskId, data);
+    showToast("success", "Task updated");
     notifyTaskChange();
   }, [projectId, updateTask, notifyTaskChange]);
 
   const handleDeleteTask = useCallback(async (taskId: number) => {
     await deleteTask(projectId, taskId);
+    showToast("success", "Task deleted");
     notifyTaskChange();
   }, [projectId, deleteTask, notifyTaskChange]);
 

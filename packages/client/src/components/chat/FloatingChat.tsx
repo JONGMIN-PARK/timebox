@@ -13,6 +13,7 @@ import {
   User,
   Paperclip,
 } from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
 
 // ── Types ──
 
@@ -64,10 +65,10 @@ interface SlashCommand {
 }
 
 const SLASH_COMMANDS: SlashCommand[] = [
-  { command: "/todo", label: "/todo [제목]", description: "할일 등록" },
-  { command: "/meeting", label: "/meeting [제목]", description: "미팅 일정 등록 (오늘 기준)" },
-  { command: "/remind", label: "/remind [제목]", description: "리마인더 등록" },
-  { command: "/assign", label: "/assign [제목]", description: "상대방에게 할일 할당 (인박스 전송)" },
+  { command: "/todo", label: "/todo [title]", description: "Create a todo" },
+  { command: "/meeting", label: "/meeting [title]", description: "Schedule a meeting (today)" },
+  { command: "/remind", label: "/remind [title]", description: "Set a reminder" },
+  { command: "/assign", label: "/assign [title]", description: "Assign a task to partner (inbox)" },
 ];
 
 // ── Component ──
@@ -314,7 +315,7 @@ export default function FloatingChat() {
       case "/todo": {
         const res = await api.post("/todos", { title });
         if (res.success) {
-          confirmationMsg = "\u2705 \ud560\uc77c '" + title + "' \ub4f1\ub85d\ub428";
+          confirmationMsg = "\u2705 Todo '" + title + "' created";
         }
         break;
       }
@@ -331,14 +332,14 @@ export default function FloatingChat() {
         });
         if (res.success) {
           const timeStr = startTime.getHours().toString().padStart(2, "0") + ":00";
-          confirmationMsg = "\u2705 \ubbf8\ud305 '" + title + "' \ub4f1\ub85d\ub428 (\uc624\ub298 " + timeStr + ")";
+          confirmationMsg = "\u2705 Meeting '" + title + "' scheduled (today " + timeStr + ")";
         }
         break;
       }
       case "/remind": {
         const res = await api.post("/reminders", { title });
         if (res.success) {
-          confirmationMsg = "\u2705 \ub9ac\ub9c8\uc778\ub354 '" + title + "' \ub4f1\ub85d\ub428";
+          confirmationMsg = "\u2705 Reminder '" + title + "' created";
         }
         break;
       }
@@ -346,11 +347,11 @@ export default function FloatingChat() {
         if (!activePartner) return false;
         const res = await api.post("/inbox", {
           recipientId: activePartner.id,
-          content: "[\ud560\uc77c \ud560\ub2f9] " + title,
+          content: "[Task assigned] " + title,
           type: "task",
         });
         if (res.success) {
-          confirmationMsg = "\u2705 '" + title + "' \ud560\uc77c\uc774 " + activePartner.name + "\ub2d8\uc5d0\uac8c \ud560\ub2f9\ub428";
+          confirmationMsg = "\u2705 Task '" + title + "' assigned to " + activePartner.name;
         }
         break;
       }
@@ -402,6 +403,8 @@ export default function FloatingChat() {
         roomId: String(activeRoom.id),
         message: res.data,
       });
+    } else {
+      showToast("error", "Failed to send message");
     }
 
     setInput("");
@@ -516,7 +519,7 @@ export default function FloatingChat() {
         <div className="flex items-center gap-2">
           <MessageCircle className="w-4 h-4 text-blue-500" />
           <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white">
-            채팅
+            Chat
           </h2>
         </div>
         <button
@@ -535,7 +538,7 @@ export default function FloatingChat() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="사용자 검색..."
+            placeholder="Search users..."
             className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg bg-slate-100 dark:bg-slate-700/50 border-0 outline-none focus:ring-2 focus:ring-blue-500/40 text-slate-900 dark:text-white placeholder:text-slate-400"
           />
         </div>
@@ -547,7 +550,7 @@ export default function FloatingChat() {
         {filteredRooms.length > 0 && (
           <div>
             <div className="px-4 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              최근 대화
+              Recent chats
             </div>
             {filteredRooms.map((room) => (
               <button
@@ -598,7 +601,7 @@ export default function FloatingChat() {
         {filteredOnlineUsers.length > 0 && (
           <div>
             <div className="px-4 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              온라인 사용자
+              Online
             </div>
             {filteredOnlineUsers.map((ou) => (
               <button
@@ -631,7 +634,7 @@ export default function FloatingChat() {
         {filteredUsers.length > 0 && (
           <div>
             <div className="px-4 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              모든 사용자
+              All users
             </div>
             {filteredUsers.map((u) => (
               <button
@@ -667,7 +670,7 @@ export default function FloatingChat() {
           filteredUsers.length === 0 && (
             <div className="py-12 text-center text-slate-400">
               <User className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-              <p className="text-sm">검색 결과 없음</p>
+              <p className="text-sm">No results found</p>
             </div>
           )}
       </div>
@@ -691,7 +694,7 @@ export default function FloatingChat() {
             {activeRoom?.displayName || activeRoom?.name || activePartner?.name}
           </h3>
           {activePartner && onlineUserIds.has(activePartner.id) && (
-            <span className="text-[10px] text-green-500 font-medium">온라인</span>
+            <span className="text-[10px] text-green-500 font-medium">Online</span>
           )}
         </div>
         <button
@@ -709,14 +712,14 @@ export default function FloatingChat() {
       >
         {messagesLoading ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm">
-            로딩 중...
+            Loading...
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-400">
             <MessageCircle className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm">대화를 시작하세요</p>
+            <p className="text-sm">Start a conversation</p>
             <p className="text-xs mt-1 text-slate-400">
-              / 를 입력하면 명령어를 사용할 수 있습니다
+              Type / to use slash commands
             </p>
           </div>
         ) : (
@@ -774,7 +777,7 @@ export default function FloatingChat() {
                     >
                       {msg.deleted ? (
                         <span className="italic text-slate-400 text-xs">
-                          삭제된 메시지
+                          Deleted message
                         </span>
                       ) : (
                         msg.content
@@ -803,7 +806,7 @@ export default function FloatingChat() {
           <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-700/50">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
               <Command className="w-3 h-3" />
-              명령어
+              Commands
             </div>
           </div>
           {filteredCommands.map((cmd, idx) => (
@@ -841,7 +844,7 @@ export default function FloatingChat() {
             value={input}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="메시지 입력... ( / 로 명령어)"
+            placeholder="Type a message... (/ for commands)"
             className="flex-1 px-3 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-700/50 border-0 outline-none focus:ring-2 focus:ring-blue-500/40 text-slate-900 dark:text-white placeholder:text-slate-400"
           />
           <label className="p-2 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-slate-400 hover:text-blue-500">
@@ -849,7 +852,7 @@ export default function FloatingChat() {
             <input type="file" className="hidden" onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file || !activeRoom) return;
-              if (file.size > 10 * 1024 * 1024) { alert("파일 크기는 10MB 이하만 가능합니다."); return; }
+              if (file.size > 10 * 1024 * 1024) { showToast("error", "File size must be 10MB or less"); return; }
               const reader = new FileReader();
               reader.onload = async () => {
                 const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, {

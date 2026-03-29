@@ -3,6 +3,9 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Upload, Download, Trash2, Search, Tag, FileText, Image, File, Film, Music, X, Eye, HardDrive } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { showToast } from "@/components/ui/Toast";
+import EmptyState from "@/components/ui/EmptyState";
 
 interface FileItem {
   id: number; originalName: string; storedName: string; mimeType: string;
@@ -35,6 +38,7 @@ export default function FileVault() {
   const [tagFilter, setTagFilter] = useState("");
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<FileItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -54,25 +58,32 @@ export default function FileVault() {
   const handleUpload = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     setUploading(true);
-    for (const file of Array.from(fileList)) {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("tags", JSON.stringify([]));
-      const token = localStorage.getItem("timebox_token");
-      await fetch("/api/files/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+    try {
+      for (const file of Array.from(fileList)) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("tags", JSON.stringify([]));
+        const token = localStorage.getItem("timebox_token");
+        const resp = await fetch("/api/files/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        if (!resp.ok) throw new Error("Upload failed");
+      }
+      showToast("success", t("files.uploadSuccess") ?? "File uploaded");
+    } catch {
+      showToast("error", t("files.uploadFailed") ?? "Upload failed");
+    } finally {
+      setUploading(false);
+      fetchFiles();
+      fetchUsage();
     }
-    setUploading(false);
-    fetchFiles();
-    fetchUsage();
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm(t("files.deleteConfirm"))) return;
     await api.delete(`/files/${id}`);
+    showToast("success", t("files.deleteSuccess") ?? "File deleted");
     fetchFiles();
     fetchUsage();
   };
@@ -115,10 +126,14 @@ export default function FileVault() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white tracking-tight">{t("files.title")}</h2>
           <div className="flex items-center gap-2">
-            <button onClick={() => fileInput.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl btn-primary text-xs">
-              <Upload className="w-3.5 h-3.5" />
-              {t("files.upload")}
+            <button onClick={() => fileInput.current?.click()} disabled={uploading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl btn-primary text-xs disabled:opacity-50">
+              {uploading ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              {uploading ? t("files.uploading") : t("files.upload")}
             </button>
             <input ref={fileInput} type="file" multiple className="hidden" onChange={(e) => handleUpload(e.target.files)} />
           </div>
@@ -197,7 +212,7 @@ export default function FileVault() {
                   <button onClick={() => handleDownload(file.id, file.originalName)} className="w-7 h-7 rounded-lg btn-ghost flex items-center justify-center" title="Download">
                     <Download className="w-3.5 h-3.5 text-slate-400" />
                   </button>
-                  <button onClick={() => handleDelete(file.id)} className="w-7 h-7 rounded-lg btn-ghost flex items-center justify-center" title="Delete">
+                  <button onClick={() => setDeleteTarget(file.id)} className="w-7 h-7 rounded-lg btn-ghost flex items-center justify-center" title="Delete">
                     <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
                   </button>
                 </div>
@@ -207,13 +222,13 @@ export default function FileVault() {
         </div>
 
         {files.length === 0 && !uploading && (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-3">
-              <HardDrive className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-            </div>
-            <p className="text-sm font-medium">{t("files.noFiles")}</p>
-            <p className="text-xs mt-1">{t("files.dragOrUpload")}</p>
-          </div>
+          <EmptyState
+            icon={Upload}
+            title={t("files.noFiles")}
+            description={t("files.dragOrUpload")}
+            action={{ label: t("files.upload"), onClick: () => fileInput.current?.click() }}
+            className="py-16"
+          />
         )}
       </div>
 
@@ -230,6 +245,20 @@ export default function FileVault() {
           </div>
         </div>
       )}
+
+      {/* Delete confirm dialog */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t("files.deleteConfirm")}
+        variant="danger"
+        onConfirm={() => {
+          if (deleteTarget !== null) {
+            handleDelete(deleteTarget);
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Preview modal */}
       {preview && (

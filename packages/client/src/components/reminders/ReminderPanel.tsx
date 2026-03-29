@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Bell, Plus, Trash2, Clock, X, AlarmClock, Check, Volume2 } from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
+import EmptyState from "@/components/ui/EmptyState";
 
 interface Reminder {
   id: number; title: string; message: string | null; remindAt: string;
@@ -41,7 +43,7 @@ export default function ReminderPanel() {
         // Browser notification (works even when tab is not focused)
         if ("Notification" in window && Notification.permission === "granted") {
           new Notification(`⏰ ${r.title}`, {
-            body: r.message || "리마인더 시간입니다!",
+            body: r.message || "It's time for your reminder!",
             icon: "/icon-192.png",
             tag: `reminder-${r.id}`,
             requireInteraction: true,
@@ -51,7 +53,7 @@ export default function ReminderPanel() {
         // Open a small popup window for attention (desktop)
         try {
           const popupContent = encodeURIComponent(
-            `<html><head><title>⏰ 리마인더</title><style>body{font-family:system-ui;margin:0;padding:20px;background:#fef3c7;text-align:center}h2{color:#92400e;margin:0 0 8px}p{color:#78350f;margin:4px 0}button{margin:8px 4px;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px}button.ok{background:#f59e0b;color:white}button.snooze{background:white;color:#92400e;border:1px solid #fbbf24}</style></head><body><h2>⏰ ${r.title}</h2>${r.message ? `<p>${r.message}</p>` : ""}<p style="font-size:12px;color:#a16207">${new Date(r.remindAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</p><br><button class="ok" onclick="window.close()">확인</button><button class="snooze" onclick="window.opener?.postMessage({type:'snooze-reminder',id:${r.id},mins:15},'*');window.close()">15분 후</button></body></html>`
+            `<html><head><title>⏰ Reminder</title><style>body{font-family:system-ui;margin:0;padding:20px;background:#fef3c7;text-align:center}h2{color:#92400e;margin:0 0 8px}p{color:#78350f;margin:4px 0}button{margin:8px 4px;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px}button.ok{background:#f59e0b;color:white}button.snooze{background:white;color:#92400e;border:1px solid #fbbf24}</style></head><body><h2>⏰ ${r.title}</h2>${r.message ? `<p>${r.message}</p>` : ""}<p style="font-size:12px;color:#a16207">${new Date(r.remindAt).toLocaleString("en-US")}</p><br><button class="ok" onclick="window.close()">OK</button><button class="snooze" onclick="window.opener?.postMessage({type:'snooze-reminder',id:${r.id},mins:15},'*');window.close()">In 15 min</button></body></html>`
           );
           const popup = window.open(
             `data:text/html,${popupContent}`,
@@ -150,9 +152,9 @@ export default function ReminderPanel() {
     const diff = d.getTime() - now.getTime();
     const mins = Math.round(diff / 60000);
 
-    if (mins > 0 && mins < 60) return `${mins}분 후`;
-    if (mins >= 60 && mins < 1440) return `${Math.round(mins / 60)}시간 후`;
-    return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    if (mins > 0 && mins < 60) return `in ${mins} min`;
+    if (mins >= 60 && mins < 1440) return `in ${Math.round(mins / 60)} hr`;
+    return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -163,27 +165,27 @@ export default function ReminderPanel() {
           <div className="w-full max-w-xs mx-4 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-scale-in">
             <div className="bg-amber-500 px-4 py-3 flex items-center gap-2">
               <Bell className="w-5 h-5 text-white animate-bounce" />
-              <span className="text-white font-semibold text-sm">리마인더</span>
+              <span className="text-white font-semibold text-sm">Reminder</span>
             </div>
             <div className="p-4 space-y-2">
               <p className="text-base font-bold text-slate-900 dark:text-white">{alertReminder.title}</p>
               {alertReminder.message && (
                 <p className="text-sm text-slate-500 dark:text-slate-400">{alertReminder.message}</p>
               )}
-              <p className="text-xs text-slate-400">{new Date(alertReminder.remindAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</p>
+              <p className="text-xs text-slate-400">{new Date(alertReminder.remindAt).toLocaleString("en-US")}</p>
             </div>
             <div className="flex border-t border-slate-200 dark:border-slate-700">
               <button onClick={() => handleSnooze(alertReminder.id, 15)}
                 className="flex-1 py-3 text-xs font-medium text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                15분 후
+                In 15 min
               </button>
               <button onClick={() => handleSnooze(alertReminder.id, 60)}
                 className="flex-1 py-3 text-xs font-medium text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-x border-slate-200 dark:border-slate-700 transition-colors">
-                1시간 후
+                In 1 hour
               </button>
               <button onClick={() => handleDismiss(alertReminder.id)}
                 className="flex-1 py-3 text-xs font-medium text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
-                확인
+                OK
               </button>
             </div>
           </div>
@@ -195,7 +197,7 @@ export default function ReminderPanel() {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-amber-500" />
-            <h3 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">리마인더</h3>
+            <h3 className="font-semibold text-[13px] text-slate-900 dark:text-white tracking-tight">Reminders</h3>
             {upcoming.length > 0 && (
               <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/15 text-[10px] font-bold text-amber-600 dark:text-amber-400 px-1">
                 {upcoming.length}
@@ -210,21 +212,21 @@ export default function ReminderPanel() {
         {showAdd && (
           <form onSubmit={handleAdd} className="px-4 pb-3 space-y-2 animate-in">
             <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="리마인더 제목" className="input-base w-full" autoFocus />
+              placeholder="Reminder title" className="input-base w-full" autoFocus />
             <input type="datetime-local" value={form.remindAt} onChange={(e) => setForm({ ...form, remindAt: e.target.value })}
               className="input-base w-full" />
             <input type="text" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })}
-              placeholder="메모 (선택)" className="input-base w-full" />
+              placeholder="Note (optional)" className="input-base w-full" />
             <select value={form.repeatRule} onChange={(e) => setForm({ ...form, repeatRule: e.target.value })}
               className="input-base w-full">
-              <option value="">반복 없음</option>
-              <option value="daily">매일</option>
-              <option value="weekly">매주</option>
-              <option value="monthly">매월</option>
+              <option value="">No repeat</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
             </select>
             <div className="flex gap-2">
-              <button type="submit" className="flex-1 text-xs py-2 btn-primary rounded-lg">추가</button>
-              <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-xs py-2 btn-ghost rounded-lg bg-slate-100 dark:bg-slate-700">취소</button>
+              <button type="submit" className="flex-1 text-xs py-2 btn-primary rounded-lg">Add</button>
+              <button type="button" onClick={() => setShowAdd(false)} className="flex-1 text-xs py-2 btn-ghost rounded-lg bg-slate-100 dark:bg-slate-700">Cancel</button>
             </div>
           </form>
         )}

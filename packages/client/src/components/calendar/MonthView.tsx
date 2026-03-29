@@ -3,6 +3,7 @@ import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { Plus, X, CheckSquare, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/useI18n";
 import type { CalendarEvent, Todo, HoverTooltipItem } from "./calendarTypes";
 import HoverTooltip from "./HoverTooltip";
 
@@ -43,6 +44,7 @@ export default function MonthView({
   onDeleteEvent,
   onLongPressDate,
 }: MonthViewProps) {
+  const { t } = useI18n();
   const [longPressDate, setLongPressDate] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -139,6 +141,8 @@ export default function MonthView({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setLongPressDate(null)} />
           <div
+            role="dialog"
+            aria-modal="true"
             className="fixed z-50 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 min-w-[180px] animate-in"
             style={{
               left: "50%",
@@ -147,12 +151,12 @@ export default function MonthView({
             }}
           >
             <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 uppercase">
-              {longPressDate.slice(5)} 추가
+              {longPressDate.slice(5)} {t("calendar.quickAdd")}
             </p>
             {[
-              { type: "event", icon: "\u{1F4C5}", label: "일정 추가" },
-              { type: "todo", icon: "\u2705", label: "할일 추가" },
-              { type: "reminder", icon: "\u23F0", label: "리마인더 추가" },
+              { type: "event", icon: "\u{1F4C5}", label: t("calendar.addEvent") },
+              { type: "todo", icon: "\u2705", label: t("calendar.addTodo") },
+              { type: "reminder", icon: "\u23F0", label: t("calendar.addReminder") },
             ].map((item) => (
               <button
                 key={item.type}
@@ -183,7 +187,7 @@ export default function MonthView({
           </div>
           <div className="flex-1 overflow-y-auto">
             {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-400 text-center">No events</p>
+              <p className="px-4 py-4 text-sm text-slate-400 text-center">{t("calendar.noEvents")}</p>
             ) : (
               <>
                 {/* Events */}

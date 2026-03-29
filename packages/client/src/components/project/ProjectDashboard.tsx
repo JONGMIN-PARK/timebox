@@ -74,20 +74,33 @@ function actionIcon(action: string) {
   }
 }
 
-const ACTION_LABEL_MAP: Record<string, string> = {
-  created: "생성",
-  completed: "완료",
-  updated: "수정",
-  deleted: "삭제",
-  commented: "댓글",
-  worklog: "작업 로그 추가",
-  transfer_requested: "이관 요청",
-  transfer_accepted: "이관 수락",
-  transfer_rejected: "이관 거절",
+const ACTION_I18N_KEY_MAP: Record<string, string> = {
+  created: "activity.created",
+  completed: "activity.completed",
+  updated: "activity.updated",
+  deleted: "activity.deleted",
+  commented: "activity.commented",
+  worklog: "activity.worklog",
+  transfer_requested: "activity.transferRequested",
+  transfer_accepted: "activity.transferAccepted",
+  transfer_rejected: "activity.transferRejected",
 };
 
-function actionLabel(action: string, targetTitle: string): string {
-  const label = ACTION_LABEL_MAP[action] || action;
+const ACTION_FALLBACK_MAP: Record<string, string> = {
+  created: "Created",
+  completed: "Completed",
+  updated: "Updated",
+  deleted: "Deleted",
+  commented: "Commented",
+  worklog: "Added work log",
+  transfer_requested: "Transfer requested",
+  transfer_accepted: "Transfer accepted",
+  transfer_rejected: "Transfer rejected",
+};
+
+function actionLabel(action: string, targetTitle: string, t: (key: string) => string): string {
+  const i18nKey = ACTION_I18N_KEY_MAP[action];
+  const label = i18nKey ? (t(i18nKey) || ACTION_FALLBACK_MAP[action] || action) : (ACTION_FALLBACK_MAP[action] || action);
   return `"${targetTitle}" ${label}`;
 }
 
@@ -144,7 +157,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
   const maxTasks = Math.max(...members.map((m) => m.totalTasks), 1);
 
   return (
-    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 overflow-y-auto">
+    <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 overflow-y-auto" role="region" aria-label="Project dashboard">
       {/* Dashboard header with refresh */}
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -192,7 +205,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
       )}
 
       {/* Progress & Weekly Stats */}
-      <div className="card p-4">
+      <div className="card p-4" role="region" aria-label="Progress and weekly statistics">
         <div className="flex flex-col sm:flex-row gap-6">
           {/* Progress */}
           <div className="flex-1">
@@ -200,7 +213,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
               <BarChart3 className="w-4 h-4 text-blue-500" />
               {t("dashboard.progress")}
             </h4>
-            <div className="relative w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div className="relative w-full h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden" role="progressbar" aria-valuenow={stats?.progressPercent ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label="Project progress">
               <div
                 className="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-all duration-500"
                 style={{ width: `${stats?.progressPercent ?? 0}%` }}
@@ -244,7 +257,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
       </div>
 
       {/* Member Stats */}
-      <div className="card p-4">
+      <div className="card p-4" role="region" aria-label="Member statistics">
         <h4 className="text-[13px] font-semibold text-slate-900 dark:text-white mb-3">
           {t("dashboard.memberStats")}
         </h4>
@@ -281,7 +294,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
       </div>
 
       {/* Recent Activity */}
-      <div className="card overflow-hidden">
+      <div className="card overflow-hidden" role="region" aria-label="Recent activity">
         <div className="px-4 py-3">
           <h4 className="text-[13px] font-semibold text-slate-900 dark:text-white">
             {t("dashboard.recentActivity")}
@@ -300,7 +313,7 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] text-slate-700 dark:text-slate-200">
                     <span className="font-medium">{a.username}</span>{" "}
-                    {actionLabel(a.action, a.targetTitle)}
+                    {actionLabel(a.action, a.targetTitle, t)}
                   </p>
                   {a.changes && a.changes.length > 0 && (
                     <div className="mt-1 space-y-0.5">

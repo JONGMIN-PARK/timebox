@@ -24,6 +24,8 @@ import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
 import type { ViewMode, HoverTooltipItem } from "./calendarTypes";
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
+import InputModal from "@/components/ui/InputModal";
+import { showToast } from "@/components/ui/Toast";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
@@ -40,6 +42,9 @@ export default function CalendarView() {
   const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
+  const [inputModalOpen, setInputModalOpen] = useState(false);
+  const [inputModalType, setInputModalType] = useState<"todo" | "reminder">("todo");
+  const [inputModalDate, setInputModalDate] = useState<string>("");
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -143,21 +148,46 @@ export default function CalendarView() {
     if (!newEvent.title.trim() || !selectedDate) return;
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     const cat = categories.find((c) => c.id === newEvent.categoryId);
-    await addEvent({
-      title: newEvent.title.trim(),
-      startTime: `${dateStr}T${newEvent.startTime}:00`,
-      endTime: `${dateStr}T${newEvent.endTime}:00`,
-      allDay: false,
-      categoryId: newEvent.categoryId || undefined,
-      recurrenceRule: recurrence || undefined,
-      color: cat?.color || "#3b82f6",
-    });
+    try {
+      await addEvent({
+        title: newEvent.title.trim(),
+        startTime: `${dateStr}T${newEvent.startTime}:00`,
+        endTime: `${dateStr}T${newEvent.endTime}:00`,
+        allDay: false,
+        categoryId: newEvent.categoryId || undefined,
+        recurrenceRule: recurrence || undefined,
+        color: cat?.color || "#3b82f6",
+      });
+      showToast("success", t("calendar.eventCreated"));
+    } catch {
+      showToast("error", t("calendar.createFailed"));
+    }
     setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
     setRecurrence("");
     setShowAddModal(false);
     const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
     const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
+  };
+
+  const handleDeleteEvent = async (id: number) => {
+    try {
+      await deleteEvent(id);
+      showToast("success", t("calendar.eventDeleted"));
+    } catch {
+      showToast("error", t("calendar.createFailed"));
+    }
+  };
+
+  const handleInputModalSubmit = async (value: string) => {
+    setInputModalOpen(false);
+    try {
+      const priority = inputModalType === "todo" ? "medium" : "low";
+      await addTodo(value, priority, inputModalDate, "personal");
+      showToast("success", t("calendar.todoCreated"));
+    } catch {
+      showToast("error", t("calendar.createFailed"));
+    }
   };
 
   const getHoverItems = (dateKey: string): HoverTooltipItem[] => {
@@ -253,22 +283,20 @@ export default function CalendarView() {
           onDayHover={handleDayHover}
           onDayLeave={() => setHoverDateKey(null)}
           onShowAddModal={() => setShowAddModal(true)}
-          onDeleteEvent={deleteEvent}
+          onDeleteEvent={handleDeleteEvent}
           onLongPressDate={(date, type) => {
             const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
             if (type === "event") {
               setSelectedDate(date);
               setShowAddModal(true);
             } else if (type === "todo") {
-              const title = prompt("할일 제목:");
-              if (title?.trim()) {
-                addTodo(title.trim(), "medium", dateStr, "personal");
-              }
+              setInputModalDate(dateStr);
+              setInputModalType("todo");
+              setInputModalOpen(true);
             } else if (type === "reminder") {
-              const title = prompt("리마인더 제목:");
-              if (title?.trim()) {
-                addTodo(title.trim(), "low", dateStr, "personal");
-              }
+              setInputModalDate(dateStr);
+              setInputModalType("reminder");
+              setInputModalOpen(true);
             }
           }}
         />
@@ -282,7 +310,7 @@ export default function CalendarView() {
           todosByDate={todosByDate}
           onDayClick={(day) => { setViewMode("day"); setCurrentDate(day); }}
           onCellClick={(day) => { setSelectedDate(day); setShowAddModal(true); }}
-          onDeleteEvent={deleteEvent}
+          onDeleteEvent={handleDeleteEvent}
         />
       )}
 
@@ -297,13 +325,13 @@ export default function CalendarView() {
           currentMinutes={currentMinutes}
           timelineRef={timelineRef}
           onAddEvent={() => { setSelectedDate(currentDate); setShowAddModal(true); }}
-          onDeleteEvent={deleteEvent}
+          onDeleteEvent={handleDeleteEvent}
         />
       )}
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={() => setShowAddModal(false)}>
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
@@ -355,16 +383,16 @@ export default function CalendarView() {
               </div>
             </div>
             <div>
-              <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence") || "반복"}</label>
+              <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence")}</label>
               <select
                 value={recurrence}
                 onChange={(e) => setRecurrence(e.target.value)}
                 className="w-full text-xs bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none"
               >
-                <option value="">반복 없음</option>
-                <option value="daily">매일</option>
-                <option value="weekly">매주</option>
-                <option value="monthly">매월</option>
+                <option value="">{t("calendar.noRecurrence")}</option>
+                <option value="daily">{t("calendar.daily")}</option>
+                <option value="weekly">{t("calendar.weekly")}</option>
+                <option value="monthly">{t("calendar.monthly")}</option>
               </select>
             </div>
             <div className="flex gap-2">
@@ -374,6 +402,17 @@ export default function CalendarView() {
           </form>
         </div>
       )}
+
+      {/* InputModal for quick-add todo / reminder */}
+      <InputModal
+        open={inputModalOpen}
+        title={inputModalType === "todo" ? t("calendar.addTodo") : t("calendar.addReminder")}
+        placeholder={inputModalType === "todo" ? t("calendar.todoTitle") : t("calendar.reminderTitle")}
+        submitLabel={t("common.add")}
+        cancelLabel={t("common.cancel")}
+        onSubmit={handleInputModalSubmit}
+        onCancel={() => setInputModalOpen(false)}
+      />
     </div>
   );
 }

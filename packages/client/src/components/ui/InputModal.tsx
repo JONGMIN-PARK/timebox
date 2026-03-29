@@ -14,7 +14,7 @@ interface InputModalProps {
 
 export default function InputModal({
   open, title, placeholder = "", defaultValue = "",
-  submitLabel = "확인", cancelLabel = "취소",
+  submitLabel = "OK", cancelLabel = "Cancel",
   onSubmit, onCancel,
 }: InputModalProps) {
   const [value, setValue] = useState(defaultValue);

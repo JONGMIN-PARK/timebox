@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "@/lib/useI18n";
-import { Palette } from "lucide-react";
+import { AlertCircle, Palette } from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#6366f1"];
 
@@ -48,9 +49,12 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
     });
 
     if (project) {
+      showToast("success", t("project.created") || "Project created");
       onCreated(project.id);
     } else {
-      setError(t("project.createFailed") || "Failed to create project");
+      const msg = t("project.createFailed") || "Failed to create project";
+      setError(msg);
+      showToast("error", msg);
       setCreating(false);
     }
   };
@@ -172,7 +176,10 @@ export default function NewProjectForm({ onCreated, onCancel }: NewProjectFormPr
 
         {/* Error */}
         {error && (
-          <p className="text-sm text-red-500">{error}</p>
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            {error}
+          </p>
         )}
 
         {/* Buttons */}

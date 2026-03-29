@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag, Search } from "lucide-react";
+import { showToast } from "@/components/ui/Toast";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay,
 } from "@dnd-kit/core";
@@ -226,6 +227,7 @@ export default function TodoList() {
   const [newCategory, setNewCategory] = useState("personal");
   const [showCompleted, setShowCompleted] = useState(false);
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -242,12 +244,12 @@ export default function TodoList() {
     }), [todos, categoryFilter]);
 
   const activeTodos = useMemo(() =>
-    filtered.filter((t) => !t.completed).sort((a, b) => a.sortOrder - b.sortOrder),
-    [filtered]);
+    filtered.filter((t) => !t.completed && (!searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))).sort((a, b) => a.sortOrder - b.sortOrder),
+    [filtered, searchQuery]);
 
   const completedTodos = useMemo(() =>
-    filtered.filter((t) => t.completed),
-    [filtered]);
+    filtered.filter((t) => t.completed && (!searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase()))),
+    [filtered, searchQuery]);
 
   const completionRate = useMemo(() => {
     if (filtered.length === 0) return 0;
@@ -268,6 +270,7 @@ export default function TodoList() {
     e.preventDefault();
     if (!newTitle.trim()) return;
     await addTodo(newTitle.trim(), "medium", newDueDate, newCategory);
+    showToast("success", "Todo added");
     setNewTitle("");
     setNewDueDate(new Date().toISOString().slice(0, 10));
   };
@@ -317,6 +320,20 @@ export default function TodoList() {
         </div>
       </form>
 
+      {/* Search */}
+      <div className="px-4 py-2 border-b border-slate-100/80 dark:border-slate-700/40">
+        <div className="flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1.5">
+          <Search className="w-3 h-3 text-slate-400 flex-shrink-0" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t("todo.search") ?? "Search todos..."}
+            className="flex-1 text-xs bg-transparent text-slate-700 dark:text-slate-300 placeholder-slate-400 outline-none"
+          />
+        </div>
+      </div>
+
       {/* Category filter + status filter */}
       <div className="px-4 py-2 border-b border-slate-100/80 dark:border-slate-700/40 space-y-1.5">
         {/* Category filter */}
@@ -358,7 +375,9 @@ export default function TodoList() {
             <SortableContext items={activeTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               <ul className="py-1">
                 {activeTodos.map((todo) => (
-                  <SortableTodoItem key={todo.id} todo={todo} onToggle={toggleTodo} onDelete={deleteTodo}
+                  <SortableTodoItem key={todo.id} todo={todo}
+                    onToggle={(id) => { toggleTodo(id); showToast("success", "Todo completed"); }}
+                    onDelete={(id) => { deleteTodo(id); showToast("success", "Todo deleted"); }}
                     onUpdateDate={(id, d) => updateTodo(id, { dueDate: d })}
                     onUpdateTitle={(id, t) => updateTodo(id, { title: t })}
                     onUpdateCategory={(id, c) => updateTodo(id, { category: c })}
@@ -392,14 +411,14 @@ export default function TodoList() {
                   return (
                     <li key={todo.id} className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors">
                       <div className="w-4" />
-                      <button onClick={() => toggleTodo(todo.id)} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors">
+                      <button onClick={() => { toggleTodo(todo.id); showToast("success", "Todo restored"); }} className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg active:bg-green-50 dark:active:bg-green-900/20 transition-colors">
                         <CheckCircle2 className="w-[18px] h-[18px] text-green-500" />
                       </button>
                       <div className="flex-1 min-w-0">
                         <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
                         <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
                       </div>
-                      <button onClick={() => deleteTodo(todo.id)} className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => { deleteTodo(todo.id); showToast("success", "Todo deleted"); }} className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
                       </button>
                     </li>
