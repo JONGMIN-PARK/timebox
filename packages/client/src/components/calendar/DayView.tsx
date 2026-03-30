@@ -2,6 +2,7 @@ import React, { memo, useCallback } from "react";
 import { format, isToday } from "date-fns";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCategoryInfo } from "@/lib/categories";
 import {
   HOUR_HEIGHT,
   START_HOUR,
@@ -42,16 +43,18 @@ const DayEventItem = memo(function DayEventItem({
 
 // Memoized todo chip for day header
 const DayTodoChip = memo(function DayTodoChip({ todo }: { todo: Todo }) {
+  const catIcon = getCategoryInfo(todo.category).icon;
   return (
     <span
       className={cn(
-        "text-xs px-2 py-0.5 rounded-full",
+        "inline-flex items-center gap-1 max-w-full min-w-0 text-xs px-2 py-0.5 rounded-full",
         todo.completed
           ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 line-through"
           : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
       )}
     >
-      {todo.title}
+      <span className="shrink-0 leading-none select-none" aria-hidden>{catIcon}</span>
+      <span className="truncate min-w-0">{todo.title}</span>
     </span>
   );
 });

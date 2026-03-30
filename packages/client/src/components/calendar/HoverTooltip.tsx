@@ -18,8 +18,11 @@ export default function HoverTooltip({ items }: HoverTooltipProps) {
           ) : (
             <CheckSquare className={cn("w-2.5 h-2.5 flex-shrink-0", item.completed ? "text-green-500" : "text-amber-500")} />
           )}
-          <div className="min-w-0 flex-1">
-            <p className={cn("text-[9px] leading-tight truncate", item.completed ? "line-through text-slate-400" : "text-slate-900 dark:text-white")}>
+          <div className="min-w-0 flex-1 flex items-center gap-0.5">
+            {item.type === "todo" && item.categoryIcon && (
+              <span className="shrink-0 text-[9px] leading-none select-none" aria-hidden>{item.categoryIcon}</span>
+            )}
+            <p className={cn("text-[9px] leading-tight truncate min-w-0", item.completed ? "line-through text-slate-400" : "text-slate-900 dark:text-white")}>
               {item.title}
             </p>
             {item.time && <p className="text-[8px] leading-tight text-slate-400">{item.time}</p>}

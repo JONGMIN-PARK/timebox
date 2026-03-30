@@ -174,11 +174,14 @@ function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTi
         {/* Content — extra right padding so title/meta don’t sit under hover actions */}
         <div className="flex-1 min-w-0 pr-[4.5rem] sm:pr-20">
           {/* Title */}
-          <div className="flex items-center gap-1.5 pr-1">
+          <div className="flex items-center gap-1.5 pr-1 min-w-0">
+            <span className="shrink-0 text-[13px] leading-none select-none" aria-hidden title={catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}>
+              {catInfo.icon}
+            </span>
             {isEditing ? (
               <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
                 onBlur={handleSaveTitle} onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); if (e.key === "Escape") { setEditTitle(todo.title); setIsEditing(false); } }}
-                className="flex-1 text-[13px] bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
+                className="flex-1 min-w-0 text-[13px] bg-slate-100 dark:bg-slate-700 rounded px-2 py-0.5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40" autoFocus />
             ) : (
               <span className="text-[13px] text-slate-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 leading-snug"
                 onDoubleClick={() => { setIsEditing(true); setEditTitle(todo.title); }}>{todo.title}</span>
@@ -188,7 +191,6 @@ function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTi
           {/* Meta: category + due / D-day (wrap-friendly, grouped for readability) */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 ml-3 text-[10px] text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-0.5 min-w-0 max-w-full">
-              <span className="shrink-0">{catInfo.icon}</span>
               <TodoCategoryPicker value={todo.category} onChange={(cat) => onUpdateCategory(todo.id, cat)} compact />
             </span>
             <button
@@ -351,8 +353,11 @@ const CompletedTodoItem = memo(function CompletedTodoItem({
         </button>
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-[13px] text-slate-400 line-through truncate block">{todo.title}</span>
-        <span className="text-[10px] text-slate-400">{catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
+        <span className="flex items-center gap-1.5 min-w-0 text-[13px] text-slate-400 line-through">
+          <span className="shrink-0 leading-none select-none" aria-hidden>{catInfo.icon}</span>
+          <span className="truncate">{todo.title}</span>
+        </span>
+        <span className="text-[10px] text-slate-400 block mt-0.5">{catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}</span>
       </div>
       <button type="button" onClick={() => onDelete(todo.id)} title={t("todo.moveToTrash")}
         className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -378,9 +383,12 @@ const TrashedTodoItem = memo(function TrashedTodoItem({
     <li className="group flex items-center gap-2 px-4 py-2 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors border-l-2 border-slate-300/80 dark:border-slate-600">
       <Trash2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <span className="text-[13px] text-slate-600 dark:text-slate-300 truncate block">{todo.title}</span>
-        <span className="text-[10px] text-slate-400">
-          {catInfo.icon} {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}
+        <span className="flex items-center gap-1.5 min-w-0 text-[13px] text-slate-600 dark:text-slate-300">
+          <span className="shrink-0 leading-none select-none" aria-hidden>{catInfo.icon}</span>
+          <span className="truncate">{todo.title}</span>
+        </span>
+        <span className="text-[10px] text-slate-400 block mt-0.5">
+          {catInfo.parentLabel ? `${catInfo.parentLabel} › ${catInfo.label}` : catInfo.label}
           <span className="text-slate-300 dark:text-slate-600 mx-1">·</span>
           {statusLabel}
         </span>

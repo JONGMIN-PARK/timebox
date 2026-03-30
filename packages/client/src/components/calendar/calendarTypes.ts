@@ -32,4 +32,6 @@ export interface HoverTooltipItem {
   time?: string;
   color: string;
   completed?: boolean;
+  /** Todo category emoji — same as todo list */
+  categoryIcon?: string;
 }

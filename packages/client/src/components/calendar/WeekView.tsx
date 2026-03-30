@@ -3,6 +3,7 @@ import { format, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCategoryInfo } from "@/lib/categories";
 import type { CalendarEvent, Todo } from "./calendarTypes";
 
 // Memoized event card for week view
@@ -39,11 +40,13 @@ const WeekEventCard = memo(function WeekEventCard({
 
 // Memoized todo item for week view
 const WeekTodoItem = memo(function WeekTodoItem({ todo }: { todo: Todo }) {
+  const catIcon = getCategoryInfo(todo.category).icon;
   return (
-    <div className="flex items-center gap-1 px-1 py-0.5" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center gap-1 px-1 py-0.5 min-w-0" onClick={(e) => e.stopPropagation()}>
       <div className={cn("w-1.5 h-1.5 rounded-sm flex-shrink-0",
         todo.completed ? "bg-green-400" : "bg-amber-400")} />
-      <span className={cn("text-[10px] truncate leading-tight",
+      <span className="shrink-0 text-[10px] leading-none select-none" aria-hidden>{catIcon}</span>
+      <span className={cn("text-[10px] truncate leading-tight min-w-0",
         todo.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>
         {todo.title}
       </span>

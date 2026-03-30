@@ -3,6 +3,7 @@ import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCategoryInfo } from "@/lib/categories";
 import { useI18n } from "@/lib/useI18n";
 import type { CalendarEvent, Todo, HoverTooltipItem } from "./calendarTypes";
 import HoverTooltip from "./HoverTooltip";
@@ -51,6 +52,7 @@ const MonthTodoDetailItem = memo(function MonthTodoDetailItem({
   onEditTodo?: (todo: Todo) => void;
   projectLabel?: string;
 }) {
+  const catIcon = getCategoryInfo(td.category).icon;
   return (
     <div className="group flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50/30 dark:hover:bg-slate-700/40 transition-colors">
       {onToggleTodo ? (
@@ -62,8 +64,9 @@ const MonthTodoDetailItem = memo(function MonthTodoDetailItem({
       )}
       <CheckSquare className={cn("w-3.5 h-3.5 flex-shrink-0", td.completed ? "text-green-500" : "text-amber-500")} />
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm truncate", td.completed ? "line-through text-slate-400" : "font-medium text-slate-900 dark:text-white")}>
-          {td.title}
+        <p className={cn("text-sm truncate flex items-center gap-1.5 min-w-0", td.completed ? "line-through text-slate-400" : "font-medium text-slate-900 dark:text-white")}>
+          <span className="shrink-0 text-sm leading-none select-none" aria-hidden>{catIcon}</span>
+          <span className="truncate min-w-0">{td.title}</span>
         </p>
         <p className="text-[11px] text-slate-400">
           {td.priority === "high" ? "High" : td.priority === "medium" ? "Medium" : "Low"}
@@ -218,7 +221,8 @@ export default function MonthView({
                     {td.projectId && projectNameById[td.projectId] && (
                       <span className="w-1 h-1 rounded-full shrink-0 bg-blue-500" title={projectNameById[td.projectId]} />
                     )}
-                    <p className={cn("text-[10px] leading-tight truncate", td.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{td.title}</p>
+                    <span className="shrink-0 text-[9px] leading-none select-none" aria-hidden>{getCategoryInfo(td.category).icon}</span>
+                    <p className={cn("text-[10px] leading-tight truncate min-w-0", td.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{td.title}</p>
                   </div>
                 ))}
                 {(dayEvents.length + dayTodos.length) > 6 && (

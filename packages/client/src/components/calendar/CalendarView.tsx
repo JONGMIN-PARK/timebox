@@ -31,6 +31,7 @@ import type { Todo as AppTodo } from "@timebox/shared";
 import { ProjectPicker } from "@/components/project/ProjectPicker";
 import { useProjectStore } from "@/stores/projectStore";
 import { sortTodosForDisplay } from "@/lib/todoSort";
+import { getCategoryInfo } from "@/lib/categories";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
@@ -257,6 +258,7 @@ export default function CalendarView() {
         title: t.title,
         color: t.priority === "high" ? "#ef4444" : t.priority === "medium" ? "#f59e0b" : "#94a3b8",
         completed: t.completed,
+        categoryIcon: getCategoryInfo(t.category).icon,
       });
     });
 
