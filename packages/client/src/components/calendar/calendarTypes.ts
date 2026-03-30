@@ -24,19 +24,7 @@ export interface CalendarEvent {
   updatedAt: string;
 }
 
-export interface Todo {
-  id: number;
-  title: string;
-  completed: boolean;
-  priority: string;
-  category: string;
-  dueDate: string | null;
-  sortOrder: number;
-  parentId: number | null;
-  projectId?: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { Todo } from "@timebox/shared";
 
 export interface HoverTooltipItem {
   type: "event" | "todo";

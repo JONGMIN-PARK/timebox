@@ -26,6 +26,8 @@ import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendar
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
 import { showToast } from "@/components/ui/Toast";
 import CalendarTodoAddModal from "./CalendarTodoAddModal";
+import CalendarTodoEditModal from "./CalendarTodoEditModal";
+import type { Todo as AppTodo } from "@timebox/shared";
 import { ProjectPicker } from "@/components/project/ProjectPicker";
 import { useProjectStore } from "@/stores/projectStore";
 import { sortTodosForDisplay } from "@/lib/todoSort";
@@ -63,6 +65,8 @@ export default function CalendarView() {
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
   const [todoAddModalOpen, setTodoAddModalOpen] = useState(false);
   const [todoAddModalDate, setTodoAddModalDate] = useState("");
+  const [todoEditModalOpen, setTodoEditModalOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<AppTodo | null>(null);
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -228,10 +232,9 @@ export default function CalendarView() {
   };
 
   const handleEditTodo = (td: Todo) => {
-    const title = prompt("할일 수정:", td.title);
-    if (title !== null && title.trim()) {
-      updateTodo(td.id, { title: title.trim() });
-    }
+    const latest = todos.find((t) => t.id === td.id) ?? (td as AppTodo);
+    setEditingTodo(latest);
+    setTodoEditModalOpen(true);
   };
 
   const getHoverItems = (dateKey: string): HoverTooltipItem[] => {
@@ -460,6 +463,26 @@ export default function CalendarView() {
           const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status, values.projectId ?? null);
           if (!ok) throw new Error("add failed");
           showToast("success", t("calendar.todoCreated"));
+        }}
+      />
+
+      <CalendarTodoEditModal
+        open={todoEditModalOpen}
+        todo={editingTodo}
+        onClose={() => {
+          setTodoEditModalOpen(false);
+          setEditingTodo(null);
+        }}
+        onSave={async (id, values) => {
+          await updateTodo(id, {
+            title: values.title,
+            category: values.category,
+            dueDate: values.dueDate,
+            priority: values.priority,
+            status: values.status,
+            projectId: values.projectId ?? null,
+          });
+          showToast("success", t("calendar.todoUpdated"));
         }}
       />
 
