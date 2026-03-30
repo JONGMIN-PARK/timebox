@@ -5,7 +5,50 @@
 @layer base {
   :root {
     --mobile-nav-h: 56px;
+    /* Scrollbars — light theme (slate) */
+    --scrollbar-track: #f1f5f9;
+    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-thumb-hover: #94a3b8;
   }
+
+  .dark {
+    --scrollbar-track: #1e293b;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+  }
+
+  /* Global themed scrollbars (Firefox + WebKit) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 9999px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    border: 2px solid var(--scrollbar-track);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    border-color: var(--scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+  }
+
   html {
     font-family: "Inter", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
@@ -130,10 +173,14 @@
 
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: theme('colors.slate.300') transparent;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
-  .dark .scrollbar-thin {
-    scrollbar-color: theme('colors.slate.600') transparent;
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    border-width: 1px;
   }
 
   .safe-top {
