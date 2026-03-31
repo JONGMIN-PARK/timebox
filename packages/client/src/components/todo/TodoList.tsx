@@ -5,7 +5,7 @@ import { TodoCategoryPicker } from "@/components/todo/TodoCategoryPicker";
 import { ProjectPicker } from "@/components/project/ProjectPicker";
 import { useProjectStore } from "@/stores/projectStore";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, CalendarDays, Pencil, Search, Clock, Play, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, CalendarDays, Pencil, Search, Clock, Play, RotateCcw, StickyNote } from "lucide-react";
 import { showToast } from "@/components/ui/Toast";
 import { useI18n } from "@/lib/useI18n";
 
@@ -136,18 +136,20 @@ function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'wai
 }
 
 // ── Todo row (마감일 순 정렬; 드래그 순서 없음) ──
-function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject }: {
+function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject, onUpdateMemo }: {
   todo: Todo; onStatusChange: (id: number, status: 'waiting' | 'active' | 'completed') => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
   onUpdatePriority: (id: number, priority: TodoPriority) => void;
   projectOptions?: { id: number; name: string }[];
   onUpdateProject?: (id: number, projectId: number | null) => void;
+  onUpdateMemo?: (id: number, memo: string | null) => void;
 }) {
   const { t } = useI18n();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(todo.title);
+  const [showMemo, setShowMemo] = useState(false);
   const daysLeft = getDaysLeft(todo.dueDate);
   const catInfo = getCategoryInfo(todo.category);
   const effectiveStatus = getEffectiveStatus(todo);
@@ -226,7 +228,35 @@ function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTi
                 ))}
               </select>
             )}
+            <button
+              type="button"
+              onClick={() => setShowMemo(!showMemo)}
+              className={cn(
+                "inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 -mx-0.5 shrink-0 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 transition-colors",
+                todo.memo ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500",
+              )}
+              title={t("calendar.memo")}
+            >
+              <StickyNote className="w-2.5 h-2.5 shrink-0" />
+              {todo.memo && <span className="text-[9px]">✦</span>}
+            </button>
           </div>
+
+          {/* Memo area */}
+          {showMemo && onUpdateMemo && (
+            <div className="mt-1.5 ml-3">
+              <textarea
+                defaultValue={todo.memo || ""}
+                placeholder={t("calendar.memoPlaceholder")}
+                rows={4}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v !== (todo.memo || "")) onUpdateMemo(todo.id, v || null);
+                }}
+                className="w-full text-xs bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-300 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+              />
+            </div>
+          )}
 
           {/* Waiting: quick start / complete; else progress bar */}
           {effectiveStatus === 'waiting' ? (
@@ -534,6 +564,7 @@ export default function TodoList() {
   const handleUpdateCategory = useCallback((id: number, c: string) => updateTodo(id, { category: c }), [updateTodo]);
   const handleUpdateProgress = useCallback((id: number, p: number) => updateTodo(id, { progress: p }), [updateTodo]);
   const handleUpdatePriority = useCallback((id: number, priority: TodoPriority) => updateTodo(id, { priority }), [updateTodo]);
+  const handleUpdateMemo = useCallback((id: number, memo: string | null) => updateTodo(id, { memo }), [updateTodo]);
 
   // Determine which sections to show based on filter
   const showActiveSection = filter === 'all' || filter === 'active';
@@ -654,6 +685,7 @@ export default function TodoList() {
                 onUpdatePriority={handleUpdatePriority}
                 projectOptions={projectOptions}
                 onUpdateProject={handleUpdateProject}
+                onUpdateMemo={handleUpdateMemo}
               />
             ))}
           </ul>

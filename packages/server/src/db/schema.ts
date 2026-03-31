@@ -71,6 +71,7 @@ export const events = pgTable("events", {
     .notNull()
     .default(sql`now()`),
   projectId: integer("project_id"),
+  googleEventId: text("google_event_id"),
 });
 
 // ── TimeBlocks ──
@@ -116,6 +117,7 @@ export const todos = pgTable("todos", {
     .default(sql`now()`),
   deletedAt: text("deleted_at"), // ISO timestamp when soft-deleted (trash)
   projectId: integer("project_id"),
+  memo: text("memo"),
 });
 
 // ── D-Days ──
@@ -166,6 +168,22 @@ export const files = pgTable("files", {
   tags: text("tags").notNull().default("[]"),
   uploadedVia: text("uploaded_via").notNull().default("web"),
   version: integer("version").notNull().default(1),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`now()`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`now()`),
+});
+
+// ── Google Calendar Config ──
+export const googleCalendarConfig = pgTable("google_calendar_config", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  tokenExpiry: text("token_expiry"),
+  email: text("email"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`now()`),

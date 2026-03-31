@@ -13,6 +13,7 @@ export interface CalendarTodoAddValues {
   priority: string;
   status: TodoStatus;
   projectId?: number | null;
+  memo?: string | null;
 }
 
 interface CalendarTodoAddModalProps {
@@ -32,6 +33,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
   const [priority, setPriority] = useState<"high" | "medium" | "low">("medium");
   const [status, setStatus] = useState<TodoStatus>("active");
   const [projectId, setProjectId] = useState<number | null>(null);
+  const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
       setPriority("medium");
       setStatus("active");
       setProjectId(null);
+      setMemo("");
       setSubmitting(false);
     }
   }, [open, initialDate]);
@@ -76,6 +79,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
         priority,
         status,
         projectId,
+        memo: memo.trim() || null,
       });
       onClose();
     } finally {
@@ -194,6 +198,17 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("calendar.memo")}</label>
+          <textarea
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder={t("calendar.memoPlaceholder")}
+            rows={5}
+            className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+          />
         </div>
 
         <div className="flex gap-2 pt-1">

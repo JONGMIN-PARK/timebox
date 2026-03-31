@@ -34,6 +34,26 @@ async function ensureStatusColumn() {
   return statusColumnReady;
 }
 
+let memoColumnReady: boolean | null = null;
+async function ensureMemoColumn() {
+  if (memoColumnReady !== null) return memoColumnReady;
+  try {
+    await db.execute(sql`SELECT memo FROM todos LIMIT 0`);
+    memoColumnReady = true;
+  } catch {
+    logger.warn("todos.memo column not found - auto-migrating...");
+    try {
+      await db.execute(sql`ALTER TABLE todos ADD COLUMN memo TEXT`);
+      memoColumnReady = true;
+      logger.info("todos.memo column added successfully");
+    } catch (e) {
+      logger.error("Failed to auto-migrate memo column", { error: String(e) });
+      memoColumnReady = false;
+    }
+  }
+  return memoColumnReady;
+}
+
 let deletedAtColumnReady: boolean | null = null;
 async function ensureDeletedAtColumn() {
   if (deletedAtColumnReady !== null) return deletedAtColumnReady;
@@ -73,6 +93,7 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   const filter = req.query.filter as string | undefined;
   const hasStatus = await checkStatusColumn();
   await ensureDeletedAtColumn();
+  await ensureMemoColumn();
   let result;
 
   if (filter === "trash") {
@@ -118,9 +139,10 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
 
 router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
-  const { title, priority, category, dueDate, parentId, status, projectId: bodyProjectId } = req.body;
+  const { title, priority, category, dueDate, parentId, status, projectId: bodyProjectId, memo } = req.body;
   const hasStatus = await checkStatusColumn();
   await ensureDeletedAtColumn();
+  await ensureMemoColumn();
 
   const validStatuses = ["waiting", "active", "completed"];
   const todoStatus = validStatuses.includes(status) ? status : "active";
@@ -145,6 +167,7 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
     completed,
     progress,
     projectId,
+    memo: memo || null,
   };
   if (hasStatus) {
     values.status = todoStatus;
@@ -285,6 +308,10 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   if (req.body.progress !== undefined) updates.progress = req.body.progress;
   if (req.body.projectId !== undefined) {
     updates.projectId = await resolveOptionalProjectId(userId, req.body.projectId);
+  }
+  if (req.body.memo !== undefined) {
+    await ensureMemoColumn();
+    updates.memo = req.body.memo || null;
   }
 
   // Handle status field

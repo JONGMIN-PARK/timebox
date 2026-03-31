@@ -491,6 +491,20 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(user_id, sent, remind_at);
       CREATE INDEX IF NOT EXISTS idx_messages_project_deleted ON messages(project_id, deleted);
       CREATE INDEX IF NOT EXISTS idx_chat_messages_deleted ON chat_messages(deleted, created_at);
+
+      CREATE TABLE IF NOT EXISTS google_calendar_config (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT NOT NULL,
+        token_expiry TEXT,
+        email TEXT,
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_google_calendar_config_user ON google_calendar_config(user_id);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS google_event_id TEXT;
+      ALTER TABLE todos ADD COLUMN IF NOT EXISTS memo TEXT;
     `);
 
     // Seed default categories if empty

@@ -45,8 +45,9 @@ export default function CalendarView() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [newEvent, setNewEvent] = useState<{ title: string; startTime: string; endTime: string; categoryId: number; projectId: number | null }>({
+  const [newEvent, setNewEvent] = useState<{ title: string; description: string; startTime: string; endTime: string; categoryId: number; projectId: number | null }>({
     title: "",
+    description: "",
     startTime: "09:00",
     endTime: "10:00",
     categoryId: 0,
@@ -179,6 +180,7 @@ export default function CalendarView() {
       if (editingEventId) {
         await updateEvent(editingEventId, {
           title: newEvent.title.trim(),
+          description: newEvent.description.trim() || null,
           startTime: `${dateStr}T${newEvent.startTime}:00`,
           endTime: `${dateStr}T${newEvent.endTime}:00`,
           categoryId: newEvent.categoryId || undefined,
@@ -189,6 +191,7 @@ export default function CalendarView() {
       } else {
         await addEvent({
           title: newEvent.title.trim(),
+          description: newEvent.description.trim() || undefined,
           startTime: `${dateStr}T${newEvent.startTime}:00`,
           endTime: `${dateStr}T${newEvent.endTime}:00`,
           allDay: false,
@@ -202,7 +205,7 @@ export default function CalendarView() {
     } catch {
       showToast("error", t("calendar.createFailed"));
     }
-    setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
+    setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
     setRecurrence("");
     setEditingEventId(null);
     setShowAddModal(false);
@@ -224,6 +227,7 @@ export default function CalendarView() {
     setEditingEventId(ev.id);
     setNewEvent({
       title: ev.title,
+      description: ev.description || "",
       startTime: ev.startTime.slice(11, 16),
       endTime: ev.endTime.slice(11, 16),
       categoryId: ev.categoryId || 0,
@@ -333,7 +337,7 @@ export default function CalendarView() {
           onDayLeave={() => setHoverDateKey(null)}
           onShowAddModal={() => {
             setEditingEventId(null);
-            setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
+            setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
             setShowAddModal(true);
           }}
           onDeleteEvent={handleDeleteEvent}
@@ -401,6 +405,16 @@ export default function CalendarView() {
               className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
+            <div>
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("calendar.eventMemo")}</label>
+              <textarea
+                value={newEvent.description}
+                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                placeholder={t("calendar.eventMemoPlaceholder")}
+                rows={5}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+              />
+            </div>
             {categories.length > 0 && (
               <div>
                 <label className="text-xs text-slate-500 mb-1.5 block">{t("calendar.category")}</label>
@@ -462,7 +476,7 @@ export default function CalendarView() {
         initialDate={todoAddModalDate}
         onClose={() => setTodoAddModalOpen(false)}
         onAdd={async (values) => {
-          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status, values.projectId ?? null);
+          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status, values.projectId ?? null, values.memo ?? null);
           if (!ok) throw new Error("add failed");
           showToast("success", t("calendar.todoCreated"));
         }}
@@ -483,6 +497,7 @@ export default function CalendarView() {
             priority: values.priority,
             status: values.status,
             projectId: values.projectId ?? null,
+            memo: values.memo ?? null,
           });
           showToast("success", t("calendar.todoUpdated"));
         }}

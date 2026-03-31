@@ -114,6 +114,8 @@ export interface Todo {
   deletedAt?: string | null;
   /** Optional link to a project the user is a member of. */
   projectId?: number | null;
+  /** Free-form memo / notes (up to ~6 lines). */
+  memo?: string | null;
 }
 
 export interface CreateTodoInput {
@@ -124,6 +126,7 @@ export interface CreateTodoInput {
   category?: string;
   status?: TodoStatus;
   projectId?: number | null;
+  memo?: string | null;
 }
 
 // ── D-Day ──

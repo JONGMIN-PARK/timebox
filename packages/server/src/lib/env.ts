@@ -12,6 +12,8 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().optional(),
   DEFAULT_ADMIN_PASSWORD: z.string().optional(),
   DEFAULT_ADMIN_USERNAME: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

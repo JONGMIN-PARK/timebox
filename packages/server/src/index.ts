@@ -37,6 +37,7 @@ import { initTelegramBot } from "./telegram/bot.js";
 import { initSocket } from "./socket/index.js";
 import analyticsRoutes from "./routes/analytics.js";
 import calendarFeedRoutes from "./routes/calendarFeed.js";
+import googleCalendarRoutes from "./routes/googleCalendar.js";
 import summaryRoutes from "./routes/summary.js";
 import { activityTracker } from "./middleware/activityTracker.js";
 
@@ -164,6 +165,19 @@ app.use(activityTracker);
 // Public routes
 app.use("/api/auth", authRoutes);
 app.use("/api/calendar", calendarFeedRoutes);
+// Google OAuth popup callback (public — Google redirects here directly)
+app.get("/api/google-calendar/oauth-popup", (req, res) => {
+  const code = req.query.code as string || "";
+  const error = req.query.error as string || "";
+  res.setHeader("Content-Type", "text/html");
+  res.send(`<!DOCTYPE html><html><body><script>
+    window.opener && window.opener.postMessage(
+      { type: "google-oauth-callback", code: ${JSON.stringify(code)}, error: ${JSON.stringify(error)} },
+      window.location.origin
+    );
+    window.close();
+  </script><p>Redirecting...</p></body></html>`);
+});
 
 // Protected routes (auth + per-user rate limiting)
 const protectedMiddleware = [authMiddleware, perUserLimiter];
@@ -187,6 +201,7 @@ app.use("/api/inbox", ...protectedMiddleware, inboxRoutes);
 app.use("/api/chat", ...protectedMiddleware, chatRoutes);
 app.use("/api/analytics", authMiddleware, perUserLimiter, adminMiddleware, analyticsRoutes);
 app.use("/api/summary", ...protectedMiddleware, summaryRoutes);
+app.use("/api/google-calendar", ...protectedMiddleware, googleCalendarRoutes); // auth-protected endpoints
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

@@ -8,6 +8,7 @@ import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircl
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import TelegramSection from "@/components/settings/TelegramSection";
+import GoogleCalendarSection from "@/components/settings/GoogleCalendarSection";
 import type { Locale } from "@/lib/i18n";
 
 const AI_MODELS = [
@@ -242,6 +243,9 @@ export default function SettingsPage() {
 
         {/* Telegram Integration */}
         <TelegramSection />
+
+        {/* Google Calendar Integration */}
+        <GoogleCalendarSection />
 
         {/* AI Model */}
         <section>

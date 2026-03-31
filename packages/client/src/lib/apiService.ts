@@ -25,7 +25,7 @@ export const todoApi = {
     const query = filter ? `?filter=${filter}` : "";
     return api.get<Todo[]>(`/todos${query}`);
   },
-  create: (data: { title: string; priority?: string; dueDate?: string; category?: string; status?: 'waiting' | 'active' | 'completed'; projectId?: number | null }) =>
+  create: (data: { title: string; priority?: string; dueDate?: string; category?: string; status?: 'waiting' | 'active' | 'completed'; projectId?: number | null; memo?: string | null }) =>
     api.post<Todo>("/todos", data),
   update: (id: number, data: Partial<Todo>) =>
     api.put<Todo>(`/todos/${id}`, data),

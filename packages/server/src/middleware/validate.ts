@@ -48,6 +48,7 @@ export const schemas = {
     parentId: z.number().optional().nullable(),
     status: z.enum(["waiting", "active", "completed"]).optional().default("active"),
     projectId: z.number().int().positive().optional().nullable(),
+    memo: z.string().max(1000).optional().nullable(),
   }),
 
   createDDay: z.object({
