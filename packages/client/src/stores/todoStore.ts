@@ -96,11 +96,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const todo = prev.find(t => t.id === id);
     if (!todo) return;
     const newCompleted = !todo.completed;
+    const newStatus = newCompleted ? 'completed' as const : 'active' as const;
     const newProgress = newCompleted ? 100 : (todo.progress >= 100 ? 0 : todo.progress);
-    set({ todos: normalizeTodoStoreOrder(prev.map(t => t.id === id ? { ...t, completed: newCompleted, progress: newProgress } : t)) });
+    set({ todos: normalizeTodoStoreOrder(prev.map(t => t.id === id ? { ...t, completed: newCompleted, status: newStatus, progress: newProgress } : t)) });
 
     try {
-      const res = await todoApi.toggle(id, { completed: newCompleted, progress: newProgress });
+      const res = await todoApi.toggle(id, { completed: newCompleted, progress: newProgress, status: newStatus });
       if (!res.success) {
         set({ todos: prev });
         const msg = res.error || "Failed to toggle todo";

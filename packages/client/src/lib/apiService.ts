@@ -33,7 +33,7 @@ export const todoApi = {
   restore: (id: number) => api.post<Todo>(`/todos/${id}/restore`, {}),
   deletePermanent: (id: number) => api.delete<Todo>(`/todos/${id}/permanent`),
   emptyTrash: () => api.delete<{ count: number }>("/todos/trash"),
-  toggle: (id: number, data: { completed: boolean; progress: number }) =>
+  toggle: (id: number, data: { completed: boolean; progress: number; status?: string }) =>
     api.put<Todo>(`/todos/${id}`, data),
   reorder: (items: { id: number; sortOrder: number }[]) =>
     api.put("/todos/reorder", { items }),
