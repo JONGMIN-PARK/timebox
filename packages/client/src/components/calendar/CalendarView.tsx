@@ -18,7 +18,7 @@ import {
   isSameDay,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
@@ -388,15 +388,21 @@ export default function CalendarView() {
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
+        <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:bg-black/50" role="dialog" aria-modal="true" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
+            className="w-full sm:max-w-sm sm:mx-4 bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl flex flex-col sm:max-h-[85vh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
           >
-            <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
-            </h3>
+            <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-700/50 sm:border-0 sm:px-5 sm:pt-5 sm:pb-0">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
+              </h3>
+              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-3 space-y-4">
             <input
               type="text"
               value={newEvent.title}
@@ -463,9 +469,10 @@ export default function CalendarView() {
                 <option value="monthly">{t("calendar.monthly")}</option>
               </select>
             </div>
-            <div className="flex gap-2">
-              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{t("common.add")}</button>
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
+            </div>
+            <div className="flex-shrink-0 flex gap-2 px-5 py-3 border-t border-slate-100 dark:border-slate-700/50">
+              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{editingEventId ? t("common.save") : t("common.add")}</button>
+              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
             </div>
           </form>
         </div>

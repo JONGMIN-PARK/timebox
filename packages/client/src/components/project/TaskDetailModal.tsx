@@ -66,10 +66,10 @@ export default function TaskDetailModal({ projectId, task, members, onClose, onU
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Task details">
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:bg-black/50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Task details">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl shadow-xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col"
+        className="w-full sm:max-w-lg sm:mx-4 bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl sm:max-h-[85vh] flex flex-col pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
       >
         {/* Header: title, status, priority */}
         <TaskDetailHeader
