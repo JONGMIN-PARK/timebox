@@ -35,7 +35,7 @@ export default function CalendarView() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [newEvent, setNewEvent] = useState({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+  const [newEvent, setNewEvent] = useState({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
   const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
@@ -133,6 +133,7 @@ export default function CalendarView() {
     if (editingEventId) {
       await updateEvent(editingEventId, {
         title: newEvent.title.trim(),
+        description: newEvent.description.trim() || undefined,
         startTime: `${dateStr}T${newEvent.startTime}:00`,
         endTime: `${dateStr}T${newEvent.endTime}:00`,
         categoryId: newEvent.categoryId || undefined,
@@ -141,6 +142,7 @@ export default function CalendarView() {
     } else {
       await addEvent({
         title: newEvent.title.trim(),
+        description: newEvent.description.trim() || undefined,
         startTime: `${dateStr}T${newEvent.startTime}:00`,
         endTime: `${dateStr}T${newEvent.endTime}:00`,
         allDay: false,
@@ -149,7 +151,7 @@ export default function CalendarView() {
         color: cat?.color || "#3b82f6",
       });
     }
-    setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
+    setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0 });
     setRecurrence("");
     setEditingEventId(null);
     setShowAddModal(false);
@@ -162,6 +164,7 @@ export default function CalendarView() {
     setEditingEventId(ev.id);
     setNewEvent({
       title: ev.title,
+      description: ev.description || "",
       startTime: ev.startTime.slice(11, 16),
       endTime: ev.endTime.slice(11, 16),
       categoryId: ev.categoryId || 0,
@@ -268,7 +271,7 @@ export default function CalendarView() {
           getHoverItems={getHoverItems}
           onDayHover={handleDayHover}
           onDayLeave={() => setHoverDateKey(null)}
-          onShowAddModal={() => { setEditingEventId(null); setNewEvent({ title: "", startTime: "09:00", endTime: "10:00", categoryId: 0 }); setShowAddModal(true); }}
+          onShowAddModal={() => { setEditingEventId(null); setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0 }); setShowAddModal(true); }}
           onDeleteEvent={deleteEvent}
           onEditEvent={handleEditEvent}
           onToggleTodo={toggleTodo}
@@ -327,67 +330,81 @@ export default function CalendarView() {
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl p-5 shadow-xl space-y-4 max-h-[85dvh] overflow-y-auto mb-[var(--mobile-nav-h)] sm:mb-0"
+            className="w-full max-w-sm sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl shadow-xl flex flex-col max-h-[calc(100dvh-var(--mobile-nav-h,56px)-env(safe-area-inset-bottom,0px)-3rem)] sm:max-h-[85vh] mb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:mb-0"
           >
-            <h3 className="font-semibold text-slate-900 dark:text-white">
-              {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
-            </h3>
-            <input
-              type="text"
-              value={newEvent.title}
-              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-              placeholder={t("calendar.eventTitle")}
-              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
-            {categories.length > 0 && (
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
+              </h3>
+              <input
+                type="text"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                placeholder={t("calendar.eventTitle")}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
               <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">{t("calendar.category")}</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {categories.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setNewEvent({ ...newEvent, categoryId: cat.id })}
-                      className={cn(
-                        "text-xs py-1 px-2.5 rounded-full border-2 transition-colors",
-                        newEvent.categoryId === cat.id
-                          ? "border-current font-medium"
-                          : "border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700",
-                      )}
-                      style={newEvent.categoryId === cat.id ? { color: cat.color, backgroundColor: cat.color + "15" } : undefined}
-                    >
-                      {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                      {cat.name}
-                    </button>
-                  ))}
+                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.description") || "Description"}</label>
+                <textarea
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder={t("calendar.descriptionPlaceholder") || "Add event details..."}
+                  rows={3}
+                  className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                />
+              </div>
+              {categories.length > 0 && (
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">{t("calendar.category")}</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setNewEvent({ ...newEvent, categoryId: cat.id })}
+                        className={cn(
+                          "text-xs py-1 px-2.5 rounded-full border-2 transition-colors",
+                          newEvent.categoryId === cat.id
+                            ? "border-current font-medium"
+                            : "border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700",
+                        )}
+                        style={newEvent.categoryId === cat.id ? { color: cat.color, backgroundColor: cat.color + "15" } : undefined}
+                      >
+                        {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
+                  <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
+                  <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
                 </div>
               </div>
-            )}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
-                <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
-                <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence") || "반복"}</label>
+                <select
+                  value={recurrence}
+                  onChange={(e) => setRecurrence(e.target.value)}
+                  className="w-full text-xs bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none"
+                >
+                  <option value="">반복 없음</option>
+                  <option value="daily">매일</option>
+                  <option value="weekly">매주</option>
+                  <option value="monthly">매월</option>
+                </select>
               </div>
             </div>
-            <div>
-              <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence") || "반복"}</label>
-              <select
-                value={recurrence}
-                onChange={(e) => setRecurrence(e.target.value)}
-                className="w-full text-xs bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none"
-              >
-                <option value="">반복 없음</option>
-                <option value="daily">매일</option>
-                <option value="weekly">매주</option>
-                <option value="monthly">매월</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
+            {/* Fixed footer buttons */}
+            <div className="flex-shrink-0 flex gap-2 px-5 pb-5 pt-3 border-t border-slate-100 dark:border-slate-700/50">
               <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{t("common.add")}</button>
               <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
             </div>
