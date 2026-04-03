@@ -17,7 +17,7 @@ import {
   subDays,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendarTypes";
@@ -326,15 +326,24 @@ export default function CalendarView() {
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
+        <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:bg-black/50" role="dialog" aria-modal="true" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl shadow-xl flex flex-col max-h-[calc(100dvh-var(--mobile-nav-h,56px)-env(safe-area-inset-bottom,0px)-3rem)] sm:max-h-[85vh] mb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:mb-0"
+            className="w-full sm:max-w-sm sm:mx-4 bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl flex flex-col sm:max-h-[85vh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
           >
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            {/* Header - mobile close */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-2 sm:hidden flex-shrink-0">
               <h3 className="font-semibold text-slate-900 dark:text-white">
+                {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
+              </h3>
+              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-2 space-y-4">
+              <h3 className="font-semibold text-slate-900 dark:text-white hidden sm:block">
                 {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
               </h3>
               <input
@@ -404,9 +413,9 @@ export default function CalendarView() {
               </div>
             </div>
             {/* Fixed footer buttons */}
-            <div className="flex-shrink-0 flex gap-2 px-5 pb-5 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{t("common.add")}</button>
-              <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
+            <div className="flex-shrink-0 flex gap-2 px-5 py-3 border-t border-slate-100 dark:border-slate-700/50">
+              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{editingEventId ? t("common.save") || "Save" : t("common.add")}</button>
+              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
             </div>
           </form>
         </div>
