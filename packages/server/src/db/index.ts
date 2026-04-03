@@ -446,6 +446,8 @@ export async function initDb() {
       ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS read_by TEXT NOT NULL DEFAULT '[]';
 
       ALTER TABLE todos ADD COLUMN IF NOT EXISTS progress INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE todos ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+      ALTER TABLE todos ADD COLUMN IF NOT EXISTS memo TEXT;
 
       ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_model TEXT NOT NULL DEFAULT 'gemini-2.0-flash';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_models TEXT NOT NULL DEFAULT '[]';

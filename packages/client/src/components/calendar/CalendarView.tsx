@@ -18,6 +18,7 @@ import {
 } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import TodoDetailModal from "@/components/todo/TodoDetailModal";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendarTypes";
@@ -172,11 +173,9 @@ export default function CalendarView() {
     setShowAddModal(true);
   };
 
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const handleEditTodo = (td: Todo) => {
-    const title = prompt("할일 수정:", td.title);
-    if (title !== null && title.trim()) {
-      updateTodo(td.id, { title: title.trim() });
-    }
+    setEditingTodo(td);
   };
 
   const getHoverItems = (dateKey: string): HoverTooltipItem[] => {
@@ -419,6 +418,20 @@ export default function CalendarView() {
             </div>
           </form>
         </div>
+      )}
+
+      {editingTodo && (
+        <TodoDetailModal
+          todo={editingTodo}
+          onClose={() => setEditingTodo(null)}
+          onSave={async (id, updates) => {
+            await updateTodo(id, updates);
+            setEditingTodo(null);
+            const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
+            const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
+            fetchTodos();
+          }}
+        />
       )}
     </div>
   );

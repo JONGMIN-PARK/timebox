@@ -90,6 +90,8 @@ router.put("/:id", async (req: AuthRequest, res) => {
     if (req.body.dueDate !== undefined) updates.dueDate = req.body.dueDate;
     if (req.body.sortOrder !== undefined) updates.sortOrder = req.body.sortOrder;
     if (req.body.progress !== undefined) updates.progress = req.body.progress;
+    if (req.body.status !== undefined) updates.status = req.body.status;
+    if (req.body.memo !== undefined) updates.memo = req.body.memo;
 
     const result = await db.update(todos).set(updates).where(and(eq(todos.id, id), eq(todos.userId, userId))).returning();
     if (!result[0]) {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useTodoStore, TODO_CATEGORIES, getCategoryInfo, type Todo } from "@/stores/todoStore";
 import { cn } from "@/lib/utils";
+import TodoDetailModal from "./TodoDetailModal";
 import { Plus, Trash2, Circle, CheckCircle2, ChevronDown, ChevronRight, GripVertical, CalendarDays, Pencil, Tag } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent, DragOverlay,
@@ -91,10 +92,11 @@ function CategoryPicker({ value, onChange, compact }: { value: string; onChange:
 }
 
 // ── Sortable Todo Item ──
-function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress }: {
+function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onDetail }: {
   todo: Todo; onToggle: (id: number) => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
+  onDetail: (todo: Todo) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -188,7 +190,7 @@ function SortableTodoItem({ todo, onToggle, onDelete, onUpdateDate, onUpdateTitl
       </div>
       <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
         {!isEditing && (
-          <button onClick={() => { setIsEditing(true); setEditTitle(todo.title); }}
+          <button onClick={() => onDetail(todo)}
             className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <Pencil className="w-3 h-3" />
           </button>
@@ -211,6 +213,7 @@ export default function TodoList() {
   const [newCategory, setNewCategory] = useState("personal");
   const [showCompleted, setShowCompleted] = useState(false);
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+  const [detailTodo, setDetailTodo] = useState<Todo | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -347,7 +350,8 @@ export default function TodoList() {
                     onUpdateDate={(id, d) => updateTodo(id, { dueDate: d })}
                     onUpdateTitle={(id, t) => updateTodo(id, { title: t })}
                     onUpdateCategory={(id, c) => updateTodo(id, { category: c })}
-                    onUpdateProgress={(id, p) => updateTodo(id, { progress: p })} />
+                    onUpdateProgress={(id, p) => updateTodo(id, { progress: p })}
+                    onDetail={setDetailTodo} />
                 ))}
               </ul>
             </SortableContext>
@@ -402,6 +406,17 @@ export default function TodoList() {
           </div>
         )}
       </div>
+
+      {detailTodo && (
+        <TodoDetailModal
+          todo={detailTodo}
+          onClose={() => setDetailTodo(null)}
+          onSave={async (id, updates) => {
+            await updateTodo(id, updates);
+            setDetailTodo(null);
+          }}
+        />
+      )}
     </div>
   );
 }

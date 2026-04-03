@@ -25,13 +25,18 @@ export interface CalendarEvent {
 
 export interface Todo {
   id: number;
+  userId: number;
   title: string;
   completed: boolean;
+  progress: number;
   priority: string;
   category: string;
   dueDate: string | null;
+  status: "active" | "waiting" | "done";
+  memo: string | null;
   sortOrder: number;
   parentId: number | null;
+  children?: Todo[];
   createdAt: string;
   updatedAt: string;
 }

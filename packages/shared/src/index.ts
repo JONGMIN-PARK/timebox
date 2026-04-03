@@ -84,6 +84,8 @@ export interface CreateTimeBlockInput {
 // ── Todo ──
 export type Priority = "high" | "medium" | "low";
 
+export type TodoStatus = "active" | "waiting" | "done";
+
 export interface Todo {
   id: number;
   userId: number;
@@ -93,6 +95,8 @@ export interface Todo {
   priority: string;
   category: string;
   dueDate: string | null;
+  status: TodoStatus;
+  memo: string | null;
   sortOrder: number;
   parentId: number | null;
   children?: Todo[];
