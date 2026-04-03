@@ -323,11 +323,11 @@ export default function CalendarView() {
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" role="dialog" aria-modal="true" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm mx-4 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-xl space-y-4"
+            className="w-full max-w-sm sm:mx-4 bg-white dark:bg-slate-800 rounded-t-xl sm:rounded-xl p-5 shadow-xl space-y-4 max-h-[85dvh] overflow-y-auto mb-[var(--mobile-nav-h)] sm:mb-0"
           >
             <h3 className="font-semibold text-slate-900 dark:text-white">
               {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}

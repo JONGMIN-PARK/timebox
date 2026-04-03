@@ -3,7 +3,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles, BookOpen } from "lucide-react";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import TelegramSection from "@/components/settings/TelegramSection";
@@ -583,6 +583,17 @@ export default function SettingsPage() {
             <TeamGroupManager />
           </section>
         )}
+
+        {/* Help & Manual */}
+        <section className="pb-4">
+          <a
+            href="/app/manual"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all"
+          >
+            <BookOpen className="w-4 h-4" />
+            사용자 매뉴얼
+          </a>
+        </section>
 
         {/* Logout */}
         <section className="pb-6">

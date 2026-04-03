@@ -85,6 +85,26 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.addReminder": "Add Reminder",
     "calendar.selectDateHint": "Tap a date to see details",
 
+    // Manual
+    "manual.title": "User Manual",
+    "manual.subtitle": "Everything you need to know about TimeBox",
+    "manual.backToApp": "Back to App",
+    "manual.search": "Search sections...",
+    "manual.gettingStarted": "Getting Started",
+    "manual.calendar": "Calendar",
+    "manual.timebox": "TimeBox",
+    "manual.todos": "Todos",
+    "manual.scheduler": "Scheduler",
+    "manual.chat": "Chat",
+    "manual.projects": "Projects",
+    "manual.files": "File Vault",
+    "manual.inbox": "Inbox",
+    "manual.reminders": "Reminders",
+    "manual.dday": "D-Day",
+    "manual.settings": "Settings",
+    "manual.shortcuts": "Shortcuts",
+    "manual.faq": "FAQ",
+
     // D-Day
     "dday.title": "D-Day",
     "dday.addNew": "Add D-Day",
@@ -442,6 +462,26 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.addTodo": "할일 추가",
     "calendar.addReminder": "리마인더 추가",
     "calendar.selectDateHint": "날짜를 탭하여 상세 보기",
+
+    // Manual
+    "manual.title": "사용자 매뉴얼",
+    "manual.subtitle": "TimeBox의 모든 기능을 알아보세요",
+    "manual.backToApp": "앱으로 돌아가기",
+    "manual.search": "섹션 검색...",
+    "manual.gettingStarted": "시작하기",
+    "manual.calendar": "캘린더",
+    "manual.timebox": "타임박스",
+    "manual.todos": "할 일",
+    "manual.scheduler": "스케줄러",
+    "manual.chat": "채팅",
+    "manual.projects": "프로젝트",
+    "manual.files": "파일 자료실",
+    "manual.inbox": "인박스",
+    "manual.reminders": "리마인더",
+    "manual.dday": "디데이",
+    "manual.settings": "설정",
+    "manual.shortcuts": "단축키",
+    "manual.faq": "FAQ",
 
     // D-Day
     "dday.title": "\ub514\ub370\uc774",

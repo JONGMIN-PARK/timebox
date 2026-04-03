@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3, FolderOpen, FileText, BarChart2 } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3, FolderOpen, FileText, BarChart2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -279,6 +279,13 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <Settings className="w-[18px] h-[18px]" />
           <span className="hidden lg:block">{t("nav.settings")}</span>
         </button>
+        <a
+          href="/app/manual"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-all text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40"
+        >
+          <BookOpen className="w-[18px] h-[18px]" />
+          <span className="hidden lg:block">도움말</span>
+        </a>
 
         {/* User avatar */}
         <div className="hidden lg:flex items-center gap-2.5 px-3 py-2 mt-1">
