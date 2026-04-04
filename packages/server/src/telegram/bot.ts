@@ -455,7 +455,7 @@ export async function initTelegramBot() {
     text += `⏱ Time blocks: ${weekBlocks.length} (${fmtDuration(totalBlockMins)})\n`;
     text += `✅ Todos: ${allTodos.filter((t) => t.completed).length}/${allTodos.length} done\n`;
     text += `📅 Upcoming D-Days: ${allDdays2.filter((d) => {
-      const diff = Math.ceil((new Date(d.targetDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const diff = calcDaysLeft(d.targetDate);
       return diff >= 0 && diff <= 7;
     }).length}\n`;
 
@@ -917,7 +917,7 @@ async function sendDailyBriefing() {
       if (upcoming.length > 0) {
         text += `🎯 Upcoming D-Days\n`;
         upcoming.forEach((d) => {
-          const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+          const diff = calcDaysLeft(d.targetDate);
           text += `  ${diff === 0 ? "🔥 D-Day!" : `D-${diff}`} ${d.title}\n`;
         });
       }
