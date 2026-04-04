@@ -16,9 +16,10 @@ import {
   addDays,
   subDays,
   isSameDay,
+  isToday,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
@@ -35,6 +36,7 @@ import { getCategoryInfo } from "@/lib/categories";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
+import TodaySummary from "./TodaySummary";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -45,13 +47,8 @@ export default function CalendarView() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
-  const [newEvent, setNewEvent] = useState<{ title: string; description: string; startTime: string; endTime: string; categoryId: number; projectId: number | null }>({
-    title: "",
-    description: "",
-    startTime: "09:00",
-    endTime: "10:00",
-    categoryId: 0,
-    projectId: null,
+  const [newEvent, setNewEvent] = useState({
+    title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null as number | null, recurrenceRule: "",
   });
   const { projects, fetchProjects } = useProjectStore();
   const projectNameById = useMemo(
@@ -62,6 +59,7 @@ export default function CalendarView() {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+  const [projectFilter, setProjectFilter] = useState<number | null>(null);
   const [recurrence, setRecurrence] = useState("");
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
@@ -123,15 +121,18 @@ export default function CalendarView() {
   }, [viewMode]);
 
   const eventsByDate = useMemo(() => {
+    const filteredEvents = projectFilter
+      ? events.filter(ev => ev.projectId === projectFilter)
+      : events;
     const map = new Map<string, typeof events>();
-    events.forEach((ev) => {
+    filteredEvents.forEach((ev) => {
       const dateKey = ev.startTime.slice(0, 10);
       const existing = map.get(dateKey) || [];
       existing.push(ev);
       map.set(dateKey, existing);
     });
     return map;
-  }, [events]);
+  }, [events, projectFilter]);
 
   const todosByDate = useMemo(() => {
     const map = new Map<string, typeof todos>();
@@ -189,6 +190,7 @@ export default function CalendarView() {
           categoryId: newEvent.categoryId || undefined,
           color: cat?.color || "#3b82f6",
           projectId: newEvent.projectId,
+          recurrenceRule: newEvent.recurrenceRule || undefined,
         });
         showToast("success", t("calendar.eventCreated"));
       } else {
@@ -199,7 +201,7 @@ export default function CalendarView() {
           endTime: `${dateStr}T${newEvent.endTime}:00`,
           allDay: false,
           categoryId: newEvent.categoryId || undefined,
-          recurrenceRule: recurrence || undefined,
+          recurrenceRule: newEvent.recurrenceRule || undefined,
           color: cat?.color || "#3b82f6",
           projectId: newEvent.projectId,
         });
@@ -208,7 +210,7 @@ export default function CalendarView() {
     } catch {
       showToast("error", t("calendar.createFailed"));
     }
-    setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
+    setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null, recurrenceRule: "" });
     setRecurrence("");
     setEditingEventId(null);
     setShowAddModal(false);
@@ -235,6 +237,7 @@ export default function CalendarView() {
       endTime: ev.endTime.slice(11, 16),
       categoryId: ev.categoryId || 0,
       projectId: ev.projectId ?? null,
+      recurrenceRule: ev.recurrenceRule || "",
     });
     setShowAddModal(true);
   };
@@ -304,23 +307,39 @@ export default function CalendarView() {
             {t("common.today")}
           </button>
         </div>
-        <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-          {(["month", "week", "day"] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={cn(
-                "text-xs px-2.5 py-1 rounded-md transition-colors",
-                viewMode === mode
-                  ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
-              )}
-            >
-              {{ month: t("calendar.month"), week: t("calendar.week"), day: t("calendar.day") }[mode]}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <select
+            value={projectFilter ?? ""}
+            onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : null)}
+            className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none outline-none cursor-pointer"
+          >
+            <option value="">{t("calendar.allProjects") || "All Projects"}</option>
+            {projects.filter((p) => !p.archived).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+            {(["month", "week", "day"] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={cn(
+                  "text-xs px-2.5 py-1 rounded-md transition-colors",
+                  viewMode === mode
+                    ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
+                )}
+              >
+                {{ month: t("calendar.month"), week: t("calendar.week"), day: t("calendar.day") }[mode]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {selectedDate && isToday(selectedDate) && (
+        <TodaySummary events={selectedDateEvents} todos={selectedDateTodos} />
+      )}
 
       {/* === MONTH VIEW === */}
       {viewMode === "month" && (
@@ -340,7 +359,7 @@ export default function CalendarView() {
           onDayLeave={() => setHoverDateKey(null)}
           onShowAddModal={() => {
             setEditingEventId(null);
-            setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null });
+            setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null, recurrenceRule: "" });
             setShowAddModal(true);
           }}
           onDeleteEvent={handleDeleteEvent}
@@ -460,17 +479,32 @@ export default function CalendarView() {
             </div>
             <ProjectPicker value={newEvent.projectId} onChange={(pid) => setNewEvent({ ...newEvent, projectId: pid })} />
             <div>
-              <label className="text-xs text-slate-500 mb-1 block">{t("calendar.recurrence")}</label>
-              <select
-                value={recurrence}
-                onChange={(e) => setRecurrence(e.target.value)}
-                className="w-full text-xs bg-slate-100/80 dark:bg-slate-700/50 rounded-lg px-2 py-1.5 text-slate-600 dark:text-slate-300 outline-none"
-              >
-                <option value="">{t("calendar.noRecurrence")}</option>
-                <option value="daily">{t("calendar.daily")}</option>
-                <option value="weekly">{t("calendar.weekly")}</option>
-                <option value="monthly">{t("calendar.monthly")}</option>
-              </select>
+              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1">
+                <Repeat className="w-3.5 h-3.5" />
+                {t("calendar.recurrence")}
+              </label>
+              <div className="flex gap-1.5">
+                {([
+                  { value: "", label: t("calendar.noRepeat") || "None" },
+                  { value: "daily", label: t("calendar.daily") },
+                  { value: "weekly", label: t("calendar.weekly") },
+                  { value: "monthly", label: t("calendar.monthly") },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setNewEvent({ ...newEvent, recurrenceRule: opt.value })}
+                    className={cn(
+                      "text-xs py-1.5 px-3 rounded-lg border transition-colors",
+                      newEvent.recurrenceRule === opt.value
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-medium"
+                        : "border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50",
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
             </div>
             <div className="flex-shrink-0 flex gap-2 px-5 py-3 border-t border-slate-100 dark:border-slate-700/50">

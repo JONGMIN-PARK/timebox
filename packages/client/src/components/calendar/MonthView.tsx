@@ -1,7 +1,7 @@
 import { useState, useRef, memo } from "react";
 import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check } from "lucide-react";
+import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
 import { useI18n } from "@/lib/useI18n";
@@ -22,7 +22,7 @@ const MonthEventDetailItem = memo(function MonthEventDetailItem({
       <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
       <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
+        <p className="text-sm font-medium text-slate-900 dark:text-white truncate flex items-center gap-1">{ev.title}{ev.recurrenceRule && <Repeat className="w-3 h-3 text-slate-400 shrink-0" />}</p>
         <p className="text-[11px] text-slate-400 tabular-nums">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
         {projectLabel && (
           <p className="text-[10px] text-blue-600 dark:text-blue-400 truncate mt-0.5">{projectLabel}</p>
@@ -212,6 +212,7 @@ export default function MonthView({
                     {ev.projectId && projectNameById[ev.projectId] && (
                       <span className="w-1 h-1 rounded-full shrink-0 bg-blue-500" title={projectNameById[ev.projectId]} />
                     )}
+                    {ev.recurrenceRule && <Repeat className="w-2.5 h-2.5 text-slate-400 shrink-0" />}
                     <p className="text-[10px] leading-tight truncate text-slate-700 dark:text-slate-300">{ev.title}</p>
                   </div>
                 ))}

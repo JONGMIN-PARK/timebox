@@ -20,6 +20,7 @@ export interface CalendarEvent {
   categoryId: number | null;
   color: string;
   projectId?: number | null;
+  recurrenceRule: string | null;
   createdAt: string;
   updatedAt: string;
 }

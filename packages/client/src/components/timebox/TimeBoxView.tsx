@@ -2,8 +2,8 @@ import { useEffect, useState, useRef, useMemo, memo, useCallback } from "react";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import {
-  ChevronLeft, ChevronRight, Plus, X, Check, Trash2, Pencil,
-  Calendar, CheckSquare, Clock, PanelRightOpen, PanelRightClose,
+  ChevronLeft, ChevronRight, ChevronDown, Plus, X, Check, Trash2, Pencil,
+  Calendar, CheckSquare, Clock, PanelRightOpen, PanelRightClose, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -20,6 +20,8 @@ import { useEventStore } from "@/stores/eventStore";
 import { useTodoStore } from "@/stores/todoStore";
 import CalendarTodoAddModal from "@/components/calendar/CalendarTodoAddModal";
 import CalendarTodoEditModal from "@/components/calendar/CalendarTodoEditModal";
+import TimeStats from "./TimeStats";
+import { loadBrainItems, saveBrainItems, uid, type BrainItem } from "@/components/scheduler/elonStorage";
 import type { CalendarEvent, Todo } from "@timebox/shared";
 
 const HOUR_HEIGHT = 60; // px per hour
@@ -293,6 +295,12 @@ export default function TimeBoxView() {
   const [todoAddOpen, setTodoAddOpen] = useState(false);
   const [todoEditOpen, setTodoEditOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [brainItems, setBrainItems] = useState<BrainItem[]>([]);
+  const [newIdeaText, setNewIdeaText] = useState("");
+  const [brainOpen, setBrainOpen] = useState(true);
+  const [showStats, setShowStats] = useState(false);
+  const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragEnd, setDragEnd] = useState<number | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -303,6 +311,10 @@ export default function TimeBoxView() {
 
   useEffect(() => {
     fetchEvents(`${selectedDate}T00:00:00`, `${selectedDate}T23:59:59`);
+  }, [selectedDate]);
+
+  useEffect(() => {
+    setBrainItems(loadBrainItems(selectedDate));
   }, [selectedDate]);
 
   useEffect(() => {
@@ -462,6 +474,15 @@ export default function TimeBoxView() {
     setTodoEditOpen(true);
   }, []);
 
+  const handleAddBrainItem = () => {
+    if (!newIdeaText.trim()) return;
+    const item: BrainItem = { id: uid(), text: newIdeaText.trim(), notes: "", category: "other", duration: 30 };
+    const updated = [...brainItems, item];
+    setBrainItems(updated);
+    saveBrainItems(selectedDate, updated);
+    setNewIdeaText("");
+  };
+
   const goToday = () => setSelectedDate(format(new Date(), "yyyy-MM-dd"));
 
   return (
@@ -496,6 +517,13 @@ export default function TimeBoxView() {
                 {t("common.today")}
               </button>
             )}
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300"
+              title="Statistics"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </button>
             <button
               onClick={() => setPanelOpen(!panelOpen)}
               className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300"
@@ -533,9 +561,50 @@ export default function TimeBoxView() {
           )}
         </div>
 
+        {showStats && <TimeStats selectedDate={selectedDate} onClose={() => setShowStats(false)} />}
+
         {/* Timeline */}
         <div ref={timelineRef} className="flex-1 overflow-y-auto relative">
-          <div className="relative" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
+          <div
+            className="relative"
+            style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}
+            onMouseDown={(e) => {
+              if (e.target !== e.currentTarget) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const y = e.clientY - rect.top;
+              const minutes = Math.round((y / HOUR_HEIGHT) * 60 / 15) * 15 + START_HOUR * 60;
+              setDragStart(minutes);
+              setDragEnd(minutes);
+            }}
+            onMouseMove={(e) => {
+              if (dragStart === null) return;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const y = e.clientY - rect.top;
+              const minutes = Math.round((y / HOUR_HEIGHT) * 60 / 15) * 15 + START_HOUR * 60;
+              setDragEnd(minutes);
+            }}
+            onMouseUp={() => {
+              if (dragStart !== null && dragEnd !== null && Math.abs(dragEnd - dragStart) >= 15) {
+                const s = Math.min(dragStart, dragEnd);
+                const e = Math.max(dragStart, dragEnd);
+                setNewBlock({ ...newBlock, startTime: minutesToTime(s), endTime: minutesToTime(e) });
+                setShowAddForm(true);
+              }
+              setDragStart(null);
+              setDragEnd(null);
+            }}
+          >
+            {/* Drag preview */}
+            {dragStart !== null && dragEnd !== null && (
+              <div
+                className="absolute left-14 right-2 bg-blue-500/20 border-2 border-blue-500/40 border-dashed rounded-lg pointer-events-none z-10"
+                style={{
+                  top: ((Math.min(dragStart, dragEnd) - START_HOUR * 60) / 60) * HOUR_HEIGHT,
+                  height: (Math.abs(dragEnd - dragStart) / 60) * HOUR_HEIGHT,
+                }}
+              />
+            )}
+
             {/* Hour lines */}
             {HOURS.map((hour) => (
               <div
@@ -678,6 +747,66 @@ export default function TimeBoxView() {
                   onEdit={handleEditTodo}
                 />
               ))}
+            </div>
+
+            <div className="mx-3 border-t border-slate-100 dark:border-slate-700/50" />
+
+            {/* ── Brain Dump Section ── */}
+            <div className="px-3 pt-3 pb-3">
+              <button
+                onClick={() => setBrainOpen(!brainOpen)}
+                className="flex items-center gap-1.5 mb-2 w-full"
+              >
+                <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 transition-transform", !brainOpen && "-rotate-90")} />
+                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                  🧠 Brain Dump ({brainItems.length})
+                </h4>
+              </button>
+
+              {brainOpen && (
+                <>
+                  {brainItems.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-3">No ideas yet</p>
+                  )}
+                  {brainItems.map((item) => {
+                    const catConfig = CATEGORY_CONFIG[item.category];
+                    return (
+                      <div key={item.id} className="group flex items-center gap-2 px-3 py-2 hover:bg-purple-50/30 dark:hover:bg-slate-700/40 rounded-lg transition-colors">
+                        <span className="text-sm shrink-0">{catConfig.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">{item.text}</p>
+                        </div>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 shrink-0">
+                          {item.duration}m
+                        </span>
+                        <button
+                          onClick={() => scheduleAsBlock(item.text, undefined, minutesToTime(timeToMinutes("09:00") + item.duration))}
+                          title="Schedule as block"
+                          className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors opacity-0 group-hover:opacity-100 max-md:opacity-100"
+                        >
+                          <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <div className="flex gap-1.5 mt-2">
+                    <input
+                      type="text"
+                      value={newIdeaText}
+                      onChange={(e) => setNewIdeaText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleAddBrainItem(); }}
+                      placeholder="Quick idea..."
+                      className="flex-1 text-xs bg-slate-50 dark:bg-slate-700/40 rounded px-2 py-1.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                    <button
+                      onClick={handleAddBrainItem}
+                      className="p-1.5 rounded bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

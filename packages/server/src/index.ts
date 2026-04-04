@@ -39,6 +39,9 @@ import analyticsRoutes from "./routes/analytics.js";
 import calendarFeedRoutes from "./routes/calendarFeed.js";
 import googleCalendarRoutes from "./routes/googleCalendar.js";
 import summaryRoutes from "./routes/summary.js";
+import exportRoutes from "./routes/export.js";
+import sketchRoutes from "./routes/sketches.js";
+import importRoutes from "./routes/import.js";
 import { activityTracker } from "./middleware/activityTracker.js";
 import { KST_TIMEZONE } from "./lib/kst.js";
 
@@ -203,6 +206,9 @@ app.use("/api/chat", ...protectedMiddleware, chatRoutes);
 app.use("/api/analytics", authMiddleware, perUserLimiter, adminMiddleware, analyticsRoutes);
 app.use("/api/summary", ...protectedMiddleware, summaryRoutes);
 app.use("/api/google-calendar", ...protectedMiddleware, googleCalendarRoutes); // auth-protected endpoints
+app.use("/api/export", ...protectedMiddleware, exportRoutes);
+app.use("/api/sketches", ...protectedMiddleware, sketchRoutes);
+app.use("/api/import", ...protectedMiddleware, importRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

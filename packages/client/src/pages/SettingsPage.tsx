@@ -4,7 +4,8 @@ import { useThemeStore } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { authApi } from "@/lib/apiService";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles, Calendar } from "lucide-react";
+import { getQuietHoursConfig, saveQuietHoursConfig, type QuietHoursConfig } from "@/lib/quietHours";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import TelegramSection from "@/components/settings/TelegramSection";
@@ -76,6 +77,11 @@ export default function SettingsPage() {
     } catch { /* ignore */ }
     return { reminders: true, chat: true, tasks: true, inbox: true };
   });
+  const [quietConfig, setQuietConfig] = useState<QuietHoursConfig>(getQuietHoursConfig());
+  const [exportFormat, setExportFormat] = useState<"json" | "csv">("json");
+  const [icsUrl, setIcsUrl] = useState("");
+  const [icsImporting, setIcsImporting] = useState(false);
+  const [importResult, setImportResult] = useState("");
 
   const requestNotificationPermission = async () => {
     if (typeof Notification === "undefined") return;
@@ -87,6 +93,48 @@ export default function SettingsPage() {
     const updated = { ...notifPrefs, [key]: !notifPrefs[key] };
     setNotifPrefs(updated);
     localStorage.setItem("timebox_notification_prefs", JSON.stringify(updated));
+  };
+
+  const handleQuietChange = (updates: Partial<QuietHoursConfig>) => {
+    const newConfig = { ...quietConfig, ...updates };
+    setQuietConfig(newConfig);
+    saveQuietHoursConfig(newConfig);
+  };
+
+  const handleExport = async (type: string) => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`/api/export/${type}?format=${exportFormat}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `timebox-${type}.${exportFormat}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportIcs = async () => {
+    if (!icsUrl.trim()) return;
+    setIcsImporting(true);
+    setImportResult("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/import/events/import-ics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ url: icsUrl.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportResult(t("settings.imported").replace("{count}", String(data.data.imported)));
+        setIcsUrl("");
+      } else {
+        setImportResult(data.error || "Import failed");
+      }
+    } catch { setImportResult("Import failed"); }
+    finally { setIcsImporting(false); }
   };
 
   const isAdmin = user?.role === "admin";
@@ -247,6 +295,35 @@ export default function SettingsPage() {
         {/* Google Calendar Integration */}
         <GoogleCalendarSection />
 
+        {/* ICS Calendar Import */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5" />
+            {t("settings.importCalendar")}
+          </h2>
+          <div className="card p-4 space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={icsUrl}
+                onChange={(e) => setIcsUrl(e.target.value)}
+                placeholder="https://example.com/calendar.ics"
+                className="flex-1 min-w-0 text-xs px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500/40"
+              />
+              <button
+                onClick={handleImportIcs}
+                disabled={icsImporting || !icsUrl.trim()}
+                className="shrink-0 px-3 py-2 text-xs rounded-lg btn-primary font-medium disabled:opacity-40"
+              >
+                {icsImporting ? "..." : t("settings.import")}
+              </button>
+            </div>
+            {importResult && (
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">{importResult}</p>
+            )}
+          </div>
+        </section>
+
         {/* AI Model */}
         <section>
           <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">AI 모델</h2>
@@ -318,6 +395,52 @@ export default function SettingsPage() {
                 </button>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Quiet Hours */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Moon className="w-3.5 h-3.5" />
+            {t("settings.quietHours")}
+          </h2>
+          <div className="card p-4 space-y-3">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">{t("settings.quietHoursDesc")}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-700 dark:text-slate-300">{t("settings.quietHours")}</p>
+              </div>
+              <button onClick={() => handleQuietChange({ enabled: !quietConfig.enabled })}
+                className={cn("w-10 h-5 rounded-full transition-colors relative",
+                  quietConfig.enabled ? "bg-blue-500" : "bg-slate-300 dark:bg-slate-600"
+                )}>
+                <span className={cn("absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                  quietConfig.enabled ? "translate-x-5" : "translate-x-0.5"
+                )} />
+              </button>
+            </div>
+            {quietConfig.enabled && (
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1 block">Start</label>
+                  <input
+                    type="time"
+                    value={quietConfig.start}
+                    onChange={(e) => handleQuietChange({ start: e.target.value })}
+                    className="w-full text-xs bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1 block">End</label>
+                  <input
+                    type="time"
+                    value={quietConfig.end}
+                    onChange={(e) => handleQuietChange({ end: e.target.value })}
+                    className="w-full text-xs bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/40"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -450,6 +573,38 @@ export default function SettingsPage() {
               <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
                 {t("settings.dataNote")}
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Export Data */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Download className="w-3.5 h-3.5" />
+            {t("settings.exportData")}
+          </h2>
+          <div className="card p-4 space-y-3">
+            <div className="flex gap-1">
+              {(["json", "csv"] as const).map((fmt) => (
+                <button key={fmt} onClick={() => setExportFormat(fmt)}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-lg font-medium transition-colors uppercase",
+                    exportFormat === fmt
+                      ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/50"
+                      : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60"
+                  )}>
+                  {fmt}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {["todos", "events", "timeblocks", "all"].map((type) => (
+                <button key={type} onClick={() => handleExport(type)}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl btn-ghost bg-slate-50 dark:bg-slate-700/40 text-xs font-medium capitalize">
+                  <Download className="w-3.5 h-3.5" />
+                  {type === "timeblocks" ? "Time Blocks" : type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
         </section>
