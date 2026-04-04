@@ -62,8 +62,8 @@ export default function TodaySummary({ events, todos }: TodaySummaryProps) {
   };
 
   return (
-    <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 px-4 py-3 h-[72px] overflow-hidden">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 h-full items-center">
+    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 sm:px-4 py-2.5 sm:py-3 mx-2 sm:mx-0 mb-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-center">
         {/* Column 1: Events */}
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 leading-none mb-0.5">

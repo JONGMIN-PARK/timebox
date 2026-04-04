@@ -159,6 +159,12 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // Calendar extras
     "calendar.todaySummary": "Today at a Glance",
+    "calendar.todaySummary.events": "Events",
+    "calendar.todaySummary.todos": "Todos",
+    "calendar.todaySummary.done": "done",
+    "calendar.todaySummary.timeBlocks": "Blocks",
+    "calendar.todaySummary.dday": "D-Day",
+    "calendar.todaySummary.noDDay": "No upcoming",
     "calendar.nextEvent": "Next",
     "calendar.dueToday": "Due today",
     "calendar.upcoming": "Upcoming",
@@ -728,6 +734,12 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // Calendar extras
     "calendar.todaySummary": "\uc624\ub298 \ud55c\ub208\uc5d0",
+    "calendar.todaySummary.events": "\uc77c\uc815",
+    "calendar.todaySummary.todos": "\ud560 \uc77c",
+    "calendar.todaySummary.done": "\uc644\ub8cc",
+    "calendar.todaySummary.timeBlocks": "\ube14\ub85d",
+    "calendar.todaySummary.dday": "D-Day",
+    "calendar.todaySummary.noDDay": "\uc5c6\uc74c",
     "calendar.nextEvent": "\ub2e4\uc74c \uc77c\uc815",
     "calendar.dueToday": "\uc624\ub298 \ub9c8\uac10",
     "calendar.upcoming": "\ub2e4\uac00\uc624\ub294",

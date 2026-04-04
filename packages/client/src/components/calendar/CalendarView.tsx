@@ -311,9 +311,9 @@ export default function CalendarView() {
           <select
             value={projectFilter ?? ""}
             onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : null)}
-            className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none outline-none cursor-pointer"
+            className="hidden sm:block text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none outline-none cursor-pointer max-w-[140px]"
           >
-            <option value="">{t("calendar.allProjects") || "All Projects"}</option>
+            <option value="">{t("calendar.allProjects")}</option>
             {projects.filter((p) => !p.archived).map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
