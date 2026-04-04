@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { timeBlocks, timeBlockTemplates } from "../db/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
@@ -15,6 +15,18 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   const result = date
     ? await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, date as string)))
     : await db.select().from(timeBlocks).where(eq(timeBlocks.userId, userId));
+  res.json({ success: true, data: result });
+}));
+
+router.get("/range", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const { start, end } = req.query;
+  if (!start || !end) {
+    throw new ValidationError("start and end query parameters are required");
+  }
+  const result = await db.select().from(timeBlocks).where(
+    and(eq(timeBlocks.userId, userId), gte(timeBlocks.date, start as string), lte(timeBlocks.date, end as string))
+  );
   res.json({ success: true, data: result });
 }));
 

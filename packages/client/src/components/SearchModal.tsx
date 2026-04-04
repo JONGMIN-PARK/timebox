@@ -23,6 +23,7 @@ interface SearchResult {
 
 export default function SearchModal({ open, onClose, onNavigate }: Props) {
   const { t } = useI18n();
+  const [rawQuery, setRawQuery] = useState("");
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,11 +34,17 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
 
   useEffect(() => {
     if (open) {
+      setRawQuery("");
       setQuery("");
       setSelectedIdx(0);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(rawQuery), 300);
+    return () => clearTimeout(timer);
+  }, [rawQuery]);
 
   if (!open) return null;
 
@@ -101,7 +108,7 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/50 dark:border-slate-700/50">
           <Search className="w-5 h-5 text-slate-400" />
-          <input ref={inputRef} type="text" value={query} onChange={(e) => { setQuery(e.target.value); setSelectedIdx(0); }}
+          <input ref={inputRef} type="text" value={rawQuery} onChange={(e) => { setRawQuery(e.target.value); setSelectedIdx(0); }}
             onKeyDown={handleKeyDown}
             placeholder={t("search.placeholder")}
             className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none" />
@@ -130,7 +137,7 @@ export default function SearchModal({ open, onClose, onNavigate }: Props) {
             </button>
           ))}
           {q && results.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-slate-400">{t("search.noResults")} "{query}"</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-400">{t("search.noResults")} "{rawQuery}"</p>
           )}
         </div>
       </div>

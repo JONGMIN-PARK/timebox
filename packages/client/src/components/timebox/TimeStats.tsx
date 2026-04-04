@@ -47,22 +47,23 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
     setLoading(true);
 
     const fetchAll = async () => {
-      const result: Record<string, TimeBlock[]> = {};
-      await Promise.all(
-        days.map(async (day) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          try {
-            const res = await timeblockApi.getAll(dateStr);
-            if (res.success && res.data) {
-              result[dateStr] = res.data;
-            }
-          } catch {
-            /* skip failed dates */
+      const startStr = format(days[0], "yyyy-MM-dd");
+      const endStr = format(days[days.length - 1], "yyyy-MM-dd");
+      try {
+        const res = await timeblockApi.getRange(startStr, endStr);
+        if (!cancelled && res.success && res.data) {
+          const grouped: Record<string, TimeBlock[]> = {};
+          for (const block of res.data) {
+            const d = block.date;
+            if (!grouped[d]) grouped[d] = [];
+            grouped[d].push(block);
           }
-        }),
-      );
+          setBlocksByDate(grouped);
+        }
+      } catch {
+        /* skip on error */
+      }
       if (!cancelled) {
-        setBlocksByDate(result);
         setLoading(false);
       }
     };

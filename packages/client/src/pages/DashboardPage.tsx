@@ -33,6 +33,7 @@ const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"))
 import NewProjectForm from "@/components/project/NewProjectForm";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { isQuietHoursActive } from "@/lib/quietHours";
 
 // Only show splash on the very first mount of the app session
 const splashShownRef = { current: false };
@@ -67,7 +68,7 @@ export default function DashboardPage() {
 
   // Browser notifications for background events
   const showNotif = useCallback((title: string, body: string) => {
-    if (document.hidden && Notification.permission === "granted") {
+    if (document.hidden && Notification.permission === "granted" && !isQuietHoursActive()) {
       new Notification(title, { body, icon: "/icon-192.png" });
     }
   }, []);

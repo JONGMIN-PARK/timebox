@@ -176,26 +176,52 @@ export type FreehandSketchStroke = {
 const sketchKey = (d: string) => `tb_elon_sketch_v1_${d}`;
 
 export function loadDaySketch(date: string): FreehandSketchStroke[] {
-  try {
-    const raw = localStorage.getItem(sketchKey(date));
-    if (!raw) return [];
-    const p = JSON.parse(raw) as FreehandSketchStroke[];
-    if (!Array.isArray(p)) return [];
-    return p.filter(
-      (s) =>
-        s &&
-        typeof s.id === "string" &&
-        typeof s.color === "string" &&
-        typeof s.width === "number" &&
-        Array.isArray(s.points),
-    );
-  } catch {
-    return [];
+  // Try localStorage first (instant)
+  const raw = localStorage.getItem(sketchKey(date));
+  if (raw) {
+    try {
+      const p = JSON.parse(raw) as FreehandSketchStroke[];
+      if (Array.isArray(p)) {
+        return p.filter(
+          (s) =>
+            s &&
+            typeof s.id === "string" &&
+            typeof s.color === "string" &&
+            typeof s.width === "number" &&
+            Array.isArray(s.points),
+        );
+      }
+    } catch { /* fall through */ }
   }
+  // If no local data, try loading from server in background
+  const token = localStorage.getItem("token");
+  if (token) {
+    fetch(`/api/sketches/${date}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.data?.strokes) {
+          localStorage.setItem(sketchKey(date), JSON.stringify(data.data.strokes));
+        }
+      })
+      .catch(() => {});
+  }
+  return [];
 }
 
-export function saveDaySketch(date: string, strokes: FreehandSketchStroke[]) {
+export function saveDaySketch(date: string, strokes: FreehandSketchStroke[]): void {
+  // Keep localStorage for instant cache
   safeSave(sketchKey(date), JSON.stringify(strokes));
+  // Async sync to server (fire-and-forget)
+  const token = localStorage.getItem("token");
+  if (token) {
+    fetch(`/api/sketches/${date}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ strokes }),
+    }).catch(() => {});
+  }
 }
 
 export function snapToStep(m: number, stepMinutes: number): number {

@@ -136,7 +136,7 @@ function StatusDropdown({ currentStatus, onChangeStatus }: { currentStatus: 'wai
 }
 
 // ── Todo row (마감일 순 정렬; 드래그 순서 없음) ──
-function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject, onUpdateMemo }: {
+const TodoListItem = memo(function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTitle, onUpdateCategory, onUpdateProgress, onUpdatePriority, projectOptions, onUpdateProject, onUpdateMemo }: {
   todo: Todo; onStatusChange: (id: number, status: 'waiting' | 'active' | 'completed') => void; onDelete: (id: number) => void;
   onUpdateDate: (id: number, date: string) => void; onUpdateTitle: (id: number, title: string) => void;
   onUpdateCategory: (id: number, cat: string) => void; onUpdateProgress: (id: number, progress: number) => void;
@@ -348,7 +348,7 @@ function TodoListItem({ todo, onStatusChange, onDelete, onUpdateDate, onUpdateTi
       </div>
     </li>
   );
-}
+});
 
 // ── Memoized Completed Todo Item ──
 const CompletedTodoItem = memo(function CompletedTodoItem({

@@ -63,6 +63,8 @@ export const timeblockApi = {
   update: (id: number, data: Partial<TimeBlock>) =>
     api.put<TimeBlock>(`/timeblocks/${id}`, data),
   delete: (id: number) => api.delete(`/timeblocks/${id}`),
+  getRange: (start: string, end: string) =>
+    api.get<TimeBlock[]>(`/timeblocks/range?start=${start}&end=${end}`),
 };
 
 // ── Category ──────────────────────────────────────────────────────────
