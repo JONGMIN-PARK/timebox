@@ -34,12 +34,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto version bump + changelog
+      - name: Auto version bump and changelog
         id: version
         run: |
           set -e
 
-          # Determine version bump type from commit messages since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
             COMMITS=$(git log --oneline --format="%s" -10)
@@ -47,7 +46,6 @@ jobs:
             COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --format="%s")
           fi
 
-          # Classify: major (breaking), minor (feat/add/new), patch (fix/etc)
           BUMP="patch"
           if echo "$COMMITS" | grep -iqE "BREAKING|!:"; then
             BUMP="major"
@@ -55,11 +53,9 @@ jobs:
             BUMP="minor"
           fi
 
-          # Read current version
           CURRENT=$(node -p "require('./packages/shared/version.json').version")
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
-          # Bump version
           case "$BUMP" in
             major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
             minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
@@ -67,113 +63,101 @@ jobs:
           esac
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           TODAY=$(date +%Y-%m-%d)
+          SHORT_SHA=$(git rev-parse --short HEAD)
 
-          echo "Version bump: $CURRENT → $NEW_VERSION ($BUMP)"
+          echo "Version bump: $CURRENT -> $NEW_VERSION ($BUMP) [$SHORT_SHA]"
 
-          # Collect change log items (excluding chore/merge commits)
           if [ -z "$LAST_TAG" ]; then
-            CHANGES=$(git log --oneline --format="%s" -10 | grep -ivE "^(chore|merge):" || true)
+            CHANGES=$(git log --oneline --format="%h %s" -10 | grep -ivE "chore:|merge:" || true)
           else
-            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --format="%s" | grep -ivE "^(chore|merge):" || true)
+            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --format="%h %s" | grep -ivE "chore:|merge:" || true)
           fi
 
-          # Build bullet list for display
-          CHANGES_BULLETS=$(echo "$CHANGES" | sed 's/^/• /')
-
-          # ── Update version.json with new changes ──
+          export CHANGES
           node -e "
-            const fs = require('fs');
-            const v = JSON.parse(fs.readFileSync('packages/shared/version.json', 'utf-8'));
+          const fs = require('fs');
+          const v = JSON.parse(fs.readFileSync('packages/shared/version.json', 'utf-8'));
+          const commits = (process.env.CHANGES || '').split('\n').filter(Boolean);
+          const cats = { feat: [], fix: [], other: [] };
+          for (const c of commits) {
+            const hash = c.slice(0, 7);
+            const msg = c.slice(8);
+            const entry = msg.replace(/^(feat|fix)[:(]?\\s*/i, '').replace(/\\):\\s*/, ': ') + ' (' + hash + ')';
+            if (/^feat/i.test(msg)) cats.feat.push(entry);
+            else if (/^fix/i.test(msg)) cats.fix.push(entry);
+            else cats.other.push(entry);
+          }
+          const changes = [];
+          if (cats.feat.length) changes.push({ category: '신규 기능', emoji: '✨', items: cats.feat });
+          if (cats.fix.length) changes.push({ category: '버그 수정', emoji: '🐛', items: cats.fix });
+          if (cats.other.length) changes.push({ category: '기타', emoji: '🔧', items: cats.other });
+          const highlights = [...cats.feat, ...cats.fix].slice(0, 3);
+          v.version = '${NEW_VERSION}';
+          v.date = '${TODAY}';
+          v.highlights = highlights.length ? highlights : v.highlights;
+          v.changes = changes.length ? changes : v.changes;
+          fs.writeFileSync('packages/shared/version.json', JSON.stringify(v, null, 2) + '\n');
+          " || true
 
-            // Parse commits into categories
-            const commits = \`${CHANGES}\`.split('\n').filter(Boolean);
-            const cats = { feat: [], fix: [], other: [] };
-            for (const c of commits) {
-              if (/^feat/i.test(c)) cats.feat.push(c.replace(/^feat[:(]?\s*/i, '').replace(/\):\s*/, ': '));
-              else if (/^fix/i.test(c)) cats.fix.push(c.replace(/^fix[:(]?\s*/i, '').replace(/\):\s*/, ': '));
-              else cats.other.push(c);
-            }
+          node -e "
+          const fs = require('fs');
+          const cl = fs.existsSync('CHANGELOG.md') ? fs.readFileSync('CHANGELOG.md', 'utf-8') : '';
+          const items = (process.env.CHANGES || '').split('\n').filter(Boolean);
+          if (items.length === 0) process.exit(0);
+          let entry = '\n## v${NEW_VERSION} (${SHORT_SHA}) — ${TODAY}\n\n';
+          entry += '| 항목 | 설명 | 커밋 |\n|------|------|------|\n';
+          for (const item of items) {
+            const hash = item.slice(0, 7);
+            const msg = item.slice(8);
+            const type = /^feat/i.test(msg) ? '✨ 기능' : /^fix/i.test(msg) ? '🐛 수정' : '🔧 기타';
+            const desc = msg.replace(/^(feat|fix|chore|refactor)[:(]?[^)]*\\)?\\s*:?\\s*/i, '');
+            entry += '| ' + type + ' | ' + desc + ' | ' + hash + ' |\n';
+          }
+          const firstHeading = cl.indexOf('\n## ');
+          if (firstHeading > 0) {
+            fs.writeFileSync('CHANGELOG.md', cl.slice(0, firstHeading) + entry + cl.slice(firstHeading));
+          } else {
+            fs.writeFileSync('CHANGELOG.md', '# TimeBox Changelog\n' + entry + '\n' + cl);
+          }
+          " || true
 
-            // Build changes array
-            const changes = [];
-            if (cats.feat.length) changes.push({ category: '신규 기능', emoji: '✨', items: cats.feat });
-            if (cats.fix.length) changes.push({ category: '버그 수정', emoji: '🐛', items: cats.fix });
-            if (cats.other.length) changes.push({ category: '기타', emoji: '🔧', items: cats.other });
-
-            // Build highlights (up to 3, from feat first then fix)
-            const highlights = [...cats.feat, ...cats.fix].slice(0, 3);
-
-            v.version = '${NEW_VERSION}';
-            v.date = '${TODAY}';
-            v.highlights = highlights.length ? highlights : v.highlights;
-            v.changes = changes.length ? changes : v.changes;
-            fs.writeFileSync('packages/shared/version.json', JSON.stringify(v, null, 2) + '\n');
+          node -e "
+          const fs = require('fs');
+          for (const p of ['package.json', 'packages/server/package.json']) {
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+            pkg.version = '${NEW_VERSION}';
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+          }
           "
 
-          # ── Update CHANGELOG.md ──
-          node -e "
-            const fs = require('fs');
-            const cl = fs.existsSync('CHANGELOG.md') ? fs.readFileSync('CHANGELOG.md', 'utf-8') : '';
-            const items = \`${CHANGES}\`.split('\n').filter(Boolean);
-            if (items.length === 0) process.exit(0);
-
-            let entry = '\n## v${NEW_VERSION} — ${TODAY}\n\n';
-            entry += '| 항목 | 설명 |\n|------|------|\n';
-            for (const item of items) {
-              const type = /^feat/i.test(item) ? '✨ 기능' : /^fix/i.test(item) ? '🐛 수정' : '🔧 기타';
-              const desc = item.replace(/^(feat|fix|chore|refactor)[:(]?\s*/i, '').replace(/\):\s*/, ': ');
-              entry += '| ' + type + ' | ' + desc + ' |\n';
-            }
-
-            // Insert after the first heading line (or at top)
-            const firstHeading = cl.indexOf('\n## ');
-            if (firstHeading > 0) {
-              const before = cl.slice(0, firstHeading);
-              const after = cl.slice(firstHeading);
-              fs.writeFileSync('CHANGELOG.md', before + entry + after);
-            } else {
-              fs.writeFileSync('CHANGELOG.md', '# TimeBox Changelog\n' + entry + '\n' + cl);
-            }
-          "
-
-          # ── Update package.json files ──
-          node -e "
-            const fs = require('fs');
-            for (const p of ['package.json', 'packages/server/package.json']) {
-              const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
-              pkg.version = '${NEW_VERSION}';
-              fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
-            }
-          "
-
-          # Commit version bump
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet || {
-            git commit -m "chore: bump version to v${NEW_VERSION}"
+            git commit -m "chore: bump version to v${NEW_VERSION} [${SHORT_SHA}]"
             git tag "v${NEW_VERSION}"
             git push origin main --tags
           }
 
-          # Export for next steps
           echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "bump_type=${BUMP}" >> "$GITHUB_OUTPUT"
           echo "prev_version=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-          # Build detailed categorized changelog for Telegram
           FEAT_ITEMS=""
           FIX_ITEMS=""
           OTHER_ITEMS=""
           while IFS= read -r line; do
             [ -z "$line" ] && continue
-            DESC=$(echo "$line" | sed -E 's/^(feat|fix|chore|refactor)[:(]?[^)]*\)?\s*:?\s*//i')
-            if echo "$line" | grep -iqE "^feat"; then
-              FEAT_ITEMS="${FEAT_ITEMS}  ✨ ${DESC}\n"
-            elif echo "$line" | grep -iqE "^fix"; then
-              FIX_ITEMS="${FIX_ITEMS}  🐛 ${DESC}\n"
+            HASH=$(echo "$line" | cut -c1-7)
+            MSG=$(echo "$line" | cut -c9-)
+            DESC=$(echo "$MSG" | sed -E 's/^(feat|fix|chore|refactor)[:(]?[^)]*\)?\s*:?\s*//i')
+            if echo "$MSG" | grep -iqE "^feat"; then
+              FEAT_ITEMS="${FEAT_ITEMS}  ✨ ${DESC} (${HASH})\n"
+            elif echo "$MSG" | grep -iqE "^fix"; then
+              FIX_ITEMS="${FIX_ITEMS}  🐛 ${DESC} (${HASH})\n"
             else
-              OTHER_ITEMS="${OTHER_ITEMS}  🔧 ${DESC}\n"
+              OTHER_ITEMS="${OTHER_ITEMS}  🔧 ${DESC} (${HASH})\n"
             fi
           done <<< "$CHANGES"
 
@@ -200,29 +184,31 @@ jobs:
           VERSION="${{ steps.version.outputs.new_version }}"
           PREV="${{ steps.version.outputs.prev_version }}"
           BUMP="${{ steps.version.outputs.bump_type }}"
+          SHA="${{ steps.version.outputs.short_sha }}"
           CHANGES="${{ steps.version.outputs.changes }}"
           KO_TIME=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
 
-          # Bump type label
           case "$BUMP" in
-            major) BUMP_LABEL="🔴 MAJOR 업데이트" ;;
-            minor) BUMP_LABEL="🟡 기능 업데이트" ;;
+            major) BUMP_LABEL="🔴 MAJOR" ;;
+            minor) BUMP_LABEL="🟡 기능" ;;
             patch) BUMP_LABEL="🟢 패치" ;;
-            *) BUMP_LABEL="📦 업데이트" ;;
+            *) BUMP_LABEL="📦" ;;
           esac
 
-          MSG="🚀 *TimeBox v${VERSION} 배포 완료*
-${BUMP_LABEL} (v${PREV} → v${VERSION})
-⏰ ${KO_TIME}
+          MSG=$(cat <<EOMSG
+          🚀 *TimeBox v${VERSION}* (${SHA})
+          ${BUMP_LABEL} v${PREV} → v${VERSION}
+          ⏰ ${KO_TIME}
 
-📝 *변경사항*
-${CHANGES}
-✅ Render 배포 시작됨"
+          📝 *변경사항*
+          ${CHANGES}
+          ✅ Render 배포 시작됨
+          EOMSG
+          )
 
-          # Send to each admin chat ID (comma-separated)
           IFS=',' read -ra CHAT_IDS <<< "$TELEGRAM_ADMIN_CHAT_IDS"
           for CHAT_ID in "${CHAT_IDS[@]}"; do
-            CHAT_ID=$(echo "$CHAT_ID" | xargs) # trim whitespace
+            CHAT_ID=$(echo "$CHAT_ID" | xargs)
             curl -sf -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${CHAT_ID}" \
               -d text="${MSG}" \
