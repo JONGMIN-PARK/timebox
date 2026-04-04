@@ -353,16 +353,29 @@ export default function TimeBoxView() {
     setShowAddForm(true);
   }, []);
 
-  // Quick add event from panel
+  // Quick add event from panel — also creates a time block for the timeline
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle.trim()) return;
+    const title = newEventTitle.trim();
+    const start = newEventStart;
+    const end = newEventEnd;
+    // Add calendar event
     await addEvent({
-      title: newEventTitle.trim(),
-      startTime: `${selectedDate}T${newEventStart}:00`,
-      endTime: `${selectedDate}T${newEventEnd}:00`,
+      title,
+      startTime: `${selectedDate}T${start}:00`,
+      endTime: `${selectedDate}T${end}:00`,
       allDay: false,
       color: "#3b82f6",
+    });
+    // Also add as time block so it shows on the timeline
+    await addBlock({
+      date: selectedDate,
+      startTime: start,
+      endTime: end,
+      title,
+      category: "meeting" as TimeBlockCategory,
+      color: CATEGORY_CONFIG.meeting.color,
     });
     setNewEventTitle("");
     setNewEventStart("09:00");
