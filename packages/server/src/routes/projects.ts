@@ -8,7 +8,7 @@ import { eq, and, desc, inArray, sql, count, or, ilike, notInArray, gte, lte, ne
 import { type AuthRequest } from "../middleware/auth.js";
 import { projectMemberMiddleware, projectAdminMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { kstToday, kstNow } from "../lib/kst.js";
+import { kstToday, calcDaysLeft } from "../lib/kst.js";
 import { ValidationError, NotFoundError, ForbiddenError, ConflictError } from "../lib/errors.js";
 
 const router = Router();
@@ -120,11 +120,7 @@ router.get("/summary", asyncHandler<AuthRequest>(async (req, res) => {
 
     let dDay: number | null = null;
     if (p.targetDate) {
-      const target = new Date(p.targetDate);
-      target.setHours(0, 0, 0, 0);
-      const todayKst = kstNow();
-      todayKst.setHours(0, 0, 0, 0);
-      dDay = Math.ceil((target.getTime() - todayKst.getTime()) / (1000 * 60 * 60 * 24));
+      dDay = calcDaysLeft(p.targetDate);
     }
 
     return {
