@@ -389,9 +389,32 @@ export default function TimeBoxView() {
   const handleToggleCompleted = useCallback((id: number) => toggleCompleted(id), [toggleCompleted]);
   const handleDeleteBlock = useCallback((id: number) => deleteBlock(id), [deleteBlock]);
 
+  // Check for overlapping blocks — returns the first overlapping block or null
+  const findOverlap = useCallback((start: string, end: string) => {
+    const s = timeToMinutes(start);
+    const e = timeToMinutes(end);
+    return sortedBlocks.find(b => {
+      const bs = timeToMinutes(b.startTime);
+      const be = timeToMinutes(b.endTime);
+      return s < be && e > bs; // overlap condition
+    }) || null;
+  }, [sortedBlocks]);
+
+  // Confirm overlap — returns true if user wants to proceed
+  const confirmOverlap = useCallback((start: string, end: string): boolean => {
+    const overlap = findOverlap(start, end);
+    if (!overlap) return true;
+    const msg = t("timebox.overlapWarning")
+      .replace("{title}", overlap.title)
+      .replace("{start}", overlap.startTime)
+      .replace("{end}", overlap.endTime);
+    return window.confirm(msg);
+  }, [findOverlap, t]);
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBlock.title.trim()) return;
+    if (!confirmOverlap(newBlock.startTime, newBlock.endTime)) return;
     const catConfig = CATEGORY_CONFIG[newBlock.category];
     await addBlock({
       date: selectedDate,
@@ -420,6 +443,7 @@ export default function TimeBoxView() {
     const title = newEventTitle.trim();
     const start = newEventStart;
     const end = newEventEnd;
+    if (!confirmOverlap(start, end)) return;
     // Add calendar event
     await addEvent({
       title,

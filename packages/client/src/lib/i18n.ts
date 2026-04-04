@@ -147,6 +147,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "timebox.addTodo": "Add todo",
     "timebox.eventTitle": "Event title",
     "timebox.todoTitle": "Todo title",
+    "timebox.overlapWarning": "Time overlaps with: {title} ({start}–{end}). Add anyway?",
 
     // Elon / time-boxing scheduler
     "elon.summary": "Summary",
@@ -681,6 +682,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "timebox.addTodo": "\ud560 \uc77c \ucd94\uac00",
     "timebox.eventTitle": "\uc77c\uc815 \uc81c\ubaa9",
     "timebox.todoTitle": "\ud560 \uc77c \uc81c\ubaa9",
+    "timebox.overlapWarning": "\"{title}\" ({start}~{end})와 시간이 겹칩니다. 그래도 추가할까요?",
 
     // Elon / time-boxing scheduler
     "elon.summary": "\uc694\uc57d",
