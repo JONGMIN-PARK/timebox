@@ -41,7 +41,7 @@ export default function CalendarView() {
   const { categories, fetchCategories } = useCategoryStore();
   const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo } = useTodoStore();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -79,6 +79,7 @@ export default function CalendarView() {
       if (!isSameDay(currentDate, today)) {
         setCurrentDate(today);
       }
+      setSelectedDate(today);
     }
   }, [pageVisible]);
 
