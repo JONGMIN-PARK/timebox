@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { Clock, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
+import { playLoginMelody } from "@/lib/loginSound";
 
 type Mode = "login" | "request" | "requested";
 
@@ -21,7 +22,8 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim() && password) {
-      await login(username.trim(), password);
+      const ok = await login(username.trim(), password);
+      if (ok) playLoginMelody();
     }
   };
 
