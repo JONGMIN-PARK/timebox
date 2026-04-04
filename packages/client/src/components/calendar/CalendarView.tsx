@@ -79,7 +79,9 @@ export default function CalendarView() {
       if (!isSameDay(currentDate, today)) {
         setCurrentDate(today);
       }
-      setSelectedDate(today);
+      if (!selectedDate || !isSameDay(selectedDate, today)) {
+        setSelectedDate(today);
+      }
     }
   }, [pageVisible]);
 

@@ -271,9 +271,8 @@ const PanelTodoItem = memo(function PanelTodoItem({
 export default function TimeBoxView() {
   const { blocks, loading, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
-  const { events, fetchEvents } = useEventStore();
-  const { todos, fetchTodos, toggleTodo, deleteTodo, addTodo, updateTodo, updateStatus } = useTodoStore();
-  const { deleteEvent, addEvent } = useEventStore();
+  const { events, fetchEvents, deleteEvent, addEvent } = useEventStore();
+  const { todos, fetchTodos, toggleTodo, deleteTodo, addTodo, updateTodo } = useTodoStore();
   const { t } = useI18n();
 
   const pageVisible = usePageVisible();
@@ -287,12 +286,10 @@ export default function TimeBoxView() {
     endTime: "10:00",
     category: "deep_work" as TimeBlockCategory,
   });
-  // Quick-add event form in panel
   const [addingEvent, setAddingEvent] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventStart, setNewEventStart] = useState("09:00");
   const [newEventEnd, setNewEventEnd] = useState("10:00");
-  // Todo modals (reuse calendar modals)
   const [todoAddOpen, setTodoAddOpen] = useState(false);
   const [todoEditOpen, setTodoEditOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
@@ -301,7 +298,6 @@ export default function TimeBoxView() {
 
   useEffect(() => {
     fetchBlocks(selectedDate);
-    fetchEvents(`${selectedDate}T00:00:00`, `${selectedDate}T23:59:59`);
     fetchTodos();
   }, []);
 
@@ -309,7 +305,6 @@ export default function TimeBoxView() {
     fetchEvents(`${selectedDate}T00:00:00`, `${selectedDate}T23:59:59`);
   }, [selectedDate]);
 
-  // Persist panel state
   useEffect(() => {
     try { localStorage.setItem("tb_panel_open", String(panelOpen)); } catch { /* */ }
   }, [panelOpen]);
@@ -339,7 +334,6 @@ export default function TimeBoxView() {
     [blocks],
   );
 
-  // Filter events & todos for selected date
   const dayEvents = useMemo(() =>
     events.filter(ev => {
       const evDate = ev.startTime.slice(0, 10);
@@ -369,7 +363,6 @@ export default function TimeBoxView() {
     });
   }, [dayEvents, sortedBlocks]);
 
-  // Current time indicator
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const showCurrentTime = isToday(parseISO(selectedDate)) && currentMinutes >= START_HOUR * 60;
@@ -389,19 +382,17 @@ export default function TimeBoxView() {
   const handleToggleCompleted = useCallback((id: number) => toggleCompleted(id), [toggleCompleted]);
   const handleDeleteBlock = useCallback((id: number) => deleteBlock(id), [deleteBlock]);
 
-  // Check for overlapping blocks — returns the first overlapping block or null
-  const findOverlap = useCallback((start: string, end: string) => {
+  const findOverlap = (start: string, end: string) => {
     const s = timeToMinutes(start);
     const e = timeToMinutes(end);
     return sortedBlocks.find(b => {
       const bs = timeToMinutes(b.startTime);
       const be = timeToMinutes(b.endTime);
-      return s < be && e > bs; // overlap condition
+      return s < be && e > bs;
     }) || null;
-  }, [sortedBlocks]);
+  };
 
-  // Confirm overlap — returns true if user wants to proceed
-  const confirmOverlap = useCallback((start: string, end: string): boolean => {
+  const confirmOverlap = (start: string, end: string): boolean => {
     const overlap = findOverlap(start, end);
     if (!overlap) return true;
     const msg = t("timebox.overlapWarning")
@@ -409,7 +400,7 @@ export default function TimeBoxView() {
       .replace("{start}", overlap.startTime)
       .replace("{end}", overlap.endTime);
     return window.confirm(msg);
-  }, [findOverlap, t]);
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,7 +419,6 @@ export default function TimeBoxView() {
     setShowAddForm(false);
   };
 
-  // Schedule an item as a time block
   const scheduleAsBlock = useCallback((title: string, start?: string, end?: string) => {
     const s = start || "09:00";
     const e = end || minutesToTime(timeToMinutes(s) + 60);
@@ -436,7 +426,7 @@ export default function TimeBoxView() {
     setShowAddForm(true);
   }, []);
 
-  // Quick add event from panel — also creates a time block for the timeline
+  // Add event + time block together so both panel and timeline stay in sync
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle.trim()) return;
@@ -444,30 +434,29 @@ export default function TimeBoxView() {
     const start = newEventStart;
     const end = newEventEnd;
     if (!confirmOverlap(start, end)) return;
-    // Add calendar event
-    await addEvent({
-      title,
-      startTime: `${selectedDate}T${start}:00`,
-      endTime: `${selectedDate}T${end}:00`,
-      allDay: false,
-      color: "#3b82f6",
-    });
-    // Also add as time block so it shows on the timeline
-    await addBlock({
-      date: selectedDate,
-      startTime: start,
-      endTime: end,
-      title,
-      category: "meeting" as TimeBlockCategory,
-      color: CATEGORY_CONFIG.meeting.color,
-    });
+    await Promise.all([
+      addEvent({
+        title,
+        startTime: `${selectedDate}T${start}:00`,
+        endTime: `${selectedDate}T${end}:00`,
+        allDay: false,
+        color: "#3b82f6",
+      }),
+      addBlock({
+        date: selectedDate,
+        startTime: start,
+        endTime: end,
+        title,
+        category: "meeting" as TimeBlockCategory,
+        color: CATEGORY_CONFIG.meeting.color,
+      }),
+    ]);
     setNewEventTitle("");
     setNewEventStart("09:00");
     setNewEventEnd("10:00");
     setAddingEvent(false);
   };
 
-  // Todo edit handler
   const handleEditTodo = useCallback((todo: Todo) => {
     setEditingTodo(todo);
     setTodoEditOpen(true);
@@ -754,7 +743,6 @@ export default function TimeBoxView() {
             projectId: values.projectId ?? null,
             memo: values.memo ?? null,
           });
-          if (values.status) await updateStatus(id, values.status);
           showToast("success", t("calendar.todoUpdated"));
         }}
       />
