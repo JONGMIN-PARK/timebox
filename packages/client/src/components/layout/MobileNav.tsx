@@ -60,9 +60,11 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
 
   return (
     <nav
-      className="md:hidden shrink-0 w-full bg-white/90 dark:bg-slate-800/95 backdrop-blur-lg border-t border-slate-200/60 dark:border-slate-700/40 z-40 pb-[env(safe-area-inset-bottom,0px)]"
+      className="md:hidden shrink-0 w-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl z-40 pb-[env(safe-area-inset-bottom,0px)]"
       aria-label="Mobile navigation"
     >
+      {/* Top gradient border */}
+      <div className="h-px bg-gradient-to-r from-transparent via-slate-300/50 dark:via-slate-600/50 to-transparent" />
       <div className="flex justify-around py-1">
         {tabs.map((tab) => {
           const isActive = tab.id === "team" ? isTeamActive : activeTab === tab.id;
@@ -79,6 +81,7 @@ export default function MobileNav({ activeTab, onTabChange }: MobileNavProps) {
             >
               <tab.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
               <span className="text-[10px] font-medium">{t(tab.labelKey)}</span>
+              {isActive && <div className="w-1 h-1 rounded-full bg-blue-500 -mt-0.5" />}
             </button>
           );
         })}

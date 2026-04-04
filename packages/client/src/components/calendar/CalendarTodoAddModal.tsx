@@ -88,11 +88,12 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center sm:bg-black/50 sm:p-4" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center sm:bg-black/50 sm:p-4 animate-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl sm:border sm:border-slate-200 sm:dark:border-slate-700 flex flex-col max-h-[100dvh] sm:max-h-[85vh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
+        className="w-full sm:max-w-md bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl sm:border sm:border-slate-200 sm:dark:border-slate-700 flex flex-col max-h-[100dvh] sm:max-h-[85vh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0 animate-in border-t-2 border-t-transparent"
+        style={{ borderImage: "linear-gradient(to right, #3b82f6, #6366f1, #8b5cf6) 1", borderImageSlice: "1 0 0 0" }}
       >
         <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-700/50 sm:border-0 sm:px-5 sm:pt-5 sm:pb-0">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{t("calendar.addTodo")}</h3>
@@ -159,7 +160,7 @@ export default function CalendarTodoAddModal({ open, initialDate, onClose, onAdd
                 type="button"
                 onClick={() => setPriority(p)}
                 className={cn(
-                  "text-xs py-1.5 px-3 rounded-lg border transition-colors",
+                  "text-xs py-1.5 px-3 rounded-lg border transition-all duration-150 hover:scale-105 active:scale-95",
                   priority === p
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-medium"
                     : "border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50",

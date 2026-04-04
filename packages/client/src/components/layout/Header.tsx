@@ -76,7 +76,9 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
   useSocketEvent("inbox:update", useCallback(() => fetchUnread(), []));
 
   return (
-    <header className="h-12 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-700/40">
+    <header className="relative h-12 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+      {/* Top gradient accent line */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-blue-400/30 to-transparent" />
       <div className="flex items-center gap-2 md:hidden">
         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm flex-shrink-0">
           <span className="text-white text-[10px] font-bold">TB</span>
@@ -95,7 +97,7 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
       <div className="hidden md:flex flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
         <DDayChips />
         <WeekSummaryChip />
-        <button onClick={onVersionClick} className="text-[9px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full ml-1 flex-shrink-0 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+        <button onClick={onVersionClick} className="text-[8px] text-slate-400 bg-slate-100/70 dark:bg-slate-700/50 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/30 px-1.5 py-0.5 rounded-full ml-1 flex-shrink-0 hover:bg-slate-200/80 dark:hover:bg-slate-600/50 hover:scale-105 active:scale-95 transition-all duration-200">
           v{APP_VERSION}
         </button>
       </div>
@@ -111,7 +113,8 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
       {/* Inbox bell */}
       <button
         onClick={onInboxClick}
-        className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all duration-200"
+        aria-label="Inbox"
       >
         <Bell className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" />
         {unreadCount > 0 && (

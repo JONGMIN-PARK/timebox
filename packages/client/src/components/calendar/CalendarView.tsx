@@ -291,13 +291,13 @@ export default function CalendarView() {
       {/* Navigation header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous period">
             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <h2 className="font-semibold text-slate-900 dark:text-white min-w-[120px] text-center">
             {headerTitle()}
           </h2>
-          <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+          <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next period">
             <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <button
@@ -420,7 +420,7 @@ export default function CalendarView() {
               <h3 className="font-semibold text-slate-900 dark:text-white">
                 {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
               </h3>
-              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden">
+              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden" aria-label="Close">
                 <X className="w-4 h-4 text-slate-500" />
               </button>
             </div>

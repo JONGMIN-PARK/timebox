@@ -100,11 +100,14 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
 
   return (
-    <aside className="hidden md:flex flex-col w-16 lg:w-[220px] bg-white/80 dark:bg-slate-800/90 backdrop-blur-sm border-r border-slate-200/80 dark:border-slate-700/60">
+    <aside className="hidden md:flex flex-col w-16 lg:w-[220px] bg-gradient-to-b from-white/90 via-white/80 to-slate-50/90 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 backdrop-blur-sm border-r border-slate-200/80 dark:border-slate-700/60">
       {/* Logo + User info */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm shadow-blue-600/20 flex-shrink-0">
-          <Clock className="w-[18px] h-[18px] text-white" />
+        <div className="relative flex-shrink-0">
+          <div className="absolute inset-0 rounded-xl bg-blue-500/20 blur-md" />
+          <div className="relative w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-600/30">
+            <Clock className="w-[18px] h-[18px] text-white" />
+          </div>
         </div>
         <div className="hidden lg:block min-w-0">
           <div className="flex items-center gap-1.5">
@@ -124,7 +127,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <>
             <button
               onClick={() => setActiveProject(null)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 transition-all duration-200"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 transition-all duration-200"
             >
               <User className="w-[18px] h-[18px] flex-shrink-0" />
               <span className="hidden lg:block">{t("project.backToPersonal")}</span>
@@ -139,10 +142,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
                   activeTab === tab.id
-                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                    ? "border-l-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                    : "border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 hover:text-slate-700 dark:hover:text-slate-300",
                 )}
               >
                 <tab.icon className={cn("w-[18px] h-[18px] flex-shrink-0", activeTab === tab.id && "stroke-[2.5]")} />
@@ -156,10 +159,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
                 activeTab === tab.id
-                  ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                  ? "border-l-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                  : "border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 hover:text-slate-700 dark:hover:text-slate-300",
               )}
             >
               <tab.icon className={cn("w-[18px] h-[18px] flex-shrink-0", activeTab === tab.id && "stroke-[2.5]")} />
@@ -169,7 +172,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         )}
 
         {hasTeamAccess && (
-          <div className="pt-3 mt-3 border-t border-slate-200/60 dark:border-slate-700/40">
+          <div className="pt-3 mt-3 border-t border-slate-200/40 dark:border-slate-700/30">
             <div className="hidden lg:flex items-center justify-between px-3 pb-1.5">
               <button
                 onClick={() => { setActiveProject(null); onTabChange("projects"); }}
@@ -199,10 +202,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                         key={project.id}
                         onClick={() => { setActiveProject(project.id); onTabChange("project-dashboard"); }}
                         className={cn(
-                          "w-full flex items-center gap-3 px-3 py-1.5 pl-8 rounded-xl text-[13px] font-medium transition-all duration-200",
+                          "w-full flex items-center gap-3 px-3 py-1.5 pl-8 rounded-lg text-[13px] font-medium transition-all duration-200",
                           activeProjectId === project.id
-                            ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
-                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                            ? "border-l-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                            : "border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 hover:text-slate-700 dark:hover:text-slate-300",
                         )}
                       >
                         <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
@@ -221,10 +224,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 key={project.id}
                 onClick={() => { setActiveProject(project.id); onTabChange("project-dashboard"); }}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
                   activeProjectId === project.id
-                    ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-700 dark:hover:text-slate-300",
+                    ? "border-l-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm shadow-blue-500/5"
+                    : "border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 hover:text-slate-700 dark:hover:text-slate-300",
                 )}
               >
                 <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
@@ -236,7 +239,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             {user?.role === 'admin' && (
               <button
                 onClick={() => onTabChange("project-new")}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200"
               >
                 <Plus className="w-[18px] h-[18px] flex-shrink-0" />
                 <span className="hidden lg:block">{t("project.new")}</span>
@@ -248,7 +251,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
       {/* Online team members */}
       {hasTeamAccess && onlineUsers.length > 0 && (
-        <div className="px-2 py-2 border-t border-slate-200/60 dark:border-slate-700/40">
+        <div className="px-2 py-2 border-t border-slate-200/40 dark:border-slate-700/30">
           <div className="hidden lg:block px-3 pb-1.5">
             <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               Online ({onlineUsers.filter(u => u.userId !== user?.id).length})
@@ -268,8 +271,8 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       )}
 
       {/* Bottom */}
-      <div className="py-3 px-2 space-y-0.5 border-t border-slate-200/60 dark:border-slate-700/40">
-        <button onClick={cycleTheme} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40 transition-all">
+      <div className="py-3 px-2 space-y-0.5 border-t border-slate-200/40 dark:border-slate-700/30">
+        <button onClick={cycleTheme} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5 transition-all duration-200">
           <ThemeIcon className="w-[18px] h-[18px]" />
           <span className="hidden lg:block">{{ light: t("settings.light"), dark: t("settings.dark"), system: t("settings.system") }[theme]}</span>
         </button>
@@ -277,10 +280,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           <button
             onClick={() => onTabChange("analytics")}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-all",
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-200",
               activeTab === "analytics"
-                ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40",
+                ? "border-l-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                : "border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5",
             )}
           >
             <BarChart3 className="w-[18px] h-[18px]" />
@@ -290,10 +293,10 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         <button
           onClick={() => onTabChange("settings")}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-all",
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-200",
             activeTab === "settings"
-              ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-              : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-700/40",
+              ? "border-l-2 border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              : "border-l-2 border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:translate-x-0.5",
           )}
         >
           <Settings className="w-[18px] h-[18px]" />
@@ -312,7 +315,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </div>
 
         <button onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] text-slate-400 hover:text-red-500 hover:bg-red-50/80 dark:hover:bg-red-900/10 transition-all">
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-red-500 hover:bg-red-50/80 dark:hover:bg-red-900/10 hover:translate-x-0.5 transition-all duration-200">
           <LogOut className="w-[18px] h-[18px]" />
           <span className="hidden lg:block">{t("auth.signOut")}</span>
         </button>

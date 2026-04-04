@@ -62,14 +62,15 @@ export default function TodaySummary({ events, todos }: TodaySummaryProps) {
   };
 
   return (
-    <div className="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-3 sm:px-4 py-2.5 sm:py-3 mx-2 sm:mx-0 mb-2">
+    <div className="animate-in rounded-xl bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-800/80 dark:via-slate-800/60 dark:to-indigo-900/20 border border-slate-200/80 dark:border-slate-700/80 ring-1 ring-inset ring-white/60 dark:ring-white/5 shadow-sm px-3 sm:px-4 py-2.5 sm:py-3 mx-2 sm:mx-0 mb-2">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 items-center">
         {/* Column 1: Events */}
         <div className="min-w-0">
+          <div className="text-base mb-0.5 leading-none" aria-hidden="true">📅</div>
           <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 leading-none mb-0.5">
             {t("calendar.todaySummary.events")}
           </p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">
+          <p className="text-lg font-bold text-gray-800 dark:text-gray-100 leading-tight tabular-nums">
             {events.length}
           </p>
           {nextEvent && (
@@ -81,10 +82,11 @@ export default function TodaySummary({ events, todos }: TodaySummaryProps) {
 
         {/* Column 2: Todos */}
         <div className="min-w-0">
+          <div className="text-base mb-0.5 leading-none" aria-hidden="true">✅</div>
           <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 leading-none mb-0.5">
             {t("calendar.todaySummary.todos")}
           </p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">
+          <p className="text-lg font-bold text-gray-800 dark:text-gray-100 leading-tight tabular-nums">
             {activeTodosCount}
             <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-1">
               / {completedTodosCount} {t("calendar.todaySummary.done")}
@@ -94,10 +96,11 @@ export default function TodaySummary({ events, todos }: TodaySummaryProps) {
 
         {/* Column 3: Time blocks */}
         <div className="min-w-0">
+          <div className="text-base mb-0.5 leading-none" aria-hidden="true">⏱️</div>
           <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 leading-none mb-0.5">
             {t("calendar.todaySummary.timeBlocks")}
           </p>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">
+          <p className="text-lg font-bold text-gray-800 dark:text-gray-100 leading-tight tabular-nums">
             {blocks.length}
             <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-1">
               {totalScheduledHours.toFixed(1)}h
@@ -107,11 +110,12 @@ export default function TodaySummary({ events, todos }: TodaySummaryProps) {
 
         {/* Column 4: D-Day */}
         <div className="min-w-0">
+          <div className="text-base mb-0.5 leading-none" aria-hidden="true">🎯</div>
           <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 leading-none mb-0.5">
             {t("calendar.todaySummary.dday")}
           </p>
           {upcomingDDays.length > 0 ? (
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight truncate">
+            <p className="text-lg font-bold text-gray-800 dark:text-gray-100 leading-tight truncate tabular-nums">
               {upcomingDDays.length}
               <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-1 truncate">
                 {upcomingDDays[0].title}

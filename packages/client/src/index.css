@@ -512,6 +512,49 @@
   }
   .ripple:hover::after { opacity: 1; }
 
+  /* Shimmer text effect for subtitles */
+  .shimmer-text {
+    background: linear-gradient(90deg, #64748b 0%, #94a3b8 40%, #cbd5e1 50%, #94a3b8 60%, #64748b 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmerText 3s ease-in-out infinite;
+  }
+  @keyframes shimmerText {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
+
+  /* Animated border gradient for enabled buttons */
+  .border-gradient-animate {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .border-gradient-animate::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(var(--btn-angle, 0deg), #3b82f6, #8b5cf6, #ec4899, #3b82f6);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+    animation: btnBorderRotate 3s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+  @keyframes btnBorderRotate {
+    to { --btn-angle: 360deg; }
+  }
+  @property --btn-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+  }
+
   /* Smooth scrolling for iOS */
   .overflow-x-auto, .overflow-y-auto {
     -webkit-overflow-scrolling: touch;

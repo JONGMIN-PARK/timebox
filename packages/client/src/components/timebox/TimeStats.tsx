@@ -113,7 +113,7 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
   }, [days, blocksByDate]);
 
   return (
-    <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-4 max-h-[300px] overflow-y-auto">
+    <div className="relative rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl shadow-slate-200/50 dark:shadow-none p-4 max-h-[300px] overflow-y-auto">
       {/* Close button */}
       <button
         onClick={onClose}
@@ -126,7 +126,7 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
       </button>
 
       {/* Header + toggle */}
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center gap-3 mb-3 -mx-4 -mt-4 px-4 pt-3 pb-2 bg-gradient-to-r from-blue-50 via-indigo-50/50 to-transparent dark:from-slate-700/50 dark:via-slate-800/30 dark:to-transparent rounded-t-xl">
         <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
           {t("timebox.stats")}
         </h3>
@@ -176,7 +176,7 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
                     {format(day, "EEE")}
                   </span>
                   <div
-                    className="flex h-3 rounded-sm overflow-hidden bg-gray-100 dark:bg-gray-700 flex-1"
+                    className="flex h-3.5 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700 flex-1 shadow-inner"
                   >
                     {segments.map((seg) => {
                       const cfg = CATEGORY_CONFIG[seg.category] ?? { color: "#94a3b8" };
@@ -185,6 +185,7 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
                         <div
                           key={seg.category}
                           title={`${cfg.label ?? seg.category}: ${seg.hours.toFixed(1)}h`}
+                          className="first:rounded-l-full last:rounded-r-full shadow-sm"
                           style={{
                             width: `${widthPct}%`,
                             backgroundColor: cfg.color,
@@ -211,7 +212,7 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
             </div>
             <div className="bg-gray-50 dark:bg-gray-750 rounded-lg px-2 py-1.5">
               <span className="text-gray-500 dark:text-gray-400">{t("timebox.stats.completion")}</span>
-              <span className="ml-1 font-semibold text-gray-800 dark:text-gray-100">
+              <span className="ml-1 font-semibold text-gray-800 dark:text-gray-100 glow-pulse inline-block">
                 {completionRate}%
               </span>
             </div>
@@ -224,8 +225,8 @@ export default function TimeStats({ selectedDate, onClose }: TimeStatsProps) {
               return (
                 <span
                   key={cat}
-                  className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: `${cfg.color}20`, color: cfg.color }}
+                  className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border-l-2"
+                  style={{ backgroundColor: `${cfg.color}20`, color: cfg.color, borderLeftColor: cfg.color }}
                 >
                   <span>{cfg.icon}</span>
                   <span>{cfg.label}</span>

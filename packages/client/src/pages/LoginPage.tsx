@@ -60,7 +60,7 @@ export default function LoginPage() {
             <Clock className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-semibold text-white tracking-tight gradient-text">TimeBox</h1>
-          <p className="text-slate-500 mt-1.5 text-sm">
+          <p className="text-slate-500 mt-1.5 text-sm shimmer-text">
             {mode === "login" && t("auth.signInToContinue")}
             {mode === "request" && t("auth.requestAnAccount")}
             {mode === "requested" && t("auth.requestSubmitted")}
@@ -73,18 +73,18 @@ export default function LoginPage() {
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1.5 block tracking-wide uppercase">{t("auth.username")}</label>
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t("auth.enterUsername")}
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all" autoFocus />
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all" autoFocus />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1.5 block tracking-wide uppercase">{t("auth.password")}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("auth.enterPassword")}
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all" />
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all" />
             </div>
             {error && (
               <div className="text-red-400 text-xs text-center py-1.5 px-3 rounded-lg bg-red-500/10 border border-red-500/20 animate-in">{error}</div>
             )}
             <button type="submit" disabled={!username.trim() || !password || loading}
-              className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-sm font-medium transition-all duration-200 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 active:scale-[0.98] mt-2">
+              className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-sm font-medium transition-all duration-200 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 active:scale-[0.98] mt-2 enabled:border-gradient-animate">
               {loading ? t("auth.signingIn") : t("auth.signIn")}
             </button>
             <div className="text-center pt-2">
@@ -102,17 +102,17 @@ export default function LoginPage() {
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1.5 block tracking-wide uppercase">{t("auth.username")}</label>
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t("auth.chooseUsername")}
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all" autoFocus />
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all" autoFocus />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1.5 block tracking-wide uppercase">{t("auth.password")}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("auth.choosePassword")}
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all" />
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all" />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1.5 block tracking-wide uppercase">{t("auth.displayName")} <span className="normal-case text-slate-600">({t("auth.optional")})</span></label>
               <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t("auth.yourName")}
-                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all" />
+                className="w-full bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all" />
             </div>
             <div>
               <label className="text-xs font-medium text-slate-500 mb-1.5 block tracking-wide uppercase">{t("auth.messageToAdmin")} <span className="normal-case text-slate-600">({t("auth.optional")})</span></label>
