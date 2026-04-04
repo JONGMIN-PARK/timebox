@@ -1,5 +1,11 @@
 # TimeBox — Changelog & Development Progress
 
+## v1.10.0 — 2026-04-04
+
+| 항목 | 설명 |
+|------|------|
+| ✨ 기능 | 버전 업데이트 리스트 자동 관리 시스템 |
+
 ## Project Overview
 
 **TimeBox** — Personal Schedule Manager Web App
