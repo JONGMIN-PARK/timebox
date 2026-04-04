@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto version bump
+      - name: Auto version bump + changelog
         id: version
         run: |
           set -e
@@ -70,23 +70,73 @@ jobs:
 
           echo "Version bump: $CURRENT → $NEW_VERSION ($BUMP)"
 
-          # Collect change log
+          # Collect change log items (excluding chore/merge commits)
           if [ -z "$LAST_TAG" ]; then
-            CHANGES=$(git log --oneline --format="• %s" -10)
+            CHANGES=$(git log --oneline --format="%s" -10 | grep -ivE "^(chore|merge):" || true)
           else
-            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --format="• %s")
+            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --format="%s" | grep -ivE "^(chore|merge):" || true)
           fi
 
-          # Update version.json
+          # Build bullet list for display
+          CHANGES_BULLETS=$(echo "$CHANGES" | sed 's/^/• /')
+
+          # ── Update version.json with new changes ──
           node -e "
             const fs = require('fs');
             const v = JSON.parse(fs.readFileSync('packages/shared/version.json', 'utf-8'));
+
+            // Parse commits into categories
+            const commits = \`${CHANGES}\`.split('\n').filter(Boolean);
+            const cats = { feat: [], fix: [], other: [] };
+            for (const c of commits) {
+              if (/^feat/i.test(c)) cats.feat.push(c.replace(/^feat[:(]?\s*/i, '').replace(/\):\s*/, ': '));
+              else if (/^fix/i.test(c)) cats.fix.push(c.replace(/^fix[:(]?\s*/i, '').replace(/\):\s*/, ': '));
+              else cats.other.push(c);
+            }
+
+            // Build changes array
+            const changes = [];
+            if (cats.feat.length) changes.push({ category: '신규 기능', emoji: '✨', items: cats.feat });
+            if (cats.fix.length) changes.push({ category: '버그 수정', emoji: '🐛', items: cats.fix });
+            if (cats.other.length) changes.push({ category: '기타', emoji: '🔧', items: cats.other });
+
+            // Build highlights (up to 3, from feat first then fix)
+            const highlights = [...cats.feat, ...cats.fix].slice(0, 3);
+
             v.version = '${NEW_VERSION}';
             v.date = '${TODAY}';
+            v.highlights = highlights.length ? highlights : v.highlights;
+            v.changes = changes.length ? changes : v.changes;
             fs.writeFileSync('packages/shared/version.json', JSON.stringify(v, null, 2) + '\n');
           "
 
-          # Update package.json files
+          # ── Update CHANGELOG.md ──
+          node -e "
+            const fs = require('fs');
+            const cl = fs.existsSync('CHANGELOG.md') ? fs.readFileSync('CHANGELOG.md', 'utf-8') : '';
+            const items = \`${CHANGES}\`.split('\n').filter(Boolean);
+            if (items.length === 0) process.exit(0);
+
+            let entry = '\n## v${NEW_VERSION} — ${TODAY}\n\n';
+            entry += '| 항목 | 설명 |\n|------|------|\n';
+            for (const item of items) {
+              const type = /^feat/i.test(item) ? '✨ 기능' : /^fix/i.test(item) ? '🐛 수정' : '🔧 기타';
+              const desc = item.replace(/^(feat|fix|chore|refactor)[:(]?\s*/i, '').replace(/\):\s*/, ': ');
+              entry += '| ' + type + ' | ' + desc + ' |\n';
+            }
+
+            // Insert after the first heading line (or at top)
+            const firstHeading = cl.indexOf('\n## ');
+            if (firstHeading > 0) {
+              const before = cl.slice(0, firstHeading);
+              const after = cl.slice(firstHeading);
+              fs.writeFileSync('CHANGELOG.md', before + entry + after);
+            } else {
+              fs.writeFileSync('CHANGELOG.md', '# TimeBox Changelog\n' + entry + '\n' + cl);
+            }
+          "
+
+          # ── Update package.json files ──
           node -e "
             const fs = require('fs');
             for (const p of ['package.json', 'packages/server/package.json']) {
@@ -111,7 +161,7 @@ jobs:
           # Save changes to multiline output
           EOF_MARKER=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "changes<<${EOF_MARKER}" >> "$GITHUB_OUTPUT"
-          echo "${CHANGES}" >> "$GITHUB_OUTPUT"
+          echo "${CHANGES_BULLETS}" >> "$GITHUB_OUTPUT"
           echo "${EOF_MARKER}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Render
