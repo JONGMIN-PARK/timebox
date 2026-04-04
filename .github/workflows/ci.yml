@@ -158,10 +158,33 @@ jobs:
 
           # Export for next steps
           echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
-          # Save changes to multiline output
+          echo "bump_type=${BUMP}" >> "$GITHUB_OUTPUT"
+          echo "prev_version=${CURRENT}" >> "$GITHUB_OUTPUT"
+
+          # Build detailed categorized changelog for Telegram
+          FEAT_ITEMS=""
+          FIX_ITEMS=""
+          OTHER_ITEMS=""
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            DESC=$(echo "$line" | sed -E 's/^(feat|fix|chore|refactor)[:(]?[^)]*\)?\s*:?\s*//i')
+            if echo "$line" | grep -iqE "^feat"; then
+              FEAT_ITEMS="${FEAT_ITEMS}  ✨ ${DESC}\n"
+            elif echo "$line" | grep -iqE "^fix"; then
+              FIX_ITEMS="${FIX_ITEMS}  🐛 ${DESC}\n"
+            else
+              OTHER_ITEMS="${OTHER_ITEMS}  🔧 ${DESC}\n"
+            fi
+          done <<< "$CHANGES"
+
+          DETAILED=""
+          [ -n "$FEAT_ITEMS" ] && DETAILED="${DETAILED}*신규 기능*\n${FEAT_ITEMS}\n"
+          [ -n "$FIX_ITEMS" ] && DETAILED="${DETAILED}*버그 수정*\n${FIX_ITEMS}\n"
+          [ -n "$OTHER_ITEMS" ] && DETAILED="${DETAILED}*기타*\n${OTHER_ITEMS}\n"
+
           EOF_MARKER=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "changes<<${EOF_MARKER}" >> "$GITHUB_OUTPUT"
-          echo "${CHANGES_BULLETS}" >> "$GITHUB_OUTPUT"
+          echo -e "${DETAILED}" >> "$GITHUB_OUTPUT"
           echo "${EOF_MARKER}" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Render
@@ -175,16 +198,26 @@ jobs:
           TELEGRAM_ADMIN_CHAT_IDS: ${{ secrets.TELEGRAM_ADMIN_CHAT_IDS }}
         run: |
           VERSION="${{ steps.version.outputs.new_version }}"
+          PREV="${{ steps.version.outputs.prev_version }}"
+          BUMP="${{ steps.version.outputs.bump_type }}"
           CHANGES="${{ steps.version.outputs.changes }}"
           KO_TIME=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
 
+          # Bump type label
+          case "$BUMP" in
+            major) BUMP_LABEL="🔴 MAJOR 업데이트" ;;
+            minor) BUMP_LABEL="🟡 기능 업데이트" ;;
+            patch) BUMP_LABEL="🟢 패치" ;;
+            *) BUMP_LABEL="📦 업데이트" ;;
+          esac
+
           MSG="🚀 *TimeBox v${VERSION} 배포 완료*
-          ⏰ ${KO_TIME}
+${BUMP_LABEL} (v${PREV} → v${VERSION})
+⏰ ${KO_TIME}
 
-          📝 *변경사항*
-          ${CHANGES}
-
-          ✅ 배포 시작됨"
+📝 *변경사항*
+${CHANGES}
+✅ Render 배포 시작됨"
 
           # Send to each admin chat ID (comma-separated)
           IFS=',' read -ra CHAT_IDS <<< "$TELEGRAM_ADMIN_CHAT_IDS"
