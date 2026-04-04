@@ -2,13 +2,14 @@ import { useEffect, useState, useRef, useMemo, memo, useCallback } from "react";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
 import {
-  ChevronLeft, ChevronRight, Plus, X, Check, Trash2,
+  ChevronLeft, ChevronRight, Plus, X, Check, Trash2, Pencil,
   Calendar, CheckSquare, Clock, PanelRightOpen, PanelRightClose,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
 import { getCategoryInfo } from "@/lib/categories";
+import { showToast } from "@/components/ui/Toast";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
@@ -17,6 +18,8 @@ import {
 } from "@/stores/timeblockStore";
 import { useEventStore } from "@/stores/eventStore";
 import { useTodoStore } from "@/stores/todoStore";
+import CalendarTodoAddModal from "@/components/calendar/CalendarTodoAddModal";
+import CalendarTodoEditModal from "@/components/calendar/CalendarTodoEditModal";
 import type { CalendarEvent, Todo } from "@timebox/shared";
 
 const HOUR_HEIGHT = 60; // px per hour
@@ -158,12 +161,13 @@ const PanelEventItem = memo(function PanelEventItem({
 
 // ── Side panel todo item ──
 const PanelTodoItem = memo(function PanelTodoItem({
-  td, onToggle, onSchedule, onDelete,
+  td, onToggle, onSchedule, onDelete, onEdit,
 }: {
   td: Todo;
   onToggle: (id: number) => void;
   onSchedule: (title: string) => void;
   onDelete: (id: number) => void;
+  onEdit: (todo: Todo) => void;
 }) {
   const catIcon = getCategoryInfo(td.category).icon;
   return (
@@ -198,6 +202,12 @@ const PanelTodoItem = memo(function PanelTodoItem({
           </button>
         )}
         <button
+          onClick={() => onEdit(td)}
+          className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
+        >
+          <Pencil className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
+        </button>
+        <button
           onClick={() => onDelete(td.id)}
           className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
         >
@@ -212,7 +222,7 @@ export default function TimeBoxView() {
   const { blocks, loading, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
   const { events, fetchEvents } = useEventStore();
-  const { todos, fetchTodos, toggleTodo, deleteTodo, addTodo } = useTodoStore();
+  const { todos, fetchTodos, toggleTodo, deleteTodo, addTodo, updateTodo, updateStatus } = useTodoStore();
   const { deleteEvent, addEvent } = useEventStore();
   const { t } = useI18n();
 
@@ -227,13 +237,15 @@ export default function TimeBoxView() {
     endTime: "10:00",
     category: "deep_work" as TimeBlockCategory,
   });
-  // Quick-add forms in panel
+  // Quick-add event form in panel
   const [addingEvent, setAddingEvent] = useState(false);
-  const [addingTodo, setAddingTodo] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventStart, setNewEventStart] = useState("09:00");
   const [newEventEnd, setNewEventEnd] = useState("10:00");
-  const [newTodoTitle, setNewTodoTitle] = useState("");
+  // Todo modals (reuse calendar modals)
+  const [todoAddOpen, setTodoAddOpen] = useState(false);
+  const [todoEditOpen, setTodoEditOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -359,14 +371,11 @@ export default function TimeBoxView() {
     fetchEvents(selectedDate, selectedDate);
   };
 
-  // Quick add todo from panel
-  const handleAddTodo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTodoTitle.trim()) return;
-    await addTodo(newTodoTitle.trim(), "medium", selectedDate);
-    setNewTodoTitle("");
-    setAddingTodo(false);
-  };
+  // Todo edit handler
+  const handleEditTodo = useCallback((todo: Todo) => {
+    setEditingTodo(todo);
+    setTodoEditOpen(true);
+  }, []);
 
   const goToday = () => setSelectedDate(format(new Date(), "yyyy-MM-dd"));
 
@@ -503,7 +512,7 @@ export default function TimeBoxView() {
                   {t("timebox.events")} ({dayEvents.length})
                 </h4>
                 <button
-                  onClick={() => { setAddingEvent(true); setAddingTodo(false); }}
+                  onClick={() => { setAddingEvent(true);  }}
                   className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
@@ -555,30 +564,14 @@ export default function TimeBoxView() {
                   {t("timebox.todos")} ({dayTodos.length})
                 </h4>
                 <button
-                  onClick={() => { setAddingTodo(true); setAddingEvent(false); }}
+                  onClick={() => setTodoAddOpen(true)}
                   className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5 text-slate-400 hover:text-amber-500" />
                 </button>
               </div>
 
-              {/* Quick add todo form */}
-              {addingTodo && (
-                <form onSubmit={handleAddTodo} className="mb-2 space-y-1.5 p-2 bg-slate-50 dark:bg-slate-700/40 rounded-lg">
-                  <input
-                    type="text" value={newTodoTitle} onChange={(e) => setNewTodoTitle(e.target.value)}
-                    placeholder={t("timebox.todoTitle")}
-                    className="w-full text-xs bg-white dark:bg-slate-700 rounded px-2 py-1.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-1 focus:ring-amber-500"
-                    autoFocus
-                  />
-                  <div className="flex gap-1.5">
-                    <button type="submit" className="flex-1 text-xs py-1 bg-amber-500 text-white rounded hover:bg-amber-400">{t("common.add")}</button>
-                    <button type="button" onClick={() => setAddingTodo(false)} className="flex-1 text-xs py-1 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded">{t("common.cancel")}</button>
-                  </div>
-                </form>
-              )}
-
-              {dayTodos.length === 0 && !addingTodo && (
+              {dayTodos.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-3">{t("timebox.noTodos")}</p>
               )}
               {dayTodos.map((td) => (
@@ -588,6 +581,7 @@ export default function TimeBoxView() {
                   onToggle={toggleTodo}
                   onSchedule={(title) => scheduleAsBlock(title)}
                   onDelete={deleteTodo}
+                  onEdit={handleEditTodo}
                 />
               ))}
             </div>
@@ -621,12 +615,44 @@ export default function TimeBoxView() {
 
             {/* Todos */}
             {dayTodos.map((td) => (
-              <PanelTodoItem key={td.id} td={td} onToggle={toggleTodo} onSchedule={(title) => scheduleAsBlock(title)} onDelete={deleteTodo} />
+              <PanelTodoItem key={td.id} td={td} onToggle={toggleTodo} onSchedule={(title) => scheduleAsBlock(title)} onDelete={deleteTodo} onEdit={handleEditTodo} />
             ))}
             {dayTodos.length === 0 && <p className="text-xs text-slate-400 text-center py-2">{t("timebox.noTodos")}</p>}
           </div>
         </div>
       )}
+
+      {/* Todo Add Modal */}
+      <CalendarTodoAddModal
+        open={todoAddOpen}
+        initialDate={selectedDate}
+        onClose={() => setTodoAddOpen(false)}
+        onAdd={async (values) => {
+          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status, values.projectId ?? null, values.memo ?? null);
+          if (!ok) throw new Error("add failed");
+          showToast("success", t("calendar.todoCreated"));
+        }}
+      />
+
+      {/* Todo Edit Modal */}
+      <CalendarTodoEditModal
+        open={todoEditOpen}
+        todo={editingTodo}
+        onClose={() => { setTodoEditOpen(false); setEditingTodo(null); }}
+        onSave={async (id, values) => {
+          await updateTodo(id, {
+            title: values.title,
+            category: values.category,
+            dueDate: values.dueDate,
+            priority: values.priority,
+            status: values.status,
+            projectId: values.projectId ?? null,
+            memo: values.memo ?? null,
+          });
+          if (values.status) await updateStatus(id, values.status);
+          showToast("success", t("calendar.todoUpdated"));
+        }}
+      />
 
       {/* Add form modal */}
       {showAddForm && (
