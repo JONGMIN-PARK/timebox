@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
+import { kstToday, kstNow, toKstDateStr, KST_TIMEZONE } from "../lib/kst.js";
 
 const __filename2 = fileURLToPath(import.meta.url);
 const __dirname2 = path.dirname(__filename2);
@@ -30,11 +31,12 @@ async function getUserIdFromChat(chatId: string): Promise<number | null> {
 }
 
 function parseDateInput(input: string): string {
-  const today = new Date();
+  const now = kstNow();
+  const todayStr = kstToday();
   const map: Record<string, number> = { today: 0, tomorrow: 1, tmr: 1, "2d": 2, "3d": 3 };
-  if (input in map) { today.setDate(today.getDate() + map[input]); return today.toISOString().slice(0, 10); }
+  if (input in map) { now.setDate(now.getDate() + map[input]); return toKstDateStr(now); }
   const parsed = new Date(input);
-  return !isNaN(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : today.toISOString().slice(0, 10);
+  return !isNaN(parsed.getTime()) ? toKstDateStr(parsed) : todayStr;
 }
 
 function parseTimeRange(input: string): { start: string; end: string } | null {
@@ -202,7 +204,7 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = kstToday();
 
     const todayEvents = await db.select().from(events)
       .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
@@ -251,7 +253,7 @@ export async function initTelegramBot() {
     if (!match) return;
 
     const parts = match[2].trim().split(/\s+/);
-    let dateStr = new Date().toISOString().slice(0, 10);
+    let dateStr = kstToday();
     let timeRange: { start: string; end: string } | null = null;
     let titleParts: string[] = [];
 
@@ -302,7 +304,7 @@ export async function initTelegramBot() {
     const allTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), isNull(todos.deletedAt)));
     const maxOrder = allTodos.reduce((max, t) => Math.max(max, t.sortOrder), -1);
     await db.insert(todos).values({
-      userId, title: text, priority, category, sortOrder: maxOrder + 1, dueDate: new Date().toISOString().slice(0, 10),
+      userId, title: text, priority, category, sortOrder: maxOrder + 1, dueDate: kstToday(),
     });
 
     const emoji = priority === "high" ? "🔴" : priority === "low" ? "⚪" : "🟡";
@@ -397,11 +399,11 @@ export async function initTelegramBot() {
 
     if (allDdays.length === 0) { bot!.sendMessage(msg.chat.id, "📅 No D-Days set"); return; }
 
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const todayKst = kstNow(); todayKst.setHours(0, 0, 0, 0);
     let text = "📅 *D-Day List*\n\n";
     allDdays.sort((a, b) => a.targetDate.localeCompare(b.targetDate)).forEach((d) => {
       const target = new Date(d.targetDate); target.setHours(0, 0, 0, 0);
-      const diff = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const diff = Math.ceil((target.getTime() - todayKst.getTime()) / (1000 * 60 * 60 * 24));
       const label = diff === 0 ? "🔥 D-Day!" : diff > 0 ? `D-${diff}` : `D+${Math.abs(diff)}`;
       text += `  ${label} ${d.title}\n`;
     });
@@ -414,7 +416,7 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = kstToday();
     const blocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
 
     if (blocks.length === 0) { bot!.sendMessage(msg.chat.id, "⏱ No time blocks today"); return; }
@@ -432,11 +434,11 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const now = new Date();
+    const now = kstNow();
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-    const startStr = weekStart.toISOString().slice(0, 10);
-    const endStr = weekEnd.toISOString().slice(0, 10);
+    const startStr = toKstDateStr(weekStart);
+    const endStr = toKstDateStr(weekEnd);
 
     const weekEvents = await db.select().from(events)
       .where(and(eq(events.userId, userId), gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)));
@@ -682,7 +684,7 @@ export async function initTelegramBot() {
 
       await db.insert(files).values({
         userId,
-        originalName: `photo_${new Date().toISOString().slice(0, 10)}.jpg`,
+        originalName: `photo_${kstToday()}.jpg`,
         storedName,
         mimeType: "image/jpeg",
         size: buffer.length,
@@ -740,7 +742,7 @@ export async function initTelegramBot() {
         const modelName = DEPRECATED_MODELS[rawModel] || rawModel;
         const model = genAI.getGenerativeModel({ model: modelName });
 
-        const today = new Date().toISOString().slice(0, 10);
+        const today = kstToday();
         let contextLines: string[] = [`오늘: ${today}`, `사용자: ${userRow.displayName || userRow.username}(${userRow.role})`];
 
         // Fetch context data — all queries run in parallel
@@ -861,8 +863,8 @@ async function setupDailyBriefing() {
   const briefingTime = conf[0]?.dailyBriefingTime || "08:00";
   const [hour, minute] = briefingTime.split(":").map(Number);
 
-  cron.schedule(`${minute} ${hour} * * *`, () => sendDailyBriefing());
-  console.log(`Daily briefing scheduled at ${briefingTime}`);
+  cron.schedule(`${minute} ${hour} * * *`, () => sendDailyBriefing(), { timezone: KST_TIMEZONE });
+  console.log(`Daily briefing scheduled at ${briefingTime} (KST)`);
 }
 
 async function sendDailyBriefing() {
@@ -872,8 +874,8 @@ async function sendDailyBriefing() {
   const activeConfs = allConf.filter((c) => c.chatId && c.active);
   if (activeConfs.length === 0) return;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+  const today = kstToday();
+  const todayDate = kstNow(); todayDate.setHours(0, 0, 0, 0);
 
   for (const conf of activeConfs) {
     try {

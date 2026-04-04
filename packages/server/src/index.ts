@@ -40,6 +40,7 @@ import calendarFeedRoutes from "./routes/calendarFeed.js";
 import googleCalendarRoutes from "./routes/googleCalendar.js";
 import summaryRoutes from "./routes/summary.js";
 import { activityTracker } from "./middleware/activityTracker.js";
+import { KST_TIMEZONE } from "./lib/kst.js";
 
 dotenv.config();
 
@@ -322,7 +323,7 @@ httpServer.listen(PORT, () => {
     }
   });
 
-  // Auto-cleanup: permanently delete soft-deleted messages older than 30 days (runs daily at 3 AM)
+  // Auto-cleanup: permanently delete soft-deleted messages older than 30 days (runs daily at 3 AM KST)
   cron.schedule("0 3 * * *", async () => {
     try {
       const { db } = await import("./db/index.js");
@@ -343,7 +344,7 @@ httpServer.listen(PORT, () => {
     } catch (err) {
       logger.error("Cleanup cron failed", { error: (err as Error).message });
     }
-  });
+  }, { timezone: KST_TIMEZONE });
 });
 
 // Graceful shutdown

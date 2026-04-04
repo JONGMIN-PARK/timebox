@@ -93,7 +93,7 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl sm:border sm:border-slate-200 sm:dark:border-slate-700 flex flex-col sm:max-h-[85vh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
+        className="w-full sm:max-w-md bg-white dark:bg-slate-800 sm:rounded-xl shadow-xl sm:border sm:border-slate-200 sm:dark:border-slate-700 flex flex-col max-h-[100dvh] sm:max-h-[85vh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
       >
         <div className="flex items-center justify-between gap-2 px-5 pt-4 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-700/50 sm:border-0 sm:px-5 sm:pt-5 sm:pb-0">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{t("calendar.editTodo")}</h3>
@@ -208,7 +208,7 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder={t("calendar.memoPlaceholder")}
-            rows={5}
+            rows={2}
             className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
           />
         </div>

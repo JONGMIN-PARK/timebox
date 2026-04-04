@@ -8,6 +8,7 @@ import { emitToUser, getIO } from "../socket/index.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { logger } from "../lib/logger.js";
 import { ValidationError, NotFoundError, ForbiddenError } from "../lib/errors.js";
+import { kstToday, kstNow } from "../lib/kst.js";
 
 async function notifyTaskViaTelegram(toUserId: number, projectName: string, taskTitle: string, dueDate: string | null) {
   try {
@@ -663,27 +664,28 @@ router.get("/:projectId/stats", asyncHandler<ProjectRequest>(async (req, res) =>
   let dDay: number | null = null;
   if (targetDate) {
     const target = new Date(targetDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayKst = kstNow();
+    todayKst.setHours(0, 0, 0, 0);
     target.setHours(0, 0, 0, 0);
-    dDay = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    dDay = Math.ceil((target.getTime() - todayKst.getTime()) / (1000 * 60 * 60 * 24));
   }
 
   let completed = 0, inProgress = 0, dueSoon = 0, unassigned = 0;
   let weekCompleted = 0, weekInProgress = 0, weekDueSoon = 0;
-  const now = new Date();
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const todayStr = now.toISOString().slice(0, 10);
+  const now = kstNow();
+  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const threeDaysStr = `${threeDaysFromNow.getFullYear()}-${String(threeDaysFromNow.getMonth() + 1).padStart(2, "0")}-${String(threeDaysFromNow.getDate()).padStart(2, "0")}`;
+  const todayStr = kstToday();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   for (const t of tasks) {
     if (t.status === "done") completed++;
     if (t.status === "in_progress") inProgress++;
     if (!t.assigneeId) unassigned++;
-    if (t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done") dueSoon++;
+    if (t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysStr && t.status !== "done") dueSoon++;
     if (t.status === "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekCompleted++;
     if (t.status === "in_progress" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekInProgress++;
-    if (t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysFromNow && t.status !== "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekDueSoon++;
+    if (t.dueDate && t.dueDate >= todayStr && t.dueDate <= threeDaysStr && t.status !== "done" && t.updatedAt && t.updatedAt >= sevenDaysAgo) weekDueSoon++;
   }
   const total = tasks.length;
 

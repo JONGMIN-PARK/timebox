@@ -8,6 +8,7 @@ import { eq, and, desc, inArray, sql, count, or, ilike, notInArray, gte, lte, ne
 import { type AuthRequest } from "../middleware/auth.js";
 import { projectMemberMiddleware, projectAdminMiddleware, type ProjectRequest } from "../middleware/projectAuth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { kstToday, kstNow } from "../lib/kst.js";
 import { ValidationError, NotFoundError, ForbiddenError, ConflictError } from "../lib/errors.js";
 
 const router = Router();
@@ -106,8 +107,7 @@ router.get("/summary", asyncHandler<AuthRequest>(async (req, res) => {
     .groupBy(projectMembers.projectId);
   const memberCountMap = new Map(memberCounts.map(mc => [mc.projectId, mc.count]));
 
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = kstToday();
 
   const summary = myProjects.map(p => {
     const tasks = allTasks.filter(t => t.projectId === p.id);
@@ -122,9 +122,9 @@ router.get("/summary", asyncHandler<AuthRequest>(async (req, res) => {
     if (p.targetDate) {
       const target = new Date(p.targetDate);
       target.setHours(0, 0, 0, 0);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      dDay = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const todayKst = kstNow();
+      todayKst.setHours(0, 0, 0, 0);
+      dDay = Math.ceil((target.getTime() - todayKst.getTime()) / (1000 * 60 * 60 * 24));
     }
 
     return {
