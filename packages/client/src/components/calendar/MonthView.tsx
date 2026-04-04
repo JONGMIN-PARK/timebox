@@ -301,7 +301,7 @@ export default function MonthView({
                 </button>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-700/30">
+              <div className="divide-y divide-slate-100 dark:divide-slate-700/30 pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px)+8px)] sm:pb-2">
                 {/* Events */}
                 {selectedDateEvents.map((ev) => (
                   <MonthEventDetailItem
