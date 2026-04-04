@@ -119,6 +119,56 @@ const TimeBlockItem = memo(function TimeBlockItem({
   );
 });
 
+// Memoized event item rendered on the timeline (for calendar events without a matching time block)
+const TimelineEventItem = memo(function TimelineEventItem({
+  ev, onSchedule,
+}: {
+  ev: CalendarEvent;
+  onSchedule: (title: string, start: string, end: string) => void;
+}) {
+  const startH = ev.startTime.slice(11, 16);
+  const endH = ev.endTime.slice(11, 16);
+  if (!startH || !endH) return null;
+  const color = ev.color || "#3b82f6";
+  const top = blockTop(startH);
+  const height = blockHeight(startH, endH);
+
+  return (
+    <div
+      className="absolute left-14 right-2 rounded-lg border-l-4 border-dashed px-3 py-1.5 cursor-pointer group"
+      style={{
+        top,
+        height: Math.max(height, 24),
+        borderLeftColor: color,
+        backgroundColor: color + "12",
+      }}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate text-slate-700 dark:text-slate-300">
+            <Calendar className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+            {ev.title}
+          </p>
+          {height >= 40 && (
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              {startH} - {endH}
+            </p>
+          )}
+        </div>
+        <div className="hidden group-hover:flex items-center gap-1">
+          <button
+            onClick={() => onSchedule(ev.title, startH, endH)}
+            title="Schedule as block"
+            className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-700 text-blue-500 flex items-center justify-center"
+          >
+            <Clock className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // ── Side panel event item ──
 const PanelEventItem = memo(function PanelEventItem({
   ev, onSchedule, onDelete,
@@ -309,6 +359,16 @@ export default function TimeBoxView() {
     [todos, selectedDate],
   );
 
+  // Events that don't already have a matching time block (avoid duplicates on timeline)
+  const timelineEvents = useMemo(() => {
+    const blockTitles = new Set(sortedBlocks.map(b => `${b.title}|${b.startTime}`));
+    return dayEvents.filter(ev => {
+      if (ev.allDay) return false;
+      const startH = ev.startTime.slice(11, 16);
+      return !blockTitles.has(`${ev.title}|${startH}`);
+    });
+  }, [dayEvents, sortedBlocks]);
+
   // Current time indicator
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -494,6 +554,15 @@ export default function TimeBoxView() {
                 block={block}
                 onToggleCompleted={handleToggleCompleted}
                 onDeleteBlock={handleDeleteBlock}
+              />
+            ))}
+
+            {/* Calendar events (shown as dashed blocks if no matching time block) */}
+            {timelineEvents.map((ev) => (
+              <TimelineEventItem
+                key={`ev-${ev.id}`}
+                ev={ev}
+                onSchedule={scheduleAsBlock}
               />
             ))}
           </div>
