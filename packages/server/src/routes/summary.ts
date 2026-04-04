@@ -4,7 +4,7 @@ import { todos, projectTasks, projectMembers } from "../db/schema.js";
 import { eq, and, inArray, ne, isNull, lte, gte, isNotNull } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
-import { kstToday, kstNow } from "../lib/kst.js";
+import { kstToday, kstDateOffset } from "../lib/kst.js";
 
 const router = Router();
 
@@ -12,9 +12,7 @@ const router = Router();
 router.get("/week", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
   const todayStr = kstToday();
-  const end = kstNow();
-  end.setDate(end.getDate() + 7);
-  const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+  const endStr = kstDateOffset(7);
 
   const myTodos = await db
     .select()

@@ -8,7 +8,7 @@ import { emitToUser, getIO } from "../socket/index.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { logger } from "../lib/logger.js";
 import { ValidationError, NotFoundError, ForbiddenError } from "../lib/errors.js";
-import { kstToday, kstNow } from "../lib/kst.js";
+import { kstToday, kstDateOffset, calcDaysLeft } from "../lib/kst.js";
 
 async function notifyTaskViaTelegram(toUserId: number, projectName: string, taskTitle: string, dueDate: string | null) {
   try {
@@ -663,20 +663,14 @@ router.get("/:projectId/stats", asyncHandler<ProjectRequest>(async (req, res) =>
   const targetDate = project[0]?.targetDate || null;
   let dDay: number | null = null;
   if (targetDate) {
-    const target = new Date(targetDate);
-    const todayKst = kstNow();
-    todayKst.setHours(0, 0, 0, 0);
-    target.setHours(0, 0, 0, 0);
-    dDay = Math.ceil((target.getTime() - todayKst.getTime()) / (1000 * 60 * 60 * 24));
+    dDay = calcDaysLeft(targetDate);
   }
 
   let completed = 0, inProgress = 0, dueSoon = 0, unassigned = 0;
   let weekCompleted = 0, weekInProgress = 0, weekDueSoon = 0;
-  const now = kstNow();
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-  const threeDaysStr = `${threeDaysFromNow.getFullYear()}-${String(threeDaysFromNow.getMonth() + 1).padStart(2, "0")}-${String(threeDaysFromNow.getDate()).padStart(2, "0")}`;
   const todayStr = kstToday();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const threeDaysStr = kstDateOffset(3);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   for (const t of tasks) {
     if (t.status === "done") completed++;

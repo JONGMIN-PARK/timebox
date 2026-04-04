@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
-import { kstToday, kstNow, toKstDateStr, KST_TIMEZONE } from "../lib/kst.js";
+import { kstToday, toKstDateStr, kstDateOffset, calcDaysLeft, formatDateLocal, KST_TIMEZONE } from "../lib/kst.js";
 
 const __filename2 = fileURLToPath(import.meta.url);
 const __dirname2 = path.dirname(__filename2);
@@ -31,12 +31,10 @@ async function getUserIdFromChat(chatId: string): Promise<number | null> {
 }
 
 function parseDateInput(input: string): string {
-  const now = kstNow();
-  const todayStr = kstToday();
   const map: Record<string, number> = { today: 0, tomorrow: 1, tmr: 1, "2d": 2, "3d": 3 };
-  if (input in map) { now.setDate(now.getDate() + map[input]); return toKstDateStr(now); }
+  if (input in map) return kstDateOffset(map[input]);
   const parsed = new Date(input);
-  return !isNaN(parsed.getTime()) ? toKstDateStr(parsed) : todayStr;
+  return !isNaN(parsed.getTime()) ? toKstDateStr(parsed) : kstToday();
 }
 
 function parseTimeRange(input: string): { start: string; end: string } | null {
@@ -399,11 +397,9 @@ export async function initTelegramBot() {
 
     if (allDdays.length === 0) { bot!.sendMessage(msg.chat.id, "📅 No D-Days set"); return; }
 
-    const todayKst = kstNow(); todayKst.setHours(0, 0, 0, 0);
     let text = "📅 *D-Day List*\n\n";
     allDdays.sort((a, b) => a.targetDate.localeCompare(b.targetDate)).forEach((d) => {
-      const target = new Date(d.targetDate); target.setHours(0, 0, 0, 0);
-      const diff = Math.ceil((target.getTime() - todayKst.getTime()) / (1000 * 60 * 60 * 24));
+      const diff = calcDaysLeft(d.targetDate);
       const label = diff === 0 ? "🔥 D-Day!" : diff > 0 ? `D-${diff}` : `D+${Math.abs(diff)}`;
       text += `  ${label} ${d.title}\n`;
     });
@@ -434,11 +430,11 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const now = kstNow();
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+    const today = new Date(kstToday() + "T00:00:00");
+    const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
     const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-    const startStr = toKstDateStr(weekStart);
-    const endStr = toKstDateStr(weekEnd);
+    const startStr = formatDateLocal(weekStart);
+    const endStr = formatDateLocal(weekEnd);
 
     const weekEvents = await db.select().from(events)
       .where(and(eq(events.userId, userId), gte(events.startTime, `${startStr}T00:00:00`), lte(events.endTime, `${endStr}T23:59:59`)));
@@ -875,7 +871,6 @@ async function sendDailyBriefing() {
   if (activeConfs.length === 0) return;
 
   const today = kstToday();
-  const todayDate = kstNow(); todayDate.setHours(0, 0, 0, 0);
 
   for (const conf of activeConfs) {
     try {
@@ -887,7 +882,7 @@ async function sendDailyBriefing() {
       const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
       const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
       const upcoming = allDdays2.filter((d) => {
-        const diff = Math.ceil((new Date(d.targetDate).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+        const diff = calcDaysLeft(d.targetDate);
         return diff >= 0 && diff <= 7;
       });
 
