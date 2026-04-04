@@ -137,6 +137,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "timebox.noBlocks": "No time blocks",
     "timebox.addTimeBlocks": "Add time blocks",
     "timebox.blockTitle": "Block title",
+    "timebox.panel": "Daily Plan",
+    "timebox.events": "Events",
+    "timebox.todos": "Todos",
+    "timebox.noEvents": "No events",
+    "timebox.noTodos": "No todos",
+    "timebox.scheduleAs": "Schedule as block",
+    "timebox.addEvent": "Add event",
+    "timebox.addTodo": "Add todo",
+    "timebox.eventTitle": "Event title",
+    "timebox.todoTitle": "Todo title",
 
     // Elon / time-boxing scheduler
     "elon.summary": "Summary",
@@ -661,6 +671,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "timebox.noBlocks": "\ud0c0\uc784\ube14\ub85d\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
     "timebox.addTimeBlocks": "\ud0c0\uc784\ube14\ub85d \ucd94\uac00",
     "timebox.blockTitle": "\ube14\ub85d \uc81c\ubaa9",
+    "timebox.panel": "\uc624\ub298\uc758 \uacc4\ud68d",
+    "timebox.events": "\uc77c\uc815",
+    "timebox.todos": "\ud560 \uc77c",
+    "timebox.noEvents": "\uc77c\uc815\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
+    "timebox.noTodos": "\ud560 \uc77c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4",
+    "timebox.scheduleAs": "\ube14\ub85d\uc73c\ub85c \ub4f1\ub85d",
+    "timebox.addEvent": "\uc77c\uc815 \ucd94\uac00",
+    "timebox.addTodo": "\ud560 \uc77c \ucd94\uac00",
+    "timebox.eventTitle": "\uc77c\uc815 \uc81c\ubaa9",
+    "timebox.todoTitle": "\ud560 \uc77c \uc81c\ubaa9",
 
     // Elon / time-boxing scheduler
     "elon.summary": "\uc694\uc57d",

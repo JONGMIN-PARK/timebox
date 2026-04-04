@@ -1,16 +1,23 @@
 import { useEffect, useState, useRef, useMemo, memo, useCallback } from "react";
 import { format, addDays, subDays, isToday, parseISO } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X, Check, Trash2 } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, Plus, X, Check, Trash2,
+  Calendar, CheckSquare, Clock, PanelRightOpen, PanelRightClose,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
+import { getCategoryInfo } from "@/lib/categories";
 import {
   useTimeBlockStore,
   CATEGORY_CONFIG,
   type TimeBlockCategory,
   type TimeBlock,
 } from "@/stores/timeblockStore";
+import { useEventStore } from "@/stores/eventStore";
+import { useTodoStore } from "@/stores/todoStore";
+import type { CalendarEvent, Todo } from "@timebox/shared";
 
 const HOUR_HEIGHT = 60; // px per hour
 const START_HOUR = 6;
@@ -109,24 +116,141 @@ const TimeBlockItem = memo(function TimeBlockItem({
   );
 });
 
+// ── Side panel event item ──
+const PanelEventItem = memo(function PanelEventItem({
+  ev, onSchedule, onDelete,
+}: {
+  ev: CalendarEvent;
+  onSchedule: (title: string, start: string, end: string) => void;
+  onDelete: (id: number) => void;
+}) {
+  const startH = ev.startTime.slice(11, 16);
+  const endH = ev.endTime.slice(11, 16);
+  return (
+    <div className="group flex items-center gap-2 px-3 py-2 hover:bg-blue-50/50 dark:hover:bg-slate-700/40 rounded-lg transition-colors">
+      <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
+      <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
+        {!ev.allDay && <p className="text-[11px] text-slate-400 tabular-nums">{startH} – {endH}</p>}
+        {ev.allDay && <p className="text-[11px] text-slate-400">All day</p>}
+      </div>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
+        {!ev.allDay && (
+          <button
+            onClick={() => onSchedule(ev.title, startH, endH)}
+            title="Schedule as block"
+            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <Clock className="w-3.5 h-3.5 text-blue-500" />
+          </button>
+        )}
+        <button
+          onClick={() => onDelete(ev.id)}
+          className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+// ── Side panel todo item ──
+const PanelTodoItem = memo(function PanelTodoItem({
+  td, onToggle, onSchedule, onDelete,
+}: {
+  td: Todo;
+  onToggle: (id: number) => void;
+  onSchedule: (title: string) => void;
+  onDelete: (id: number) => void;
+}) {
+  const catIcon = getCategoryInfo(td.category).icon;
+  return (
+    <div className="group flex items-center gap-2 px-3 py-2 hover:bg-amber-50/30 dark:hover:bg-slate-700/40 rounded-lg transition-colors">
+      <button
+        onClick={() => onToggle(td.id)}
+        className={cn(
+          "w-4.5 h-4.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors",
+          td.completed ? "bg-green-500 border-green-500" : "border-slate-300 dark:border-slate-600 hover:border-amber-400",
+        )}
+      >
+        {td.completed && <Check className="w-3 h-3 text-white" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-[13px] truncate flex items-center gap-1 min-w-0",
+          td.completed ? "line-through text-slate-400" : "font-medium text-slate-900 dark:text-white")}>
+          <span className="shrink-0 text-sm leading-none select-none">{catIcon}</span>
+          <span className="truncate min-w-0">{td.title}</span>
+        </p>
+        <p className="text-[11px] text-slate-400">
+          {td.priority === "high" ? "🔴" : td.priority === "medium" ? "🟡" : "🔵"} {td.priority}
+        </p>
+      </div>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity">
+        {!td.completed && (
+          <button
+            onClick={() => onSchedule(td.title)}
+            title="Schedule as block"
+            className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <Clock className="w-3.5 h-3.5 text-blue-500" />
+          </button>
+        )}
+        <button
+          onClick={() => onDelete(td.id)}
+          className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
 export default function TimeBoxView() {
   const { blocks, loading, selectedDate, setSelectedDate, fetchBlocks, addBlock, deleteBlock, toggleCompleted } =
     useTimeBlockStore();
+  const { events, fetchEvents } = useEventStore();
+  const { todos, fetchTodos, toggleTodo, deleteTodo, addTodo } = useTodoStore();
+  const { deleteEvent, addEvent } = useEventStore();
   const { t } = useI18n();
 
   const pageVisible = usePageVisible();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(() => {
+    try { return localStorage.getItem("tb_panel_open") !== "false"; } catch { return true; }
+  });
   const [newBlock, setNewBlock] = useState({
     title: "",
     startTime: "09:00",
     endTime: "10:00",
     category: "deep_work" as TimeBlockCategory,
   });
+  // Quick-add forms in panel
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [addingTodo, setAddingTodo] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState("");
+  const [newEventStart, setNewEventStart] = useState("09:00");
+  const [newEventEnd, setNewEventEnd] = useState("10:00");
+  const [newTodoTitle, setNewTodoTitle] = useState("");
+
   const timelineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchBlocks(selectedDate);
+    fetchEvents(selectedDate, selectedDate);
+    fetchTodos();
   }, []);
+
+  useEffect(() => {
+    fetchEvents(selectedDate, selectedDate);
+  }, [selectedDate]);
+
+  // Persist panel state
+  useEffect(() => {
+    try { localStorage.setItem("tb_panel_open", String(panelOpen)); } catch { /* */ }
+  }, [panelOpen]);
 
   // Auto-navigate to today when page becomes visible and date has changed
   useEffect(() => {
@@ -151,6 +275,26 @@ export default function TimeBoxView() {
   const sortedBlocks = useMemo(
     () => [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)),
     [blocks],
+  );
+
+  // Filter events & todos for selected date
+  const dayEvents = useMemo(() =>
+    events.filter(ev => {
+      const evDate = ev.startTime.slice(0, 10);
+      return evDate === selectedDate;
+    }).sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    [events, selectedDate],
+  );
+
+  const dayTodos = useMemo(() =>
+    todos.filter(td => td.dueDate === selectedDate && !td.deletedAt)
+      .sort((a, b) => {
+        // Incomplete first, then by priority
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        const pri = { high: 0, medium: 1, low: 2 } as Record<string, number>;
+        return (pri[a.priority] ?? 1) - (pri[b.priority] ?? 1);
+      }),
+    [todos, selectedDate],
   );
 
   // Current time indicator
@@ -189,106 +333,300 @@ export default function TimeBoxView() {
     setShowAddForm(false);
   };
 
+  // Schedule an item as a time block
+  const scheduleAsBlock = useCallback((title: string, start?: string, end?: string) => {
+    const s = start || "09:00";
+    const e = end || minutesToTime(timeToMinutes(s) + 60);
+    setNewBlock({ title, startTime: s, endTime: e, category: "deep_work" });
+    setShowAddForm(true);
+  }, []);
+
+  // Quick add event from panel
+  const handleAddEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEventTitle.trim()) return;
+    await addEvent({
+      title: newEventTitle.trim(),
+      startTime: `${selectedDate}T${newEventStart}:00`,
+      endTime: `${selectedDate}T${newEventEnd}:00`,
+      allDay: false,
+      color: "#3b82f6",
+    });
+    setNewEventTitle("");
+    setNewEventStart("09:00");
+    setNewEventEnd("10:00");
+    setAddingEvent(false);
+    fetchEvents(selectedDate, selectedDate);
+  };
+
+  // Quick add todo from panel
+  const handleAddTodo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTodoTitle.trim()) return;
+    await addTodo(newTodoTitle.trim(), "medium", selectedDate);
+    setNewTodoTitle("");
+    setAddingTodo(false);
+  };
+
   const goToday = () => setSelectedDate(format(new Date(), "yyyy-MM-dd"));
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Date navigation */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}
-            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-          >
-            <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-          </button>
-          <h2 className="font-semibold text-slate-900 dark:text-white min-w-[140px] text-center">
-            {format(parseISO(selectedDate), "MMM d (EEE)", { locale: enUS })}
-          </h2>
-          <button
-            onClick={() => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}
-            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-          >
-            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          {!isToday(parseISO(selectedDate)) && (
+    <div className="flex h-full">
+      {/* Left: Timeline */}
+      <div className={cn("flex flex-col flex-1 min-w-0", panelOpen && "md:border-r md:border-slate-200 md:dark:border-slate-700")}>
+        {/* Date navigation */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex items-center gap-2">
             <button
-              onClick={goToday}
-              className="text-xs px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+              onClick={() => setSelectedDate(format(subDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
             >
-              {t("common.today")}
+              <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
             </button>
+            <h2 className="font-semibold text-slate-900 dark:text-white min-w-[140px] text-center">
+              {format(parseISO(selectedDate), "MMM d (EEE)", { locale: enUS })}
+            </h2>
+            <button
+              onClick={() => setSelectedDate(format(addDays(parseISO(selectedDate), 1), "yyyy-MM-dd"))}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isToday(parseISO(selectedDate)) && (
+              <button
+                onClick={goToday}
+                className="text-xs px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+              >
+                {t("common.today")}
+              </button>
+            )}
+            <button
+              onClick={() => setPanelOpen(!panelOpen)}
+              className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300"
+              title={t("timebox.panel")}
+            >
+              {panelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Stats bar */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 overflow-x-auto">
+          {Object.entries(
+            categoryDurations
+          ).map(([cat, mins]) => {
+            const config = CATEGORY_CONFIG[cat as TimeBlockCategory];
+            return (
+              <span key={cat} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                <span>{config.icon}</span>
+                <span>{config.label}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {Math.floor((mins as number) / 60)}h{(mins as number) % 60 > 0 ? `${(mins as number) % 60}m` : ""}
+                </span>
+              </span>
+            );
+          })}
+          {sortedBlocks.length === 0 && (
+            <span className="text-xs text-slate-400">{t("timebox.addTimeBlocks")}</span>
           )}
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+        </div>
+
+        {/* Timeline */}
+        <div ref={timelineRef} className="flex-1 overflow-y-auto relative">
+          <div className="relative" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
+            {/* Hour lines */}
+            {HOURS.map((hour) => (
+              <div
+                key={hour}
+                className="absolute left-0 right-0 border-t border-slate-100 dark:border-slate-700/50"
+                style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}
+              >
+                <span className="absolute -top-2.5 left-2 text-xs text-slate-400 dark:text-slate-500 w-10">
+                  {hour.toString().padStart(2, "0")}:00
+                </span>
+              </div>
+            ))}
+
+            {/* Current time indicator */}
+            {showCurrentTime && (
+              <div
+                className="absolute left-12 right-2 z-20 flex items-center pointer-events-none"
+                style={{ top: currentTimeTop }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1" />
+                <div className="flex-1 h-0.5 bg-red-500" />
+              </div>
+            )}
+
+            {/* Time blocks */}
+            {sortedBlocks.map((block) => (
+              <TimeBlockItem
+                key={block.id}
+                block={block}
+                onToggleCompleted={handleToggleCompleted}
+                onDeleteBlock={handleDeleteBlock}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 overflow-x-auto">
-        {Object.entries(
-          categoryDurations
-        ).map(([cat, mins]) => {
-          const config = CATEGORY_CONFIG[cat as TimeBlockCategory];
-          return (
-            <span key={cat} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-              <span>{config.icon}</span>
-              <span>{config.label}</span>
-              <span className="font-medium text-slate-700 dark:text-slate-300">
-                {Math.floor(mins / 60)}h{mins % 60 > 0 ? `${mins % 60}m` : ""}
-              </span>
-            </span>
-          );
-        })}
-        {sortedBlocks.length === 0 && (
-          <span className="text-xs text-slate-400">{t("timebox.addTimeBlocks")}</span>
-        )}
-      </div>
+      {/* Right: Daily Plan Panel */}
+      {panelOpen && (
+        <div className="hidden md:flex flex-col w-72 lg:w-80 flex-shrink-0 bg-white dark:bg-slate-800/50 overflow-hidden">
+          {/* Panel header */}
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-500" />
+              {t("timebox.panel")}
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {format(parseISO(selectedDate), "yyyy.MM.dd (EEE)", { locale: enUS })}
+              {" · "}{dayEvents.length} {t("timebox.events")}, {dayTodos.length} {t("timebox.todos")}
+            </p>
+          </div>
 
-      {/* Timeline */}
-      <div ref={timelineRef} className="flex-1 overflow-y-auto relative">
-        <div className="relative" style={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT }}>
-          {/* Hour lines */}
-          {HOURS.map((hour) => (
-            <div
-              key={hour}
-              className="absolute left-0 right-0 border-t border-slate-100 dark:border-slate-700/50"
-              style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}
-            >
-              <span className="absolute -top-2.5 left-2 text-xs text-slate-400 dark:text-slate-500 w-10">
-                {hour.toString().padStart(2, "0")}:00
-              </span>
+          <div className="flex-1 overflow-y-auto">
+            {/* ── Events Section ── */}
+            <div className="px-3 pt-3 pb-1">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {t("timebox.events")} ({dayEvents.length})
+                </h4>
+                <button
+                  onClick={() => { setAddingEvent(true); setAddingTodo(false); }}
+                  className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-slate-400 hover:text-blue-500" />
+                </button>
+              </div>
+
+              {/* Quick add event form */}
+              {addingEvent && (
+                <form onSubmit={handleAddEvent} className="mb-2 space-y-1.5 p-2 bg-slate-50 dark:bg-slate-700/40 rounded-lg">
+                  <input
+                    type="text" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)}
+                    placeholder={t("timebox.eventTitle")}
+                    className="w-full text-xs bg-white dark:bg-slate-700 rounded px-2 py-1.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-1 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <div className="flex gap-1.5">
+                    <input type="time" value={newEventStart} onChange={(e) => setNewEventStart(e.target.value)}
+                      className="flex-1 text-xs bg-white dark:bg-slate-700 rounded px-2 py-1 text-slate-900 dark:text-white outline-none" />
+                    <input type="time" value={newEventEnd} onChange={(e) => setNewEventEnd(e.target.value)}
+                      className="flex-1 text-xs bg-white dark:bg-slate-700 rounded px-2 py-1 text-slate-900 dark:text-white outline-none" />
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button type="submit" className="flex-1 text-xs py-1 bg-blue-600 text-white rounded hover:bg-blue-500">{t("common.add")}</button>
+                    <button type="button" onClick={() => setAddingEvent(false)} className="flex-1 text-xs py-1 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded">{t("common.cancel")}</button>
+                  </div>
+                </form>
+              )}
+
+              {dayEvents.length === 0 && !addingEvent && (
+                <p className="text-xs text-slate-400 text-center py-3">{t("timebox.noEvents")}</p>
+              )}
+              {dayEvents.map((ev) => (
+                <PanelEventItem
+                  key={ev.id}
+                  ev={ev}
+                  onSchedule={scheduleAsBlock}
+                  onDelete={(id) => { deleteEvent(id); }}
+                />
+              ))}
             </div>
-          ))}
 
-          {/* Current time indicator */}
-          {showCurrentTime && (
-            <div
-              className="absolute left-12 right-2 z-20 flex items-center pointer-events-none"
-              style={{ top: currentTimeTop }}
-            >
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 -ml-1" />
-              <div className="flex-1 h-0.5 bg-red-500" />
+            <div className="mx-3 border-t border-slate-100 dark:border-slate-700/50" />
+
+            {/* ── Todos Section ── */}
+            <div className="px-3 pt-3 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  {t("timebox.todos")} ({dayTodos.length})
+                </h4>
+                <button
+                  onClick={() => { setAddingTodo(true); setAddingEvent(false); }}
+                  className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-slate-400 hover:text-amber-500" />
+                </button>
+              </div>
+
+              {/* Quick add todo form */}
+              {addingTodo && (
+                <form onSubmit={handleAddTodo} className="mb-2 space-y-1.5 p-2 bg-slate-50 dark:bg-slate-700/40 rounded-lg">
+                  <input
+                    type="text" value={newTodoTitle} onChange={(e) => setNewTodoTitle(e.target.value)}
+                    placeholder={t("timebox.todoTitle")}
+                    className="w-full text-xs bg-white dark:bg-slate-700 rounded px-2 py-1.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-1 focus:ring-amber-500"
+                    autoFocus
+                  />
+                  <div className="flex gap-1.5">
+                    <button type="submit" className="flex-1 text-xs py-1 bg-amber-500 text-white rounded hover:bg-amber-400">{t("common.add")}</button>
+                    <button type="button" onClick={() => setAddingTodo(false)} className="flex-1 text-xs py-1 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded">{t("common.cancel")}</button>
+                  </div>
+                </form>
+              )}
+
+              {dayTodos.length === 0 && !addingTodo && (
+                <p className="text-xs text-slate-400 text-center py-3">{t("timebox.noTodos")}</p>
+              )}
+              {dayTodos.map((td) => (
+                <PanelTodoItem
+                  key={td.id}
+                  td={td}
+                  onToggle={toggleTodo}
+                  onSchedule={(title) => scheduleAsBlock(title)}
+                  onDelete={deleteTodo}
+                />
+              ))}
             </div>
-          )}
-
-          {/* Time blocks */}
-          {sortedBlocks.map((block) => (
-            <TimeBlockItem
-              key={block.id}
-              block={block}
-              onToggleCompleted={handleToggleCompleted}
-              onDeleteBlock={handleDeleteBlock}
-            />
-          ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Mobile: Bottom sheet panel */}
+      {panelOpen && (
+        <div className="md:hidden fixed inset-x-0 bottom-0 z-40 max-h-[50vh] bg-white dark:bg-slate-800 rounded-t-2xl shadow-2xl border-t border-slate-200 dark:border-slate-700 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-500" />
+              {t("timebox.panel")}
+              <span className="text-[11px] font-normal text-slate-400">
+                {dayEvents.length} {t("timebox.events")}, {dayTodos.length} {t("timebox.todos")}
+              </span>
+            </h3>
+            <button onClick={() => setPanelOpen(false)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-1 py-2">
+            {/* Events */}
+            {dayEvents.map((ev) => (
+              <PanelEventItem key={ev.id} ev={ev} onSchedule={scheduleAsBlock} onDelete={deleteEvent} />
+            ))}
+            {dayEvents.length === 0 && <p className="text-xs text-slate-400 text-center py-2">{t("timebox.noEvents")}</p>}
+
+            <div className="mx-3 my-1 border-t border-slate-100 dark:border-slate-700/50" />
+
+            {/* Todos */}
+            {dayTodos.map((td) => (
+              <PanelTodoItem key={td.id} td={td} onToggle={toggleTodo} onSchedule={(title) => scheduleAsBlock(title)} onDelete={deleteTodo} />
+            ))}
+            {dayTodos.length === 0 && <p className="text-xs text-slate-400 text-center py-2">{t("timebox.noTodos")}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Add form modal */}
       {showAddForm && (
