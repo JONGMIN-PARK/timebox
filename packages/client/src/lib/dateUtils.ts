@@ -74,7 +74,7 @@ export function localNow(): Date {
 export const koNow = localNow;
 
 export function getDaysUntil(dateStr: string): number {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = localNow(); today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr); target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }

@@ -6,12 +6,13 @@ import { type AuthRequest } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { NotFoundError } from "../lib/errors.js";
+import { kstNow } from "../lib/kst.js";
 
 const router = Router();
 
 function calcDaysLeft(targetDate: string): number {
   const target = new Date(targetDate + "T00:00:00");
-  const today = new Date();
+  const today = kstNow();
   today.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
