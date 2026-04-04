@@ -251,12 +251,12 @@ export default function TimeBoxView() {
 
   useEffect(() => {
     fetchBlocks(selectedDate);
-    fetchEvents(selectedDate, selectedDate);
+    fetchEvents(`${selectedDate}T00:00:00`, `${selectedDate}T23:59:59`);
     fetchTodos();
   }, []);
 
   useEffect(() => {
-    fetchEvents(selectedDate, selectedDate);
+    fetchEvents(`${selectedDate}T00:00:00`, `${selectedDate}T23:59:59`);
   }, [selectedDate]);
 
   // Persist panel state
@@ -368,7 +368,6 @@ export default function TimeBoxView() {
     setNewEventStart("09:00");
     setNewEventEnd("10:00");
     setAddingEvent(false);
-    fetchEvents(selectedDate, selectedDate);
   };
 
   // Todo edit handler
