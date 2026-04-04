@@ -215,7 +215,7 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = !["settings", "scheduler", "chat", "analytics", "todo"].includes(activeTab);
+  const showRightPanel = !["settings", "scheduler", "chat", "analytics", "todo", "timebox"].includes(activeTab);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
