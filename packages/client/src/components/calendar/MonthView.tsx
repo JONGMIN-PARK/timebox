@@ -151,7 +151,7 @@ export default function MonthView({
           </div>
         ))}
       </div>
-      <div className="flex-shrink-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)]">
+      <div className="min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)]">
         {days.map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
