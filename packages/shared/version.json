@@ -1,15 +1,15 @@
 {
-  "version": "1.11.2",
+  "version": "1.11.3",
   "date": "2026-05-22",
   "highlights": [
-    "캘린더 진입 시 TodaySummary 지표 상시 로드 (febd712)"
+    "pnpm 빌드 스크립트 허용 설정을 pnpm-workspace.yaml로 이전 (Render 배포 수정) (191eec8)"
   ],
   "changes": [
     {
       "category": "버그 수정",
       "emoji": "🐛",
       "items": [
-        "캘린더 진입 시 TodaySummary 지표 상시 로드 (febd712)"
+        "pnpm 빌드 스크립트 허용 설정을 pnpm-workspace.yaml로 이전 (Render 배포 수정) (191eec8)"
       ]
     }
   ]
