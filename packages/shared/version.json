@@ -1,5 +1,5 @@
 {
-  "version": "1.11.3",
+  "version": "1.11.4",
   "date": "2026-05-22",
   "highlights": [
     "pnpm 빌드 스크립트 허용 설정을 pnpm-workspace.yaml로 이전 (Render 배포 수정) (191eec8)"
