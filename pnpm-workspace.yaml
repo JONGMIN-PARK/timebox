@@ -1,2 +1,12 @@
 packages:
   - "packages/*"
+
+# pnpm v10+ reads build-script allow/deny lists from here (no longer from package.json's "pnpm" field).
+# esbuild must run its install script to fetch the platform binary used by the Vite client build.
+onlyBuiltDependencies:
+  - esbuild
+
+# better-sqlite3 is an unused transitive native dep (the server uses Postgres via `pg`).
+# Skip its native compile so it doesn't trigger ERR_PNPM_IGNORED_BUILDS / fail the deploy.
+ignoredBuiltDependencies:
+  - better-sqlite3
