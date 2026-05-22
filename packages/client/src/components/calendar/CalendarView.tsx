@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useEventStore } from "@/stores/eventStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useTodoStore } from "@/stores/todoStore";
+import { useTimeBlockStore } from "@/stores/timeblockStore";
+import { useDDayStore } from "@/stores/ddayStore";
 import {
   format,
   startOfMonth,
@@ -42,6 +44,8 @@ export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
   const { categories, fetchCategories } = useCategoryStore();
   const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo } = useTodoStore();
+  const fetchBlocks = useTimeBlockStore((s) => s.fetchBlocks);
+  const fetchDDays = useDDayStore((s) => s.fetchDDays);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -80,6 +84,8 @@ export default function CalendarView() {
       if (!selectedDate || !isSameDay(selectedDate, today)) {
         setSelectedDate(today);
       }
+      fetchDDays();
+      fetchBlocks(format(today, "yyyy-MM-dd"));
     }
   }, [pageVisible]);
 
@@ -103,6 +109,8 @@ export default function CalendarView() {
   useEffect(() => {
     fetchCategories();
     fetchTodos();
+    fetchDDays();
+    fetchBlocks(format(new Date(), "yyyy-MM-dd"));
   }, []);
 
   useEffect(() => {
@@ -301,7 +309,7 @@ export default function CalendarView() {
             <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <button
-            onClick={() => setCurrentDate(new Date())}
+            onClick={() => { const today = new Date(); setCurrentDate(today); setSelectedDate(today); }}
             className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 ml-1"
           >
             {t("common.today")}
