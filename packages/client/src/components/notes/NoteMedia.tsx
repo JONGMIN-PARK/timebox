@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/useI18n";
 
 /** Fetches a note's stored media (auth-scoped) and renders an audio player or image. */
 export default function NoteMedia({ noteId, type }: { noteId: number; type: string }) {
+  const { t } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -23,7 +25,7 @@ export default function NoteMedia({ noteId, type }: { noteId: number; type: stri
     };
   }, [noteId]);
 
-  if (failed) return <div className="text-[10px] text-red-400">media unavailable</div>;
+  if (failed) return <div className="text-[10px] text-red-400">{t("notes.mediaUnavailable")}</div>;
   if (!url) return <div className="text-[10px] text-slate-400 py-2">…</div>;
 
   return type === "voice" ? (

@@ -15,10 +15,14 @@ function pickMime(): string {
   return "";
 }
 
+/** Extension that matches the actual recorded container so the server serves the right MIME. */
 function extFromMime(mime: string): string {
-  if (mime.includes("webm")) return "webm";
-  if (mime.includes("mp4")) return "m4a";
-  if (mime.includes("ogg")) return "ogg";
+  const m = (mime || "").toLowerCase();
+  if (m.includes("webm")) return "webm";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("wav")) return "wav";
+  if (m.includes("mpeg") || m.includes("mp3")) return "mp3";
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac")) return "m4a";
   return "webm";
 }
 
@@ -37,6 +41,8 @@ export default function VoiceRecorder({ onSave }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mimeRef = useRef<string>("");
+  // The container the recorder actually produced (may differ from the requested mime).
+  const actualMimeRef = useRef<string>("audio/webm");
 
   const stopTracks = useCallback(() => {
     streamRef.current?.getTracks().forEach((tr) => tr.stop());
@@ -54,6 +60,10 @@ export default function VoiceRecorder({ onSave }: Props) {
 
   const start = async () => {
     setError(null);
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      setError(t("notes.voiceInsecure"));
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia || typeof (window as any).MediaRecorder === "undefined") {
       setError(t("notes.voiceUnsupported"));
       return;
@@ -67,7 +77,9 @@ export default function VoiceRecorder({ onSave }: Props) {
       chunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        const type = mimeRef.current || "audio/webm";
+        // Use the container the recorder actually produced (iOS yields audio/mp4, not webm).
+        const type = (mr.mimeType || mimeRef.current || "audio/webm").split(";")[0].trim() || "audio/webm";
+        actualMimeRef.current = type;
         const b = new Blob(chunksRef.current, { type });
         setBlob(b);
         setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(b); });
@@ -78,8 +90,9 @@ export default function VoiceRecorder({ onSave }: Props) {
       setRecording(true);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
-    } catch {
-      setError(t("notes.micDenied"));
+    } catch (err) {
+      const name = (err as { name?: string })?.name;
+      setError(name === "NotAllowedError" || name === "SecurityError" ? t("notes.micDenied") : t("notes.voiceUnsupported"));
       stopTracks();
     }
   };
@@ -100,7 +113,7 @@ export default function VoiceRecorder({ onSave }: Props) {
   const save = async () => {
     if (!blob) return;
     setSaving(true);
-    await onSave(blob, extFromMime(mimeRef.current), title.trim());
+    await onSave(blob, extFromMime(actualMimeRef.current), title.trim());
     setSaving(false);
     reset();
   };
