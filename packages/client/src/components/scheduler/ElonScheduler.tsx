@@ -14,6 +14,7 @@ import {
   Target,
   Pencil,
   Undo2,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -191,14 +192,17 @@ type SheetState = {
 function SortableBrainRow({
   item,
   onRemove,
+  onToggleDone,
   onQuickSchedule,
   onCustomSchedule,
 }: {
   item: BrainItem;
   onRemove: () => void;
+  onToggleDone: () => void;
   onQuickSchedule: (duration: number) => void;
   onCustomSchedule: () => void;
 }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const config = CATEGORY_CONFIG[item.category];
   const style = { transform: CSS.Transform.toString(transform), transition };
@@ -207,40 +211,67 @@ function SortableBrainRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn("rounded-lg border border-slate-100 dark:border-slate-700/80 p-1.5 space-y-1", isDragging && "opacity-50")}
+      className={cn(
+        "rounded-lg border border-slate-100 dark:border-slate-700/80 p-1.5 space-y-1",
+        isDragging && "opacity-50",
+        item.done && "opacity-60",
+      )}
     >
       <div className="flex items-start gap-1">
         <button type="button" {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none p-0.5 mt-0.5 shrink-0">
           <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-600" />
         </button>
+        <button
+          type="button"
+          onClick={onToggleDone}
+          aria-pressed={!!item.done}
+          title={item.done ? t("elon.markUndone") : t("elon.markDone")}
+          className={cn(
+            "mt-0.5 w-3.5 h-3.5 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors",
+            item.done
+              ? "bg-green-500 border-green-500 text-white"
+              : "border-slate-300 dark:border-slate-600 hover:border-green-400",
+          )}
+        >
+          {item.done && <Check className="w-2.5 h-2.5" />}
+        </button>
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-medium text-slate-800 dark:text-slate-100 leading-snug">{config.icon} {item.text}</p>
+          <p
+            className={cn(
+              "text-[11px] font-medium leading-snug",
+              item.done ? "line-through text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-100",
+            )}
+          >
+            {config.icon} {item.text}
+          </p>
           {item.notes ? <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{item.notes}</p> : null}
         </div>
         <button type="button" onClick={onRemove} className="p-0.5 text-slate-300 hover:text-red-500 shrink-0">
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
-      <div className="flex flex-wrap items-center gap-1 pl-5">
-        {[15, 30, 45, 60].map((m) => (
+      {!item.done && (
+        <div className="flex flex-wrap items-center gap-1 pl-5">
+          {[15, 30, 45, 60].map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onQuickSchedule(m)}
+              className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+            >
+              {m}m
+            </button>
+          ))}
           <button
-            key={m}
             type="button"
-            onClick={() => onQuickSchedule(m)}
-            className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+            onClick={onCustomSchedule}
+            className="text-[9px] px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600 text-slate-500 flex items-center gap-0.5"
           >
-            {m}m
+            <Clock className="w-2.5 h-2.5" />
+            …
           </button>
-        ))}
-        <button
-          type="button"
-          onClick={onCustomSchedule}
-          className="text-[9px] px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-600 text-slate-500 flex items-center gap-0.5"
-        >
-          <Clock className="w-2.5 h-2.5" />
-          …
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -927,6 +958,11 @@ export default function ElonScheduler() {
                       item={item}
                       onRemove={() => {
                         const next = brainItems.filter((i) => i.id !== item.id);
+                        setBrainItems(next);
+                        saveBrainItems(selectedDate, next);
+                      }}
+                      onToggleDone={() => {
+                        const next = brainItems.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i));
                         setBrainItems(next);
                         saveBrainItems(selectedDate, next);
                       }}

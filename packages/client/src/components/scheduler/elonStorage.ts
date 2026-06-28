@@ -53,6 +53,8 @@ export interface BrainItem {
   notes: string;
   category: TimeBlockCategory;
   duration: number;
+  /** Marked complete in the brain dump (independent of any scheduled block). */
+  done?: boolean;
 }
 
 /** Legacy localStorage shape (before brain + notes split). */
@@ -93,6 +95,7 @@ export function loadBrainItems(date: string): BrainItem[] {
           notes: typeof b.notes === "string" ? b.notes : "",
           category: b.category || "deep_work",
           duration: typeof b.duration === "number" ? b.duration : 30,
+          done: !!b.done,
         }));
       }
     }
