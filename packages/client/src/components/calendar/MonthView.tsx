@@ -151,13 +151,15 @@ export default function MonthView({
   // Resizable calendar / detail split (defaults to a 1:1 ratio).
   const containerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  // Kept in sessionStorage (not localStorage) so each new session starts at the
+  // 1:1 default, while staying stable across tab switches within a session.
   const [splitRatio, setSplitRatio] = useState<number>(() => {
-    const saved = parseFloat(localStorage.getItem(SPLIT_STORAGE_KEY) || "");
+    const saved = parseFloat(sessionStorage.getItem(SPLIT_STORAGE_KEY) || "");
     return saved >= MIN_SPLIT && saved <= MAX_SPLIT ? saved : DEFAULT_SPLIT;
   });
 
   useEffect(() => {
-    localStorage.setItem(SPLIT_STORAGE_KEY, String(splitRatio));
+    sessionStorage.setItem(SPLIT_STORAGE_KEY, String(splitRatio));
   }, [splitRatio]);
 
   const onResizeStart = useCallback((e: React.PointerEvent) => {

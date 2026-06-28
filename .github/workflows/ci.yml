@@ -28,6 +28,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Job-level env so the Telegram secret is visible to the step `if` condition
+    # (step-level env is NOT available in that same step's `if`).
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ADMIN_CHAT_IDS: ${{ secrets.TELEGRAM_ADMIN_CHAT_IDS }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -177,9 +182,6 @@ jobs:
 
       - name: Notify via Telegram
         if: env.TELEGRAM_BOT_TOKEN != ''
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_ADMIN_CHAT_IDS: ${{ secrets.TELEGRAM_ADMIN_CHAT_IDS }}
         run: |
           VERSION="${{ steps.version.outputs.new_version }}"
           PREV="${{ steps.version.outputs.prev_version }}"
