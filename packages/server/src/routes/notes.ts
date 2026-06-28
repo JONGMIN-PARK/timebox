@@ -1,14 +1,30 @@
 import { Router } from "express";
+import path from "path";
 import { db } from "../db/index.js";
 import { notes } from "../db/schema.js";
 import { eq, and, desc } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
+import { upload, UPLOAD_DIR, safeUnlink } from "../lib/upload.js";
 
 const router = Router();
 
 const ALLOWED_TYPES = ["text", "voice", "drawing"] as const;
+
+const MEDIA_MIME: Record<string, string> = {
+  ".webm": "audio/webm",
+  ".m4a": "audio/mp4",
+  ".mp4": "audio/mp4",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".oga": "audio/ogg",
+  ".mp3": "audio/mpeg",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
 
 // GET /api/notes — list current user's notes (pinned first, newest first)
 router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
@@ -45,6 +61,45 @@ router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
   res.status(201).json({ success: true, data: result[0] });
 }));
 
+// POST /api/notes/upload — create a voice/drawing note from an uploaded file
+router.post("/upload", upload.single("file"), asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const file = req.file;
+  if (!file) throw new ValidationError("No file uploaded");
+  const type = ALLOWED_TYPES.includes(req.body.type) ? req.body.type : "voice";
+  if (type === "text") {
+    await safeUnlink(path.join(UPLOAD_DIR, file.filename));
+    throw new ValidationError("Use POST /notes for text notes");
+  }
+  const result = await db
+    .insert(notes)
+    .values({
+      userId,
+      type,
+      title: req.body.title ? String(req.body.title).trim() : null,
+      content: "",
+      fileName: file.filename,
+    })
+    .returning();
+  res.status(201).json({ success: true, data: result[0] });
+}));
+
+// GET /api/notes/:id/media — stream the note's stored file (auth-scoped)
+router.get("/:id/media", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = parseInt(req.params.id as string);
+  if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
+  const userId = req.userId!;
+  const [note] = await db.select().from(notes).where(and(eq(notes.id, id), eq(notes.userId, userId)));
+  if (!note || !note.fileName) throw new NotFoundError("Note media");
+  const ext = path.extname(note.fileName).toLowerCase();
+  const mime = MEDIA_MIME[ext] || "application/octet-stream";
+  res.setHeader("Content-Type", mime);
+  res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+  res.sendFile(path.join(UPLOAD_DIR, note.fileName), (err) => {
+    if (err && !res.headersSent) res.status(404).json({ success: false, error: "Media not found" });
+  });
+}));
+
 // PUT /api/notes/:id — update a note
 router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);
@@ -75,6 +130,9 @@ router.delete("/:id", asyncHandler<AuthRequest>(async (req, res) => {
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
     .returning();
   if (!result[0]) throw new NotFoundError("Note");
+  if (result[0].fileName) {
+    await safeUnlink(path.join(UPLOAD_DIR, result[0].fileName));
+  }
   res.json({ success: true, data: result[0] });
 }));
 

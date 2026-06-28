@@ -17,6 +17,8 @@ export const ALLOWED_EXTENSIONS = new Set([
   ".jpg", ".jpeg", ".png", ".gif", ".webp",
   ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
   ".txt", ".csv", ".zip", ".mp3", ".mp4", ".mov",
+  // Voice-memo audio formats (MediaRecorder output varies by browser)
+  ".webm", ".m4a", ".wav", ".ogg", ".oga",
 ]);
 
 // Fix Korean/CJK filename encoding (multer decodes as latin1)

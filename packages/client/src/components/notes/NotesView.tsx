@@ -5,6 +5,11 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { fmtDateTime } from "@/lib/dateUtils";
 import { showToast } from "@/components/ui/Toast";
+import VoiceRecorder from "./VoiceRecorder";
+import DrawingPad from "./DrawingPad";
+import NoteMedia from "./NoteMedia";
+
+type Mode = "text" | "voice" | "drawing";
 
 interface Note {
   id: number;
@@ -26,6 +31,31 @@ export default function NotesView() {
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Note | null>(null);
+  const [mode, setMode] = useState<Mode>("text");
+
+  const uploadMedia = useCallback(async (type: "voice" | "drawing", blob: Blob, ext: string, title: string) => {
+    const token = localStorage.getItem("timebox_token");
+    const fd = new FormData();
+    fd.append("type", type);
+    if (title) fd.append("title", title);
+    fd.append("file", blob, `note.${ext}`);
+    try {
+      const res = await fetch("/api/notes/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const j = await res.json();
+      if (j.success && j.data) {
+        setNotes((prev) => [j.data, ...prev]);
+        showToast("success", t("notes.saved"));
+      } else {
+        showToast("error", j.error || t("notes.saveFailed"));
+      }
+    } catch {
+      showToast("error", t("notes.saveFailed"));
+    }
+  }, [t]);
 
   const fetchNotes = useCallback(async () => {
     const res = await api.get<Note[]>("/notes");
@@ -92,45 +122,62 @@ export default function NotesView() {
           <h2 className="font-semibold text-slate-900 dark:text-white">{t("notes.title")}</h2>
           <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">{notes.length}</span>
         </div>
-        {/* Future capture types (memo available now) */}
-        <div className="flex items-center gap-1 text-[10px] text-slate-400">
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300">
-            <StickyNote className="w-3 h-3" /> {t("notes.typeText")}
-          </span>
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md opacity-50" title={t("notes.comingSoon")}>
-            <Mic className="w-3 h-3" /> {t("notes.typeVoice")}
-          </span>
-          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md opacity-50" title={t("notes.comingSoon")}>
-            <PenLine className="w-3 h-3" /> {t("notes.typeDraw")}
-          </span>
+        {/* Capture type switcher */}
+        <div className="flex items-center gap-1 text-[10px]">
+          {([
+            { id: "text", icon: StickyNote, label: t("notes.typeText") },
+            { id: "voice", icon: Mic, label: t("notes.typeVoice") },
+            { id: "drawing", icon: PenLine, label: t("notes.typeDraw") },
+          ] as const).map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id)}
+              className={cn(
+                "flex items-center gap-0.5 px-1.5 py-1 rounded-md transition-colors",
+                mode === m.id
+                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium"
+                  : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50",
+              )}
+              aria-pressed={mode === m.id}
+            >
+              <m.icon className="w-3 h-3" /> {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-        {/* Composer */}
+        {/* Composer (varies by capture type) */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 space-y-2">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t("notes.titlePlaceholder")}
-            className="w-full text-sm font-medium bg-transparent text-slate-900 dark:text-white placeholder-slate-400 outline-none"
-          />
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={t("notes.contentPlaceholder")}
-            rows={3}
-            className="w-full text-sm bg-slate-50 dark:bg-slate-900/40 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
-          />
-          <div className="flex justify-end">
-            <button
-              onClick={addNote}
-              disabled={saving || (!content.trim() && !title.trim())}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white text-sm font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" /> {t("notes.add")}
-            </button>
-          </div>
+          {mode === "text" && (
+            <>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t("notes.titlePlaceholder")}
+                className="w-full text-sm font-medium bg-transparent text-slate-900 dark:text-white placeholder-slate-400 outline-none"
+              />
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder={t("notes.contentPlaceholder")}
+                rows={3}
+                className="w-full text-sm bg-slate-50 dark:bg-slate-900/40 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={addNote}
+                  disabled={saving || (!content.trim() && !title.trim())}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white text-sm font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> {t("notes.add")}
+                </button>
+              </div>
+            </>
+          )}
+          {mode === "voice" && <VoiceRecorder onSave={(blob, ext, ti) => uploadMedia("voice", blob, ext, ti)} />}
+          {mode === "drawing" && <DrawingPad onSave={(blob, ext, ti) => uploadMedia("drawing", blob, ext, ti)} />}
         </div>
 
         {/* List */}
@@ -175,8 +222,18 @@ export default function NotesView() {
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-6 flex-1">{note.content}</p>
-                <p className="text-[10px] text-slate-400 mt-2 tabular-nums">{fmtDateTime(note.updatedAt)}</p>
+                {note.type === "text" ? (
+                  <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-6 flex-1">{note.content}</p>
+                ) : (
+                  <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                    <NoteMedia noteId={note.id} type={note.type} />
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-400 mt-2 tabular-nums flex items-center gap-1">
+                  {note.type === "voice" && <Mic className="w-3 h-3" />}
+                  {note.type === "drawing" && <PenLine className="w-3 h-3" />}
+                  {fmtDateTime(note.updatedAt)}
+                </p>
               </div>
             ))}
           </div>
@@ -208,13 +265,19 @@ export default function NotesView() {
                 placeholder={t("notes.titlePlaceholder")}
                 className="w-full text-sm font-medium px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <textarea
-                value={editing.content}
-                onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-                rows={8}
-                placeholder={t("notes.contentPlaceholder")}
-                className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
+              {editing.type === "text" ? (
+                <textarea
+                  value={editing.content}
+                  onChange={(e) => setEditing({ ...editing, content: e.target.value })}
+                  rows={8}
+                  placeholder={t("notes.contentPlaceholder")}
+                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              ) : (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <NoteMedia noteId={editing.id} type={editing.type} />
+                </div>
+              )}
             </div>
             <div className="flex gap-2 p-4 border-t border-slate-100 dark:border-slate-800">
               <button onClick={() => removeNote(editing.id)} className="px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 text-sm flex items-center gap-1">
