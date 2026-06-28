@@ -521,6 +521,20 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_google_calendar_config_user ON google_calendar_config(user_id);
       ALTER TABLE events ADD COLUMN IF NOT EXISTS google_event_id TEXT;
       ALTER TABLE todos ADD COLUMN IF NOT EXISTS memo TEXT;
+
+      CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'text',
+        title TEXT,
+        content TEXT NOT NULL DEFAULT '',
+        file_name TEXT,
+        color TEXT,
+        pinned BOOLEAN NOT NULL DEFAULT false,
+        created_at TEXT NOT NULL DEFAULT now(),
+        updated_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id, pinned DESC, updated_at DESC);
     `);
 
     // Seed default categories if empty

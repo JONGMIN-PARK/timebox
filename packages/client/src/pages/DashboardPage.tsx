@@ -16,6 +16,7 @@ const FileVault = lazy(() => import("@/components/files/FileVault"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const InboxPanel = lazy(() => import("@/components/inbox/InboxPanel"));
 const ChatPanel = lazy(() => import("@/components/chat/ChatPanel"));
+const NotesView = lazy(() => import("@/components/notes/NotesView"));
 const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashboard"));
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -194,6 +195,8 @@ export default function DashboardPage() {
         return <SettingsPage />;
       case "files":
         return <FileVault />;
+      case "notes":
+        return <NotesView />;
       case "inbox":
         return <InboxPanel />;
       case "chat":
@@ -217,7 +220,7 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = !["settings", "scheduler", "chat", "analytics", "todo", "timebox"].includes(activeTab);
+  const showRightPanel = !["settings", "scheduler", "chat", "analytics", "todo", "timebox", "notes"].includes(activeTab);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;

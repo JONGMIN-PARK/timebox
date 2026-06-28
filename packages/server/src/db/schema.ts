@@ -441,6 +441,23 @@ export const chatMessages = pgTable("chat_messages", {
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
 
+// ── Notes (memo / voice / handwriting) ──
+export const notes = pgTable("notes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  /** "text" (memo) | "voice" | "drawing" — voice/drawing added in a later phase. */
+  type: text("type").notNull().default("text"),
+  title: text("title"),
+  /** Text body for memos; JSON/strokes or file reference for other types. */
+  content: text("content").notNull().default(""),
+  /** Optional stored file (voice clip / drawing image) — references files.storedName. */
+  fileName: text("file_name"),
+  color: text("color"),
+  pinned: boolean("pinned").notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+  updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
 // ── User Activity Log (Admin Analytics) ──
 export const userActivityLog = pgTable("user_activity_log", {
   id: serial("id").primaryKey(),

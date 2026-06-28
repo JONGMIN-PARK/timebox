@@ -33,6 +33,7 @@ import teamGroupRoutes from "./routes/teamGroups.js";
 import presenceRoutes from "./routes/presence.js";
 import inboxRoutes from "./routes/inbox.js";
 import chatRoutes from "./routes/chat.js";
+import noteRoutes from "./routes/notes.js";
 import { initTelegramBot } from "./telegram/bot.js";
 import { initSocket } from "./socket/index.js";
 import analyticsRoutes from "./routes/analytics.js";
@@ -203,6 +204,7 @@ app.use("/api/admin/groups", authMiddleware, perUserLimiter, adminMiddleware, te
 app.use("/api/presence", ...protectedMiddleware, presenceRoutes);
 app.use("/api/inbox", ...protectedMiddleware, inboxRoutes);
 app.use("/api/chat", ...protectedMiddleware, chatRoutes);
+app.use("/api/notes", ...protectedMiddleware, noteRoutes);
 app.use("/api/analytics", authMiddleware, perUserLimiter, adminMiddleware, analyticsRoutes);
 app.use("/api/summary", ...protectedMiddleware, summaryRoutes);
 app.use("/api/google-calendar", ...protectedMiddleware, googleCalendarRoutes); // auth-protected endpoints

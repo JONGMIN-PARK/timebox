@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3, FolderOpen, FileText, BarChart2 } from "lucide-react";
+import { Calendar, Clock, CheckSquare, FileBox, Settings, LogOut, Sun, Moon, Monitor, LayoutGrid, Plus, User, Users, LayoutDashboard, ListTodo, ChevronRight, Mail, MessageCircle, BarChart3, FolderOpen, FileText, BarChart2, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
@@ -19,6 +19,7 @@ const tabs = [
   { id: "calendar", labelKey: "nav.calendar", icon: Calendar },
   { id: "timebox", labelKey: "nav.timebox", icon: Clock },
   { id: "todo", labelKey: "nav.todos", icon: CheckSquare },
+  { id: "notes", labelKey: "nav.notes", icon: StickyNote },
   { id: "files", labelKey: "nav.files", icon: FileBox },
   { id: "scheduler", labelKey: "nav.scheduler", icon: LayoutGrid },
   { id: "inbox", labelKey: "inbox.title", icon: Mail },
