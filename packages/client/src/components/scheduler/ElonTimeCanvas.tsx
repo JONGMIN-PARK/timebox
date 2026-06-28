@@ -28,6 +28,8 @@ type Props = {
   onTapBackground: (startMinute: number) => void;
   onTapBlock: (block: TimeBlock) => void;
   onBlockTimeChange: (blockId: number, startTime: string, endTime: string) => void;
+  /** When true, blocks can be dragged to move / resized. When false they are tap-only. */
+  editMode?: boolean;
   /** Freehand strokes on the block column (normalized coords; client-only). */
   sketchStrokes?: FreehandSketchStroke[];
   onSketchStrokesChange?: (strokes: FreehandSketchStroke[]) => void;
@@ -87,6 +89,7 @@ export default function ElonTimeCanvas({
   onTapBackground,
   onTapBlock,
   onBlockTimeChange,
+  editMode = false,
   sketchStrokes = [],
   onSketchStrokesChange,
   sketchMode = false,
@@ -414,7 +417,7 @@ export default function ElonTimeCanvas({
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t("elon.timeTable")}</span>
         </div>
         <span className="text-[9px] text-slate-400 leading-snug">
-          {sketchMode ? t("elon.sketchHint") : t("elon.timeTableHintDrag")}
+          {sketchMode ? t("elon.sketchHint") : editMode ? t("elon.timeTableHintDrag") : t("elon.timeTableHintTap")}
         </span>
       </div>
       <div
@@ -535,8 +538,9 @@ export default function ElonTimeCanvas({
                   zIndex: z,
                 }}
               >
-                {block.id > 0 && (
+                {editMode && block.id > 0 && (
                   <div
+                    data-resize-handle
                     role="slider"
                     aria-label={t("elon.resizeStart")}
                     className="absolute top-0 left-0 right-0 h-3.5 cursor-ns-resize z-20 touch-none bg-gradient-to-b from-black/10 to-transparent dark:from-white/10"
@@ -545,14 +549,30 @@ export default function ElonTimeCanvas({
                 )}
                 <div
                   className={cn(
-                    "px-1.5 py-0.5 min-h-[28px] cursor-grab active:cursor-grabbing touch-none",
-                    block.id < 0 && "cursor-default",
+                    "px-1.5 py-0.5 min-h-[28px]",
+                    block.id < 0
+                      ? "cursor-default"
+                      : editMode
+                        ? "cursor-grab active:cursor-grabbing touch-none"
+                        : "cursor-pointer",
                   )}
-                  onPointerDown={(e) => {
-                    if (block.id < 0) return;
-                    if ((e.target as HTMLElement).closest("[data-resize-handle]")) return;
-                    startDrag(e, "move", block, geo.startMin, geo.endMin);
-                  }}
+                  onPointerDown={
+                    editMode
+                      ? (e) => {
+                          if (block.id < 0) return;
+                          if ((e.target as HTMLElement).closest("[data-resize-handle]")) return;
+                          startDrag(e, "move", block, geo.startMin, geo.endMin);
+                        }
+                      : undefined
+                  }
+                  onClick={
+                    !editMode && block.id > 0
+                      ? () => {
+                          if (suppressClickRef.current) return;
+                          onTapBlock(block);
+                        }
+                      : undefined
+                  }
                 >
                   <div className="flex items-start gap-0.5 min-h-0 pointer-events-none">
                     {meta.prioritySlot != null && (
@@ -581,7 +601,7 @@ export default function ElonTimeCanvas({
                     {minutesToTime(geo.startMin)}–{minutesToTime(geo.endMin)}
                   </p>
                 </div>
-                {block.id > 0 && (
+                {editMode && block.id > 0 && (
                   <div
                     data-resize-handle
                     role="slider"

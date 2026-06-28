@@ -264,6 +264,7 @@ export default function ElonScheduler() {
   const [sketchStrokes, setSketchStrokes] = useState<FreehandSketchStroke[]>([]);
   const [sketchMode, setSketchMode] = useState(false);
   const [sketchColor, setSketchColor] = useState<string>(SKETCH_PALETTE[0]);
+  const [editMode, setEditMode] = useState(false);
   const top3Debounce = useRef<ReturnType<typeof setTimeout>>();
   const sketchDebounce = useRef<ReturnType<typeof setTimeout>>();
 
@@ -787,7 +788,22 @@ export default function ElonScheduler() {
           </button>
           <button
             type="button"
-            onClick={() => setSketchMode((m) => !m)}
+            onClick={() => { setEditMode((m) => !m); setSketchMode(false); }}
+            className={cn(
+              "text-[10px] px-2 py-1 rounded-lg border flex items-center gap-1",
+              editMode
+                ? "border-blue-400 bg-blue-50 dark:bg-blue-950/35 text-blue-900 dark:text-blue-100"
+                : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300",
+            )}
+            title={t("elon.editModeHint")}
+            aria-pressed={editMode}
+          >
+            <GripVertical className="w-3 h-3" />
+            {t("elon.editMode")}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSketchMode((m) => !m); setEditMode(false); }}
             className={cn(
               "text-[10px] px-2 py-1 rounded-lg border flex items-center gap-1",
               sketchMode
@@ -840,6 +856,7 @@ export default function ElonScheduler() {
               onTapBackground={openSheetFromGrid}
               onTapBlock={openSheetEditBlock}
               onBlockTimeChange={handleBlockTimeCommit}
+              editMode={editMode}
               sketchStrokes={sketchStrokes}
               onSketchStrokesChange={persistSketch}
               sketchMode={sketchMode}

@@ -190,23 +190,23 @@ export default function ElonBlockSheet({
               className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">{t("elon.start")}</label>
               <input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full text-sm px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800"
+                className="w-full min-w-0 box-border text-sm px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">{t("elon.end")}</label>
               <input
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full text-sm px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800"
+                className="w-full min-w-0 box-border text-sm px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800"
               />
             </div>
           </div>
