@@ -19,13 +19,19 @@ export interface AuthRequest extends Request {
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
+  const headerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  // Allow a query-param token for GET requests only — needed for media elements
+  // (<audio>/<img> src) that cannot send an Authorization header. GET-only keeps
+  // it out of mutating requests.
+  const queryToken = req.method === "GET" && typeof req.query.token === "string" ? req.query.token : null;
+  const token = headerToken || queryToken;
+  if (!token) {
     res.status(401).json({ success: false, error: "No token provided" });
     return;
   }
 
   try {
-    const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: number; role?: string };
+    const payload = jwt.verify(token, JWT_SECRET) as { userId: number; role?: string };
     req.userId = payload.userId;
     req.userRole = payload.role;
     next();

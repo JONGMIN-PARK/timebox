@@ -1,36 +1,28 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useI18n } from "@/lib/useI18n";
 
-/** Fetches a note's stored media (auth-scoped) and renders an audio player or image. */
+/**
+ * Renders a note's stored media. Uses a DIRECT server URL (with a query token)
+ * rather than a blob URL so the browser's native media pipeline handles HTTP
+ * range requests — this is far more reliable for audio playback on iOS Safari
+ * than playing a blob: URL of MediaRecorder output.
+ */
 export default function NoteMedia({ noteId, type }: { noteId: number; type: string }) {
   const { t } = useI18n();
-  const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let objUrl: string | null = null;
-    const token = localStorage.getItem("timebox_token");
-    fetch(`/api/notes/${noteId}/media`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("media"))))
-      .then((b) => {
-        if (cancelled) return;
-        objUrl = URL.createObjectURL(b);
-        setUrl(objUrl);
-      })
-      .catch(() => !cancelled && setFailed(true));
-    return () => {
-      cancelled = true;
-      if (objUrl) URL.revokeObjectURL(objUrl);
-    };
-  }, [noteId]);
+  const token = localStorage.getItem("timebox_token") || "";
+  const src = `/api/notes/${noteId}/media?token=${encodeURIComponent(token)}`;
 
   if (failed) return <div className="text-[10px] text-red-400">{t("notes.mediaUnavailable")}</div>;
-  if (!url) return <div className="text-[10px] text-slate-400 py-2">…</div>;
 
   return type === "voice" ? (
-    <audio controls src={url} className="w-full h-9" preload="metadata" />
+    <audio controls src={src} preload="metadata" className="w-full h-9" onError={() => setFailed(true)} />
   ) : (
-    <img src={url} alt="" className="w-full rounded-lg max-h-56 object-contain bg-slate-50 dark:bg-slate-900/40" />
+    <img
+      src={src}
+      alt=""
+      className="w-full rounded-lg max-h-56 object-contain bg-slate-50 dark:bg-slate-900/40"
+      onError={() => setFailed(true)}
+    />
   );
 }

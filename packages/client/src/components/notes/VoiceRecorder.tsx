@@ -34,6 +34,7 @@ export default function VoiceRecorder({ onSave }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -71,22 +72,35 @@ export default function VoiceRecorder({ onSave }: Props) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mime = pickMime();
-      mimeRef.current = mime;
-      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      // Let each browser use its NATIVE default container (webm on Chrome, mp4 on
+      // iOS Safari) — these are always playable in that same browser. Only pass an
+      // explicit mimeType if the platform actually reports support for it.
+      const preferred = pickMime();
+      let mr: MediaRecorder;
+      try {
+        mr = preferred ? new MediaRecorder(stream, { mimeType: preferred }) : new MediaRecorder(stream);
+      } catch {
+        mr = new MediaRecorder(stream);
+      }
+      mimeRef.current = mr.mimeType || preferred;
       chunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        // Use the container the recorder actually produced (iOS yields audio/mp4, not webm).
+        // Use the container the recorder actually produced.
         const type = (mr.mimeType || mimeRef.current || "audio/webm").split(";")[0].trim() || "audio/webm";
         actualMimeRef.current = type;
         const b = new Blob(chunksRef.current, { type });
+        stopTracks();
+        if (b.size === 0) {
+          setError(t("notes.recordEmpty"));
+          return;
+        }
         setBlob(b);
         setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(b); });
-        stopTracks();
       };
       recorderRef.current = mr;
-      mr.start();
+      // Timeslice ensures dataavailable fires during capture (more reliable on iOS).
+      mr.start(1000);
       setRecording(true);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -108,6 +122,7 @@ export default function VoiceRecorder({ onSave }: Props) {
     setBlob(null);
     setElapsed(0);
     setTitle("");
+    setPreviewError(false);
   };
 
   const save = async () => {
@@ -140,7 +155,15 @@ export default function VoiceRecorder({ onSave }: Props) {
         </div>
       ) : (
         <div className="space-y-2">
-          {previewUrl && <audio controls src={previewUrl} className="w-full h-10" />}
+          {previewUrl && (
+            <audio
+              controls
+              src={previewUrl}
+              className="w-full h-10"
+              onError={() => setPreviewError(true)}
+            />
+          )}
+          {previewError && <p className="text-[11px] text-amber-600 dark:text-amber-400">{t("notes.previewHint")}</p>}
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
