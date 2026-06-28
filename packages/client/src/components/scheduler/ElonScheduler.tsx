@@ -403,7 +403,24 @@ export default function ElonScheduler() {
     saveBrainItems(selectedDate, reordered);
   };
 
+  /** A brain item maps to at most one scheduled block (found by meta.brainId). */
+  const findBlockForBrain = (brainId: string) =>
+    sortedBlocks.find((b) => b.id > 0 && parseBlockMeta(b.meta ?? null).brainId === brainId);
+
   const openSheetForBrain = (item: BrainItem, durationMin: number) => {
+    // Already scheduled? Edit the existing block (move/resize) instead of making a copy.
+    const existing = findBlockForBrain(item.id);
+    if (existing) {
+      const start = parseTimeToMinutes(existing.startTime);
+      const end = Math.min(DAY_END_MIN, start + durationMin);
+      setSheet({
+        mode: "edit",
+        metaBase: parseBlockMeta(existing.meta ?? null),
+        linkBrainId: item.id,
+        initial: { ...blockToSheetInitial(existing), endTime: minutesToTime(end) },
+      });
+      return;
+    }
     const start = nextFreeStart(sortedBlocks, durationMin, snapStep);
     const end = Math.min(DAY_END_MIN, start + durationMin);
     setSheet({
@@ -424,6 +441,17 @@ export default function ElonScheduler() {
   };
 
   const openSheetCustomBrain = (item: BrainItem) => {
+    // Already scheduled? Edit the existing block instead of adding a duplicate.
+    const existing = findBlockForBrain(item.id);
+    if (existing) {
+      setSheet({
+        mode: "edit",
+        metaBase: parseBlockMeta(existing.meta ?? null),
+        linkBrainId: item.id,
+        initial: blockToSheetInitial(existing),
+      });
+      return;
+    }
     const start = nextFreeStart(sortedBlocks, item.duration, snapStep);
     const end = Math.min(DAY_END_MIN, start + item.duration);
     setSheet({
