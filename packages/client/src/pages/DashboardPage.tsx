@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import OnboardingGuide from "@/components/OnboardingGuide";
-import { seedSampleData } from "@/lib/sampleData";
 import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import Header from "@/components/layout/Header";
@@ -60,9 +59,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchMe();
-    // Check if first-time user
+    // Show the onboarding guide for first-time users.
+    // Note: we intentionally do NOT seed sample/dummy data — it was being
+    // re-created on any browser/device missing the local "seeded" flag.
     if (!localStorage.getItem("timebox_onboarding_done")) {
-      seedSampleData().then(() => setShowOnboarding(true));
+      setShowOnboarding(true);
     }
   }, []);
 
