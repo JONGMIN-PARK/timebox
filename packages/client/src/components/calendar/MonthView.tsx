@@ -1,4 +1,4 @@
-import { useState, useRef, memo } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check, Repeat } from "lucide-react";
@@ -7,6 +7,12 @@ import { getCategoryInfo } from "@/lib/categories";
 import { useI18n } from "@/lib/useI18n";
 import type { CalendarEvent, Todo, HoverTooltipItem } from "./calendarTypes";
 import HoverTooltip from "./HoverTooltip";
+
+// Resizable split between the calendar grid and the selected-date detail panel.
+const SPLIT_STORAGE_KEY = "timebox_calendar_split";
+const DEFAULT_SPLIT = 0.5; // calendar : detail = 1 : 1
+const MIN_SPLIT = 0.15;
+const MAX_SPLIT = 0.85;
 
 // Memoized event item in the selected-date detail panel
 const MonthEventDetailItem = memo(function MonthEventDetailItem({
@@ -142,8 +148,44 @@ export default function MonthView({
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Resizable calendar / detail split (defaults to a 1:1 ratio).
+  const containerRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [splitRatio, setSplitRatio] = useState<number>(() => {
+    const saved = parseFloat(localStorage.getItem(SPLIT_STORAGE_KEY) || "");
+    return saved >= MIN_SPLIT && saved <= MAX_SPLIT ? saved : DEFAULT_SPLIT;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(SPLIT_STORAGE_KEY, String(splitRatio));
+  }, [splitRatio]);
+
+  const onResizeStart = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const apply = (clientY: number) => {
+      const grid = gridRef.current;
+      const container = containerRef.current;
+      if (!grid || !container) return;
+      const top = grid.getBoundingClientRect().top; // top of the flexible area
+      const bottom = container.getBoundingClientRect().bottom;
+      const avail = bottom - top;
+      if (avail <= 0) return;
+      const ratio = Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, (clientY - top) / avail));
+      setSplitRatio(ratio);
+    };
+    const onMove = (ev: PointerEvent) => apply(ev.clientY);
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = "";
+    };
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
+
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div ref={containerRef} className="flex-1 flex flex-col min-h-0">
       <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
           <div key={day} className={cn("text-center text-xs font-medium py-2", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
@@ -151,7 +193,11 @@ export default function MonthView({
           </div>
         ))}
       </div>
-      <div className="min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)]">
+      <div
+        ref={gridRef}
+        className="min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)]"
+        style={selectedDate ? { flexGrow: splitRatio, flexShrink: 1, flexBasis: 0 } : undefined}
+      >
         {days.map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const dayEvents = eventsByDate.get(dateKey) || [];
@@ -274,9 +320,27 @@ export default function MonthView({
         </>
       )}
 
+      {/* Drag handle to resize the calendar / detail split */}
+      {selectedDate && (
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={t("calendar.resizePanel") || "Resize panel"}
+          onPointerDown={onResizeStart}
+          onDoubleClick={() => setSplitRatio(DEFAULT_SPLIT)}
+          title={t("calendar.resizePanelHint") || "Drag to resize · double-click to reset"}
+          className="group relative flex-shrink-0 h-2.5 cursor-row-resize flex items-center justify-center bg-slate-100 dark:bg-slate-700/40 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors touch-none"
+        >
+          <div className="h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-blue-400 dark:group-hover:bg-blue-500" />
+        </div>
+      )}
+
       {/* Selected date detail - events + todos */}
       {selectedDate && (
-        <div className="flex-1 min-h-[180px] flex flex-col border-t-2 border-blue-500/30 dark:border-blue-400/20 bg-white dark:bg-slate-800">
+        <div
+          className="flex flex-col border-blue-500/30 dark:border-blue-400/20 bg-white dark:bg-slate-800"
+          style={{ flexGrow: 1 - splitRatio, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
+        >
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-750/50">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-slate-900 dark:text-white">
