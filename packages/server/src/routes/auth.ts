@@ -9,6 +9,21 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { logger } from "../lib/logger.js";
 import { ValidationError, AuthError, NotFoundError, ConflictError } from "../lib/errors.js";
 
+/**
+ * Parse a user's stored `allowedModels` JSON safely.
+ * Legacy or corrupt values (e.g. a bare model name instead of a JSON array)
+ * must not throw — otherwise login and /me would return a 500 for that user.
+ */
+function parseAllowedModels(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((m): m is string => typeof m === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 async function getUserTeamGroups(userId: number) {
   const memberships = await db.select({
     id: teamGroups.id,
@@ -86,7 +101,7 @@ router.post("/login", asyncHandler(async (req, res) => {
         displayName: user.displayName,
         role: user.role,
         aiModel: user.aiModel,
-        allowedModels: JSON.parse(user.allowedModels || "[]"),
+        allowedModels: parseAllowedModels(user.allowedModels),
         teamGroups: teamGroupsList,
         hasProjectAccess: hasProjects || teamGroupsList.length > 0,
         lastLoginAt,
@@ -238,7 +253,7 @@ router.get("/me", authMiddleware, asyncHandler<AuthRequest>(async (req, res) => 
       displayName: user.displayName,
       role: user.role,
       aiModel: user.aiModel,
-      allowedModels: JSON.parse(user.allowedModels || "[]"),
+      allowedModels: parseAllowedModels(user.allowedModels),
       teamGroups: teamGroupsList,
       hasProjectAccess: hasProjects || teamGroupsList.length > 0,
       lastLoginAt,
@@ -285,7 +300,7 @@ router.put("/me", authMiddleware, asyncHandler<AuthRequest>(async (req, res) => 
   const updates: Record<string, unknown> = {};
 
   if (req.body.aiModel !== undefined) {
-    const allowed: string[] = JSON.parse(user.allowedModels || "[]");
+    const allowed: string[] = parseAllowedModels(user.allowedModels);
     // Admin can use any model; others only allowed models
     if (user.role === "admin" || allowed.includes(req.body.aiModel)) {
       updates.aiModel = req.body.aiModel;
@@ -305,14 +320,14 @@ router.put("/me", authMiddleware, asyncHandler<AuthRequest>(async (req, res) => 
   ]);
   res.json({
     success: true,
-    data: { id: updated.id, username: updated.username, displayName: updated.displayName, role: updated.role, aiModel: updated.aiModel, allowedModels: JSON.parse(updated.allowedModels || "[]"), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
+    data: { id: updated.id, username: updated.username, displayName: updated.displayName, role: updated.role, aiModel: updated.aiModel, allowedModels: parseAllowedModels(updated.allowedModels), teamGroups: teamGroupsList, hasProjectAccess: hasProjects || teamGroupsList.length > 0 },
   });
 }));
 
 // GET /api/auth/users (admin only)
 router.get("/users", authMiddleware, adminMiddleware, asyncHandler<AuthRequest>(async (req, res) => {
   const allUsers = (await db.select().from(users)).map((u) => ({
-    id: u.id, username: u.username, displayName: u.displayName, role: u.role, active: u.active, aiModel: u.aiModel, allowedModels: JSON.parse(u.allowedModels || "[]"), createdAt: u.createdAt,
+    id: u.id, username: u.username, displayName: u.displayName, role: u.role, active: u.active, aiModel: u.aiModel, allowedModels: parseAllowedModels(u.allowedModels), createdAt: u.createdAt,
   }));
 
   res.json({ success: true, data: allUsers });
@@ -340,7 +355,7 @@ router.put("/users/:id", authMiddleware, adminMiddleware, asyncHandler<AuthReque
 
   res.json({
     success: true,
-    data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role, active: result[0].active, aiModel: result[0].aiModel, allowedModels: JSON.parse(result[0].allowedModels || "[]") },
+    data: { id: result[0].id, username: result[0].username, displayName: result[0].displayName, role: result[0].role, active: result[0].active, aiModel: result[0].aiModel, allowedModels: parseAllowedModels(result[0].allowedModels) },
   });
 }));
 

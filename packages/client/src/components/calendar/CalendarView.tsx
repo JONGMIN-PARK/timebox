@@ -18,7 +18,6 @@ import {
   addDays,
   subDays,
   isSameDay,
-  isToday,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, X, Repeat } from "lucide-react";
@@ -38,7 +37,6 @@ import { getCategoryInfo } from "@/lib/categories";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
-import TodaySummary from "./TodaySummary";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -344,10 +342,6 @@ export default function CalendarView() {
           </div>
         </div>
       </div>
-
-      {selectedDate && isToday(selectedDate) && (
-        <TodaySummary events={selectedDateEvents} todos={selectedDateTodos} />
-      )}
 
       {/* === MONTH VIEW === */}
       {viewMode === "month" && (
