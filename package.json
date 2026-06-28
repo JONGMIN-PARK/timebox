@@ -1,6 +1,6 @@
 {
   "name": "timebox",
-  "version": "1.13.1",
+  "version": "1.14.0",
   "private": true,
   "description": "TimeBox - Personal Schedule Manager",
   "scripts": {
