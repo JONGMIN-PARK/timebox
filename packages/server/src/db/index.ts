@@ -53,9 +53,25 @@ export async function initDb() {
   pool = new pg.Pool({
     connectionString: resolvedUrl,
     ssl: isLocal ? false : { rejectUnauthorized: false },
-    max: 20,               // max connections
+    // Keep well under the Supabase free-tier client cap. A single Render
+    // instance does not need many connections, and an oversized pool can hit
+    // the pooler's client limit ("remaining connection slots are reserved"),
+    // which surfaces as intermittent 500s after only a few requests.
+    max: isLocal ? 20 : 8,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000,
+    keepAlive: true,
+    // Recycle connections so stale ones are not reused — Supabase/Supavisor
+    // drops idle server connections aggressively.
+    maxLifetimeSeconds: 600,
+  });
+
+  // node-postgres emits 'error' on idle clients when the database drops a
+  // connection (Supabase closes idle connections). Without this listener the
+  // event would bubble up as an uncaught exception and crash the whole
+  // process, taking down every subsequent request until Render restarts.
+  pool.on("error", (err) => {
+    console.error("[db] idle client error (recovered):", err.message);
   });
 
   _db = drizzle(pool, { schema });
