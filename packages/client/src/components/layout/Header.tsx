@@ -33,13 +33,17 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
     };
   }, []);
 
+  // App badge = unread inbox messages + due reminders (notifications/schedule).
   const fetchUnread = async () => {
-    const res = await api.get<{ count: number }>("/inbox/unread-count");
-    if (res.success && res.data) {
-      setUnreadCount(res.data.count);
-      unreadCountRef.current = res.data.count;
-      updateAppBadge(res.data.count);
-    }
+    const [inboxRes, dueRes] = await Promise.all([
+      api.get<{ count: number }>("/inbox/unread-count"),
+      api.get<Array<{ id: number }>>("/reminders/due"),
+    ]);
+    const inbox = inboxRes.success && inboxRes.data ? inboxRes.data.count : unreadCountRef.current;
+    const dueReminders = dueRes.success && Array.isArray(dueRes.data) ? dueRes.data.length : 0;
+    setUnreadCount(inbox);
+    unreadCountRef.current = inbox;
+    updateAppBadge(inbox + dueReminders);
   };
 
   // Initial fetch + show toast if unread messages exist on login
@@ -59,16 +63,20 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
         }
       }
     });
-    // Fallback polling at 2-min interval in case socket events are missed
-    const interval = setInterval(fetchUnread, 120000);
+    // Fallback polling (covers reminders becoming due + missed socket events)
+    const interval = setInterval(fetchUnread, 60000);
     return () => clearInterval(interval);
   }, [pageVisible]);
 
-  // Listen for inbox read events to refresh count immediately (local browser events)
+  // Refresh badge immediately on inbox or reminder changes (local browser events)
   useEffect(() => {
     const handler = () => fetchUnread();
     window.addEventListener("inbox-updated", handler);
-    return () => window.removeEventListener("inbox-updated", handler);
+    window.addEventListener("reminders-updated", handler);
+    return () => {
+      window.removeEventListener("inbox-updated", handler);
+      window.removeEventListener("reminders-updated", handler);
+    };
   }, []);
 
   // Listen for socket events for instant inbox updates (replaces 30s polling)

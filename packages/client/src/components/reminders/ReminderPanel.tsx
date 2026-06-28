@@ -22,6 +22,8 @@ export default function ReminderPanel() {
   const fetchReminders = async () => {
     const res = await api.get<Reminder[]>("/reminders");
     if (res.success && res.data) setReminders(res.data);
+    // Let the header re-sync the app badge (inbox + due reminders).
+    window.dispatchEvent(new Event("reminders-updated"));
   };
 
   useEffect(() => { fetchReminders(); }, []);
