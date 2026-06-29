@@ -1,15 +1,23 @@
 {
-  "version": "1.19.3",
-  "date": "2026-06-28",
+  "version": "1.19.4",
+  "date": "2026-06-29",
   "highlights": [
-    "notes: iOS 음성 재생 안정화 — 서버 직접 스트리밍 + 녹음 견고화 (9324399)"
+    "notes: 본문 입력창 자동 높이 + 카드 전체 줄 표시 + iOS 녹음 견고화 (49ba4fa)"
   ],
   "changes": [
+    {
+      "category": "기능 개선",
+      "emoji": "✨",
+      "items": [
+        "notes: 작성/수정 입력창이 입력 줄 수에 따라 자동으로 높이 조절 (49ba4fa)",
+        "notes: 저장된 노트 카드에서 본문 전체 줄 표시 (line-clamp 제거) (49ba4fa)"
+      ]
+    },
     {
       "category": "버그 수정",
       "emoji": "🐛",
       "items": [
-        "notes: iOS 음성 재생 안정화 — 서버 직접 스트리밍 + 녹음 견고화 (9324399)"
+        "notes: iOS 녹음 견고화 — 실제 오류 노출 + 마지막 청크 플러시 + start 폴백 (49ba4fa)"
       ]
     }
   ]
