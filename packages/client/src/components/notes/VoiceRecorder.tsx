@@ -98,9 +98,23 @@ export default function VoiceRecorder({ onSave }: Props) {
         setBlob(b);
         setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(b); });
       };
+      // Surface the actual MediaRecorder failure (helps diagnose iOS issues)
+      // instead of leaving the user with a silent/empty recording.
+      mr.onerror = (ev: Event) => {
+        const e = (ev as unknown as { error?: { name?: string; message?: string } }).error;
+        const detail = e?.name || e?.message;
+        setError(detail ? `${t("notes.voiceUnsupported")} (${detail})` : t("notes.voiceUnsupported"));
+        setRecording(false);
+        stopTracks();
+      };
       recorderRef.current = mr;
       // Timeslice ensures dataavailable fires during capture (more reliable on iOS).
-      mr.start(1000);
+      // Some iOS Safari versions reject a timeslice argument — fall back to a plain start.
+      try {
+        mr.start(1000);
+      } catch {
+        mr.start();
+      }
       setRecording(true);
       setElapsed(0);
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -112,7 +126,13 @@ export default function VoiceRecorder({ onSave }: Props) {
   };
 
   const stop = () => {
-    recorderRef.current?.stop();
+    const mr = recorderRef.current;
+    if (mr && mr.state !== "inactive") {
+      // Flush the final buffered chunk before stopping — on iOS the last
+      // segment is sometimes only emitted in response to an explicit request.
+      try { mr.requestData(); } catch { /* not supported everywhere */ }
+      mr.stop();
+    }
     setRecording(false);
   };
 

@@ -8,6 +8,7 @@ import { showToast } from "@/components/ui/Toast";
 import VoiceRecorder from "./VoiceRecorder";
 import DrawingPad from "./DrawingPad";
 import NoteMedia from "./NoteMedia";
+import AutoGrowTextarea from "./AutoGrowTextarea";
 
 type Mode = "text" | "voice" | "drawing";
 
@@ -158,12 +159,13 @@ export default function NotesView() {
                 placeholder={t("notes.titlePlaceholder")}
                 className="w-full text-sm font-medium bg-transparent text-slate-900 dark:text-white placeholder-slate-400 outline-none"
               />
-              <textarea
+              <AutoGrowTextarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={t("notes.contentPlaceholder")}
-                rows={3}
-                className="w-full text-sm bg-slate-50 dark:bg-slate-900/40 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                minRows={3}
+                maxHeight={400}
+                className="w-full text-sm bg-slate-50 dark:bg-slate-900/40 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40"
               />
               <div className="flex justify-end">
                 <button
@@ -223,7 +225,7 @@ export default function NotesView() {
                   </div>
                 </div>
                 {note.type === "text" ? (
-                  <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-6 flex-1">{note.content}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words flex-1">{note.content}</p>
                 ) : (
                   <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                     <NoteMedia noteId={note.id} type={note.type} />
@@ -266,12 +268,13 @@ export default function NotesView() {
                 className="w-full text-sm font-medium px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
               />
               {editing.type === "text" ? (
-                <textarea
+                <AutoGrowTextarea
                   value={editing.content}
                   onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-                  rows={8}
+                  minRows={8}
+                  maxHeight={480}
                   placeholder={t("notes.contentPlaceholder")}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                 />
               ) : (
                 <div onClick={(e) => e.stopPropagation()}>
