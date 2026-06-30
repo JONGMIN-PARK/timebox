@@ -2,7 +2,7 @@ import { Router } from "express";
 import path from "path";
 import { db } from "../db/index.js";
 import { notes } from "../db/schema.js";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull, isNotNull } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
@@ -26,14 +26,25 @@ const MEDIA_MIME: Record<string, string> = {
   ".webp": "image/webp",
 };
 
-// GET /api/notes — list current user's notes (pinned first, newest first)
+// GET /api/notes — list current user's active notes (pinned first, newest first)
 router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
   const result = await db
     .select()
     .from(notes)
-    .where(eq(notes.userId, userId))
+    .where(and(eq(notes.userId, userId), isNull(notes.trashedAt)))
     .orderBy(desc(notes.pinned), desc(notes.updatedAt));
+  res.json({ success: true, data: result });
+}));
+
+// GET /api/notes/trash — list trashed notes (most recently trashed first)
+router.get("/trash", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const result = await db
+    .select()
+    .from(notes)
+    .where(and(eq(notes.userId, userId), isNotNull(notes.trashedAt)))
+    .orderBy(desc(notes.trashedAt));
   res.json({ success: true, data: result });
 }));
 
@@ -120,8 +131,36 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true, data: result[0] });
 }));
 
-// DELETE /api/notes/:id
+// DELETE /api/notes/:id — soft delete (move to trash)
 router.delete("/:id", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = parseInt(req.params.id as string);
+  if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
+  const userId = req.userId!;
+  const result = await db
+    .update(notes)
+    .set({ trashedAt: new Date().toISOString() })
+    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .returning();
+  if (!result[0]) throw new NotFoundError("Note");
+  res.json({ success: true, data: result[0] });
+}));
+
+// POST /api/notes/:id/restore — restore from trash
+router.post("/:id/restore", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = parseInt(req.params.id as string);
+  if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
+  const userId = req.userId!;
+  const result = await db
+    .update(notes)
+    .set({ trashedAt: null })
+    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .returning();
+  if (!result[0]) throw new NotFoundError("Note");
+  res.json({ success: true, data: result[0] });
+}));
+
+// DELETE /api/notes/:id/permanent — permanently delete (and remove any file)
+router.delete("/:id/permanent", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);
   if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
   const userId = req.userId!;

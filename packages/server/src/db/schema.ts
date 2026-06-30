@@ -454,6 +454,8 @@ export const notes = pgTable("notes", {
   fileName: text("file_name"),
   color: text("color"),
   pinned: boolean("pinned").notNull().default(false),
+  /** ISO timestamp when moved to trash (soft delete); null = active. */
+  trashedAt: text("trashed_at"),
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
 });

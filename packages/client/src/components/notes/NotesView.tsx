@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine } from "lucide-react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -22,6 +22,7 @@ interface Note {
   pinned: boolean;
   createdAt: string;
   updatedAt: string;
+  trashedAt?: string | null;
 }
 
 export default function NotesView() {
@@ -33,6 +34,9 @@ export default function NotesView() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Note | null>(null);
   const [mode, setMode] = useState<Mode>("text");
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashed, setTrashed] = useState<Note[]>([]);
+  const [confirm, setConfirm] = useState<{ id: number; permanent: boolean } | null>(null);
 
   const uploadMedia = useCallback(async (type: "voice" | "drawing", blob: Blob, ext: string, title: string) => {
     const token = localStorage.getItem("timebox_token");
@@ -93,13 +97,46 @@ export default function NotesView() {
     }
   };
 
-  const removeNote = async (id: number) => {
-    const res = await api.delete(`/notes/${id}`);
-    if (res.success) {
-      setNotes((prev) => prev.filter((n) => n.id !== id));
-      if (editing?.id === id) setEditing(null);
-      showToast("success", t("notes.deleted"));
+  const fetchTrash = useCallback(async () => {
+    const res = await api.get<Note[]>("/notes/trash");
+    if (res.success && res.data) setTrashed(res.data);
+  }, []);
+
+  // Ask before deleting; active notes go to trash, trashed notes delete permanently.
+  const requestDelete = (id: number, permanent: boolean) => setConfirm({ id, permanent });
+
+  const doDelete = async () => {
+    if (!confirm) return;
+    const { id, permanent } = confirm;
+    if (permanent) {
+      const res = await api.delete(`/notes/${id}/permanent`);
+      if (res.success) {
+        setTrashed((prev) => prev.filter((n) => n.id !== id));
+        showToast("success", t("notes.deletedPermanent"));
+      }
+    } else {
+      const res = await api.delete(`/notes/${id}`);
+      if (res.success) {
+        setNotes((prev) => prev.filter((n) => n.id !== id));
+        if (editing?.id === id) setEditing(null);
+        showToast("success", t("notes.movedToTrash"));
+      }
     }
+    setConfirm(null);
+  };
+
+  const restoreNote = async (id: number) => {
+    const res = await api.post(`/notes/${id}/restore`, {});
+    if (res.success) {
+      setTrashed((prev) => prev.filter((n) => n.id !== id));
+      fetchNotes();
+      showToast("success", t("notes.restored"));
+    }
+  };
+
+  const openTrash = () => {
+    setShowTrash(true);
+    fetchTrash();
   };
 
   const saveEdit = async () => {
@@ -119,36 +156,95 @@ export default function NotesView() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <StickyNote className="w-4 h-4 text-amber-500" />
-          <h2 className="font-semibold text-slate-900 dark:text-white">{t("notes.title")}</h2>
-          <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">{notes.length}</span>
+          {showTrash ? (
+            <>
+              <button onClick={() => setShowTrash(false)} className="p-1 -ml-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500" title={t("notes.back")}>
+                <X className="w-4 h-4" />
+              </button>
+              <Trash className="w-4 h-4 text-slate-500" />
+              <h2 className="font-semibold text-slate-900 dark:text-white">{t("notes.trash")}</h2>
+              <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">{trashed.length}</span>
+            </>
+          ) : (
+            <>
+              <StickyNote className="w-4 h-4 text-amber-500" />
+              <h2 className="font-semibold text-slate-900 dark:text-white">{t("notes.title")}</h2>
+              <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">{notes.length}</span>
+            </>
+          )}
         </div>
-        {/* Capture type switcher */}
-        <div className="flex items-center gap-1 text-[10px]">
-          {([
-            { id: "text", icon: StickyNote, label: t("notes.typeText") },
-            { id: "voice", icon: Mic, label: t("notes.typeVoice") },
-            { id: "drawing", icon: PenLine, label: t("notes.typeDraw") },
-          ] as const).map((m) => (
+        {/* Capture type switcher + trash */}
+        {!showTrash && (
+          <div className="flex items-center gap-1 text-[10px]">
+            {([
+              { id: "text", icon: StickyNote, label: t("notes.typeText") },
+              { id: "voice", icon: Mic, label: t("notes.typeVoice") },
+              { id: "drawing", icon: PenLine, label: t("notes.typeDraw") },
+            ] as const).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMode(m.id)}
+                className={cn(
+                  "flex items-center gap-0.5 px-1.5 py-1 rounded-md transition-colors",
+                  mode === m.id
+                    ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium"
+                    : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50",
+                )}
+                aria-pressed={mode === m.id}
+              >
+                <m.icon className="w-3 h-3" /> {m.label}
+              </button>
+            ))}
             <button
-              key={m.id}
               type="button"
-              onClick={() => setMode(m.id)}
-              className={cn(
-                "flex items-center gap-0.5 px-1.5 py-1 rounded-md transition-colors",
-                mode === m.id
-                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-medium"
-                  : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50",
-              )}
-              aria-pressed={mode === m.id}
+              onClick={openTrash}
+              className="flex items-center gap-0.5 px-1.5 py-1 rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 ml-0.5 border-l border-slate-200 dark:border-slate-700 pl-1.5"
+              title={t("notes.trash")}
             >
-              <m.icon className="w-3 h-3" /> {m.label}
+              <Trash className="w-3 h-3" />
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+        {showTrash ? (
+          trashed.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+              <Trash className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm">{t("notes.trashEmpty")}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {trashed.map((note) => (
+                <div key={note.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-800 flex flex-col opacity-90">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 line-clamp-1 flex-1">{note.title || t(`notes.type${note.type === "voice" ? "Voice" : note.type === "drawing" ? "Draw" : "Text"}`)}</p>
+                  </div>
+                  {note.type === "text" ? (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap line-clamp-4 flex-1">{note.content}</p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                      {note.type === "voice" ? <Mic className="w-3 h-3" /> : <PenLine className="w-3 h-3" />}
+                      {t(`notes.type${note.type === "voice" ? "Voice" : "Draw"}`)}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-400 mt-2 tabular-nums">{note.trashedAt ? fmtDateTime(note.trashedAt) : ""}</p>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => restoreNote(note.id)} className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      <RotateCcw className="w-3.5 h-3.5" /> {t("notes.restore")}
+                    </button>
+                    <button onClick={() => requestDelete(note.id, true)} className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" title={t("notes.deleteForever")}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+        <>
         {/* Composer (varies by capture type) */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 space-y-2">
           {mode === "text" && (
@@ -216,7 +312,7 @@ export default function NotesView() {
                       {note.pinned ? <Pin className="w-3.5 h-3.5 fill-current" /> : <PinOff className="w-3.5 h-3.5" />}
                     </button>
                     <button
-                      onClick={() => removeNote(note.id)}
+                      onClick={() => requestDelete(note.id, false)}
                       className="p-1 rounded text-slate-300 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity"
                       title={t("common.delete")}
                     >
@@ -239,6 +335,8 @@ export default function NotesView() {
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
 
@@ -283,7 +381,7 @@ export default function NotesView() {
               )}
             </div>
             <div className="flex gap-2 p-4 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => removeNote(editing.id)} className="px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 text-sm flex items-center gap-1">
+              <button onClick={() => requestDelete(editing.id, false)} className="px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 text-sm flex items-center gap-1">
                 <Trash2 className="w-4 h-4" /> {t("common.delete")}
               </button>
               <button onClick={() => setEditing(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300">
@@ -291,6 +389,38 @@ export default function NotesView() {
               </button>
               <button onClick={saveEdit} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium">
                 {t("common.save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {confirm && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setConfirm(null)}
+        >
+          <div className="w-full max-w-xs bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className={cn("w-11 h-11 rounded-full flex items-center justify-center", confirm.permanent ? "bg-red-100 dark:bg-red-900/30 text-red-500" : "bg-amber-100 dark:bg-amber-900/30 text-amber-500")}>
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                {confirm.permanent ? t("notes.confirmPermanentTitle") : t("notes.confirmTrashTitle")}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {confirm.permanent ? t("notes.confirmPermanentMsg") : t("notes.confirmTrashMsg")}
+              </p>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setConfirm(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300">
+                {t("common.cancel")}
+              </button>
+              <button onClick={doDelete} className={cn("flex-1 py-2.5 rounded-xl text-white text-sm font-medium", confirm.permanent ? "bg-red-600 hover:bg-red-500" : "bg-amber-600 hover:bg-amber-500")}>
+                {confirm.permanent ? t("notes.deleteForever") : t("notes.moveToTrash")}
               </button>
             </div>
           </div>
