@@ -1,15 +1,15 @@
 {
-  "version": "1.22.0",
+  "version": "1.23.0",
   "date": "2026-07-01",
   "highlights": [
-    "notes: 검색 + AI 요약 + 다른 사용자에게 전달 (f02bda0)"
+    "notes: 검색 키워드 하이라이트 (28bafcd)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "notes: 검색 + AI 요약 + 다른 사용자에게 전달 (f02bda0)"
+        "notes: 검색 키워드 하이라이트 (28bafcd)"
       ]
     }
   ]
