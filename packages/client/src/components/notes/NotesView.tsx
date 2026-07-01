@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send } from "lucide-react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -11,6 +11,11 @@ import NoteMedia from "./NoteMedia";
 import AutoGrowTextarea from "./AutoGrowTextarea";
 
 type Mode = "text" | "voice" | "drawing";
+type TypeFilter = "all" | "text" | "voice" | "drawing";
+type SortBy = "updated" | "created" | "title";
+
+/** Preset color labels for notes (stored as hex in note.color). */
+const NOTE_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444"];
 
 /** Wrap occurrences of `query` in the text with a highlight marker (case-insensitive). */
 function highlight(text: string | null | undefined, query: string): React.ReactNode {
@@ -61,14 +66,25 @@ export default function NotesView() {
   const [forwarding, setForwarding] = useState<Note | null>(null);
   const [recipients, setRecipients] = useState<{ id: number; username: string; displayName: string | null }[]>([]);
   const [sendingTo, setSendingTo] = useState<number | null>(null);
+  const [noteColor, setNoteColor] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("updated");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return notes;
-    return notes.filter((n) =>
-      [n.title, n.content, n.summary].some((f) => f && f.toLowerCase().includes(q)),
-    );
-  }, [notes, query]);
+    let list = notes.filter((n) => {
+      if (typeFilter !== "all" && n.type !== typeFilter) return false;
+      if (q && ![n.title, n.content, n.summary].some((f) => f && f.toLowerCase().includes(q))) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      if (a.pinned !== b.pinned) return Number(b.pinned) - Number(a.pinned);
+      if (sortBy === "title") return (a.title || "").localeCompare(b.title || "");
+      const key = sortBy === "created" ? "createdAt" : "updatedAt";
+      return a[key] < b[key] ? 1 : a[key] > b[key] ? -1 : 0;
+    });
+    return list;
+  }, [notes, query, typeFilter, sortBy]);
 
   useEffect(() => {
     if (!forwarding) return;
@@ -101,6 +117,15 @@ export default function NotesView() {
       showToast("error", res.error || t("notes.summaryFailed"));
     }
   }, [t]);
+
+  const updateColor = useCallback(async (note: Note, color: string | null) => {
+    const next = note.color === color ? null : color; // tap same color to clear
+    const res = await api.put<Note>(`/notes/${note.id}`, { color: next });
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
+      setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+    }
+  }, []);
 
   const uploadMedia = useCallback(async (type: "voice" | "drawing", blob: Blob, ext: string, title: string) => {
     const token = localStorage.getItem("timebox_token");
@@ -139,12 +164,13 @@ export default function NotesView() {
   const addNote = async () => {
     if (!content.trim() && !title.trim()) return;
     setSaving(true);
-    const res = await api.post<Note>("/notes", { type: "text", title: title.trim() || null, content });
+    const res = await api.post<Note>("/notes", { type: "text", title: title.trim() || null, content, color: noteColor });
     setSaving(false);
     if (res.success && res.data) {
       setNotes((prev) => [res.data!, ...prev]);
       setTitle("");
       setContent("");
+      setNoteColor(null);
     } else {
       showToast("error", res.error || t("notes.saveFailed"));
     }
@@ -296,6 +322,44 @@ export default function NotesView() {
         </div>
       )}
 
+      {/* Type filter + sort */}
+      {!showTrash && (
+        <div className="px-4 pt-2 flex items-center gap-1.5 flex-shrink-0 overflow-x-auto scrollbar-hide">
+          {([
+            { id: "all", label: t("notes.filterAll") },
+            { id: "text", label: t("notes.typeText") },
+            { id: "voice", label: t("notes.typeVoice") },
+            { id: "drawing", label: t("notes.typeDraw") },
+          ] as const).map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setTypeFilter(f.id)}
+              className={cn(
+                "text-[11px] px-2 py-1 rounded-full border whitespace-nowrap transition-colors",
+                typeFilter === f.id
+                  ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300"
+                  : "border-slate-200 dark:border-slate-700 text-slate-500",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+          <div className="ml-auto flex items-center gap-1 text-slate-400 shrink-0">
+            <ArrowDownUp className="w-3.5 h-3.5" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortBy)}
+              className="text-[11px] bg-transparent outline-none text-slate-500 dark:text-slate-400 cursor-pointer"
+            >
+              <option value="updated">{t("notes.sortUpdated")}</option>
+              <option value="created">{t("notes.sortCreated")}</option>
+              <option value="title">{t("notes.sortTitle")}</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         {showTrash ? (
           trashed.length === 0 ? (
@@ -351,7 +415,22 @@ export default function NotesView() {
                 maxHeight={400}
                 className="w-full text-sm bg-slate-50 dark:bg-slate-900/40 rounded-lg px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40"
               />
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  {NOTE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setNoteColor((cur) => (cur === c ? null : c))}
+                      className={cn(
+                        "w-5 h-5 rounded-full border-2 transition-transform",
+                        noteColor === c ? "border-slate-900 dark:border-white scale-110" : "border-transparent",
+                      )}
+                      style={{ backgroundColor: c }}
+                      aria-label={t("notes.colorLabel")}
+                    />
+                  ))}
+                </div>
                 <button
                   onClick={addNote}
                   disabled={saving || (!content.trim() && !title.trim())}
@@ -383,6 +462,7 @@ export default function NotesView() {
                   "group relative rounded-xl border p-3 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col",
                   note.pinned ? "border-amber-300 dark:border-amber-500/40" : "border-slate-200 dark:border-slate-700",
                 )}
+                style={note.color ? { borderLeftColor: note.color, borderLeftWidth: "4px" } : undefined}
                 onClick={() => setEditing(note)}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
@@ -459,6 +539,26 @@ export default function NotesView() {
                 placeholder={t("notes.titlePlaceholder")}
                 className="w-full text-sm font-medium px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <div className="flex items-center gap-1.5 px-1">
+                {NOTE_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => updateColor(editing, c)}
+                    className={cn(
+                      "w-5 h-5 rounded-full border-2 transition-transform",
+                      editing.color === c ? "border-slate-900 dark:border-white scale-110" : "border-transparent",
+                    )}
+                    style={{ backgroundColor: c }}
+                    aria-label={t("notes.colorLabel")}
+                  />
+                ))}
+                {editing.color && (
+                  <button type="button" onClick={() => updateColor(editing, null)} className="text-[10px] text-slate-400 hover:text-slate-600 ml-1">
+                    {t("notes.colorClear")}
+                  </button>
+                )}
+              </div>
               {editing.type === "text" ? (
                 <AutoGrowTextarea
                   value={editing.content}
