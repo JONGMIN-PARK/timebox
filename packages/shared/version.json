@@ -1,15 +1,15 @@
 {
-  "version": "1.29.0",
+  "version": "1.30.0",
   "date": "2026-07-01",
   "highlights": [
-    "calendar: 일정·할일 전체 목록 보기 및 검색 패널 추가 (142f0f8)"
+    "calendar: 일정·할일 다른 사용자 전달(받는 사람 자동 추가) + 검색 정렬 (ebb6c75)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 일정·할일 전체 목록 보기 및 검색 패널 추가 (142f0f8)"
+        "calendar: 일정·할일 다른 사용자 전달(받는 사람 자동 추가) + 검색 정렬 (ebb6c75)"
       ]
     }
   ]
