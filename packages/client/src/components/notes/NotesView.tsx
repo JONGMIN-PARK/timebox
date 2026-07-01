@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -9,6 +9,7 @@ import VoiceRecorder from "./VoiceRecorder";
 import DrawingPad from "./DrawingPad";
 import NoteMedia from "./NoteMedia";
 import AutoGrowTextarea from "./AutoGrowTextarea";
+import NoteContent, { highlight, CHECK_RE } from "./NoteContent";
 
 type Mode = "text" | "voice" | "drawing";
 type TypeFilter = "all" | "text" | "voice" | "drawing";
@@ -16,24 +17,6 @@ type SortBy = "updated" | "created" | "title";
 
 /** Preset color labels for notes (stored as hex in note.color). */
 const NOTE_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444"];
-
-/** Wrap occurrences of `query` in the text with a highlight marker (case-insensitive). */
-function highlight(text: string | null | undefined, query: string): React.ReactNode {
-  const q = query.trim();
-  if (!q || !text) return text ?? null;
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
-  const lower = q.toLowerCase();
-  return parts.map((part, i) =>
-    part.toLowerCase() === lower ? (
-      <mark key={i} className="bg-yellow-200 dark:bg-yellow-500/40 text-inherit rounded-sm px-0.5">
-        {part}
-      </mark>
-    ) : (
-      part
-    ),
-  );
-}
 
 interface Note {
   id: number;
@@ -124,6 +107,20 @@ export default function NotesView() {
     if (res.success && res.data) {
       setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
       setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+    }
+  }, []);
+
+  const toggleChecklistItem = useCallback(async (note: Note, lineIndex: number) => {
+    const lines = note.content.split("\n");
+    const m = lines[lineIndex]?.match(CHECK_RE);
+    if (!m) return;
+    const checked = m[2].toLowerCase() === "x";
+    lines[lineIndex] = `${m[1]}- [${checked ? " " : "x"}] ${m[3]}`;
+    const newContent = lines.join("\n");
+    setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, content: newContent } : n))); // optimistic
+    const res = await api.put<Note>(`/notes/${note.id}`, { content: newContent });
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
     }
   }, []);
 
@@ -229,17 +226,46 @@ export default function NotesView() {
     fetchTrash();
   };
 
-  const saveEdit = async () => {
+  // ── Autosave (edit modal) ──
+  const savedRef = useRef<{ id: number; title: string | null; content: string } | null>(null);
+  const [autoSaved, setAutoSaved] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  // Seed the last-saved snapshot whenever a different note opens.
+  useEffect(() => {
+    if (editing) savedRef.current = { id: editing.id, title: editing.title, content: editing.content };
+    setAutoSaved(true);
+    setExpanded(false);
+  }, [editing?.id]);
+
+  // Debounced autosave on title/content edits.
+  useEffect(() => {
     if (!editing) return;
-    const res = await api.put<Note>(`/notes/${editing.id}`, { title: editing.title, content: editing.content });
-    if (res.success && res.data) {
-      setNotes((prev) => prev.map((n) => (n.id === editing.id ? res.data! : n)));
-      setEditing(null);
-      showToast("success", t("notes.saved"));
-    } else {
-      showToast("error", res.error || t("notes.saveFailed"));
-    }
-  };
+    const s = savedRef.current;
+    if (s && s.id === editing.id && s.title === editing.title && s.content === editing.content) return;
+    setAutoSaved(false);
+    const snap = { id: editing.id, title: editing.title, content: editing.content };
+    const timer = setTimeout(async () => {
+      const res = await api.put<Note>(`/notes/${snap.id}`, { title: snap.title, content: snap.content });
+      if (res.success && res.data) {
+        savedRef.current = snap;
+        setNotes((prev) => prev.map((n) => (n.id === snap.id ? res.data! : n)));
+        setAutoSaved(true);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [editing?.id, editing?.title, editing?.content]);
+
+  // Flush any pending edit, then close the modal.
+  const closeEditor = useCallback(async () => {
+    const e = editing;
+    setEditing(null);
+    if (!e) return;
+    const s = savedRef.current;
+    if (s && s.id === e.id && s.title === e.title && s.content === e.content) return; // nothing to flush
+    const res = await api.put<Note>(`/notes/${e.id}`, { title: e.title, content: e.content });
+    if (res.success && res.data) setNotes((prev) => prev.map((n) => (n.id === e.id ? res.data! : n)));
+  }, [editing]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -489,7 +515,12 @@ export default function NotesView() {
                   </div>
                 </div>
                 {note.type === "text" ? (
-                  <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words flex-1">{highlight(note.content, query)}</p>
+                  <NoteContent
+                    content={note.content}
+                    query={query}
+                    onToggle={(i) => toggleChecklistItem(note, i)}
+                    className="text-xs text-slate-600 dark:text-slate-300 flex-1"
+                  />
                 ) : (
                   <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                     <NoteMedia noteId={note.id} type={note.type} />
@@ -520,17 +551,28 @@ export default function NotesView() {
           className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
           role="dialog"
           aria-modal="true"
-          onClick={() => setEditing(null)}
+          onClick={closeEditor}
         >
           <div
-            className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col max-h-[90dvh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
+            className={cn(
+              "w-full bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col max-h-[90dvh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0",
+              expanded ? "sm:max-w-3xl sm:h-[85vh]" : "sm:max-w-md",
+            )}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{t("notes.edit")}</h3>
-              <button onClick={() => setEditing(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                <X className="w-4 h-4" />
-              </button>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                {t("notes.edit")}
+                <span className="text-[10px] font-normal text-slate-400">{autoSaved ? t("notes.autoSaved") : t("notes.saving")}</span>
+              </h3>
+              <div className="flex items-center gap-0.5">
+                <button onClick={() => setExpanded((v) => !v)} className="hidden sm:inline-flex p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500" title={t("notes.fullscreen")}>
+                  {expanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+                <button onClick={closeEditor} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <div className="p-4 space-y-2 overflow-y-auto">
               <input
@@ -563,8 +605,8 @@ export default function NotesView() {
                 <AutoGrowTextarea
                   value={editing.content}
                   onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-                  minRows={8}
-                  maxHeight={480}
+                  minRows={expanded ? 16 : 8}
+                  maxHeight={expanded ? 2000 : 480}
                   placeholder={t("notes.contentPlaceholder")}
                   className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -602,11 +644,8 @@ export default function NotesView() {
               <button onClick={() => requestDelete(editing.id, false)} className="px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 text-sm flex items-center gap-1">
                 <Trash2 className="w-4 h-4" /> {t("common.delete")}
               </button>
-              <button onClick={() => setEditing(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300">
-                {t("common.cancel")}
-              </button>
-              <button onClick={saveEdit} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium">
-                {t("common.save")}
+              <button onClick={closeEditor} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium">
+                {t("notes.done")}
               </button>
             </div>
           </div>

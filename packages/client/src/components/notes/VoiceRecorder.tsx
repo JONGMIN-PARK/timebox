@@ -26,6 +26,13 @@ function extFromMime(mime: string): string {
   return "webm";
 }
 
+/** iOS home-screen (standalone) PWAs often block microphone access. */
+function isStandalonePWA(): boolean {
+  if (typeof window === "undefined") return false;
+  return (navigator as unknown as { standalone?: boolean }).standalone === true ||
+    window.matchMedia?.("(display-mode: standalone)").matches === true;
+}
+
 export default function VoiceRecorder({ onSave }: Props) {
   const { t } = useI18n();
   const [recording, setRecording] = useState(false);
@@ -157,6 +164,11 @@ export default function VoiceRecorder({ onSave }: Props) {
 
   return (
     <div className="space-y-3">
+      {isStandalonePWA() && (
+        <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-2.5 py-1.5">
+          {t("notes.standaloneMicHint")}
+        </p>
+      )}
       {error && <p className="text-xs text-red-500">{error}</p>}
 
       {!blob ? (
