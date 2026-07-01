@@ -401,21 +401,28 @@ export default function CalendarView() {
               {headerTitle()}
             </button>
             {jumpOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setJumpOpen(false)} />
-                <div className="absolute z-50 mt-1 left-1/2 -translate-x-1/2 w-64 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-3">
+              <div
+                className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40"
+                role="dialog"
+                aria-modal="true"
+                onClick={() => setJumpOpen(false)}
+              >
+                <div
+                  className="w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {/* Year stepper */}
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <button type="button" onClick={() => setJumpYear((y) => y - 1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous year">
                       <ChevronLeft className="w-4 h-4 text-slate-500" />
                     </button>
-                    <span className="font-semibold text-slate-900 dark:text-white tabular-nums">{jumpYear}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white tabular-nums text-lg">{jumpYear}</span>
                     <button type="button" onClick={() => setJumpYear((y) => y + 1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next year">
                       <ChevronRight className="w-4 h-4 text-slate-500" />
                     </button>
                   </div>
                   {/* Month grid */}
-                  <div className="grid grid-cols-4 gap-1">
+                  <div className="grid grid-cols-4 gap-1.5">
                     {Array.from({ length: 12 }, (_, i) => {
                       const isCurrent = currentDate.getFullYear() === jumpYear && currentDate.getMonth() === i;
                       return (
@@ -424,7 +431,7 @@ export default function CalendarView() {
                           type="button"
                           onClick={() => jumpToMonth(jumpYear, i)}
                           className={cn(
-                            "text-xs py-1.5 rounded-lg transition-colors",
+                            "text-xs py-2 rounded-lg transition-colors",
                             isCurrent
                               ? "bg-blue-600 text-white font-semibold"
                               : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700",
@@ -436,7 +443,7 @@ export default function CalendarView() {
                     })}
                   </div>
                   {/* Exact date */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700">
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
                     <label className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 block">{t("calendar.jumpToDate")}</label>
                     <input
                       type="date"
@@ -446,7 +453,7 @@ export default function CalendarView() {
                     />
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
           <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next period">
