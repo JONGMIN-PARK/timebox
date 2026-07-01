@@ -1,15 +1,15 @@
 {
-  "version": "1.32.0",
+  "version": "1.32.1",
   "date": "2026-07-01",
   "highlights": [
-    "scheduler: AI 일정 최적화 + 시간 보호 (16ffaee)"
+    "mobile: 캘린더 헤더 2행 배치 + 플로팅 챗 버튼 위치 최적화 (52b48bb)"
   ],
   "changes": [
     {
-      "category": "신규 기능",
-      "emoji": "✨",
+      "category": "버그 수정",
+      "emoji": "🐛",
       "items": [
-        "scheduler: AI 일정 최적화 + 시간 보호 (16ffaee)"
+        "mobile: 캘린더 헤더 2행 배치 + 플로팅 챗 버튼 위치 최적화 (52b48bb)"
       ]
     }
   ]
