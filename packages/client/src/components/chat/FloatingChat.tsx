@@ -1068,7 +1068,7 @@ export default function FloatingChat() {
           zIndex: 45,
           ...(fabPos
             ? { left: fabPos.x, top: fabPos.y }
-            : { right: 16, bottom: "4.5rem" }),
+            : { right: 16, bottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }),
           // Disable transform transitions during drag
           transition: dragState.current?.dragging ? "none" : undefined,
         }}

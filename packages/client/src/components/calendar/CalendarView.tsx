@@ -358,13 +358,13 @@ export default function CalendarView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Navigation header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
-        <div className="flex items-center gap-2">
+      {/* Navigation header — stacks into two rows on mobile, single row on desktop */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-1 sm:gap-2">
           <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous period">
             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
-          <h2 className="font-semibold text-slate-900 dark:text-white min-w-[120px] text-center">
+          <h2 className="font-semibold text-slate-900 dark:text-white flex-1 sm:flex-none min-w-0 sm:min-w-[120px] text-center whitespace-nowrap">
             {headerTitle()}
           </h2>
           <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next period">
@@ -372,38 +372,40 @@ export default function CalendarView() {
           </button>
           <button
             onClick={() => { const today = new Date(); setCurrentDate(today); setSelectedDate(today); }}
-            className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 ml-1"
+            className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0"
           >
             {t("common.today")}
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setQuickAddOpen(true)}
-            className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60"
-            aria-label={t("ai.quickAddTitle")}
-            title={t("ai.quickAddTitle")}
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-            aria-label={t("calendar.searchTitle")}
-            title={t("calendar.searchTitle")}
-          >
-            <Search className="w-4 h-4" />
-          </button>
-          <select
-            value={projectFilter ?? ""}
-            onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : null)}
-            className="hidden sm:block text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none outline-none cursor-pointer max-w-[140px]"
-          >
-            <option value="">{t("calendar.allProjects")}</option>
-            {projects.filter((p) => !p.archived).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+        <div className="flex items-center gap-1.5 sm:gap-2 justify-between sm:justify-end">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={() => setQuickAddOpen(true)}
+              className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60"
+              aria-label={t("ai.quickAddTitle")}
+              title={t("ai.quickAddTitle")}
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+              aria-label={t("calendar.searchTitle")}
+              title={t("calendar.searchTitle")}
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <select
+              value={projectFilter ?? ""}
+              onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : null)}
+              className="hidden sm:block text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none outline-none cursor-pointer max-w-[140px]"
+            >
+              <option value="">{t("calendar.allProjects")}</option>
+              {projects.filter((p) => !p.archived).map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
             {(["month", "week", "day"] as ViewMode[]).map((mode) => (
               <button
