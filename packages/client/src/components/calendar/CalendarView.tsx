@@ -79,6 +79,8 @@ export default function CalendarView() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardingEventId, setForwardingEventId] = useState<number | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpYear, setJumpYear] = useState(new Date().getFullYear());
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -179,6 +181,29 @@ export default function CalendarView() {
     if (viewMode === "month") setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
     else if (viewMode === "week") setCurrentDate(direction === 1 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
     else setCurrentDate(direction === 1 ? addDays(currentDate, 1) : subDays(currentDate, 1));
+  };
+
+  const openJump = () => {
+    setJumpYear((selectedDate ?? currentDate).getFullYear());
+    setJumpOpen(true);
+  };
+
+  // Jump to a specific month (keeps the current view mode).
+  const jumpToMonth = (year: number, monthIndex: number) => {
+    const d = new Date(year, monthIndex, 1);
+    setCurrentDate(d);
+    if (viewMode === "day") setSelectedDate(d);
+    setJumpOpen(false);
+  };
+
+  // Jump to an exact date and select it.
+  const jumpToDate = (value: string) => {
+    if (!value) return;
+    const d = parseISO(value);
+    if (!isValid(d)) return;
+    setCurrentDate(d);
+    setSelectedDate(d);
+    setJumpOpen(false);
   };
 
   const headerTitle = () => {
@@ -364,9 +389,66 @@ export default function CalendarView() {
           <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous period">
             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
-          <h2 className="font-semibold text-slate-900 dark:text-white flex-1 sm:flex-none min-w-0 sm:min-w-[120px] text-center whitespace-nowrap">
-            {headerTitle()}
-          </h2>
+          <div className="relative flex-1 sm:flex-none min-w-0 sm:min-w-[120px]">
+            <button
+              type="button"
+              onClick={openJump}
+              className="w-full font-semibold text-slate-900 dark:text-white text-center whitespace-nowrap px-1 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+              aria-haspopup="dialog"
+              aria-expanded={jumpOpen}
+              title={t("calendar.jumpTo")}
+            >
+              {headerTitle()}
+            </button>
+            {jumpOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setJumpOpen(false)} />
+                <div className="absolute z-50 mt-1 left-1/2 -translate-x-1/2 w-64 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-3">
+                  {/* Year stepper */}
+                  <div className="flex items-center justify-between mb-2">
+                    <button type="button" onClick={() => setJumpYear((y) => y - 1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous year">
+                      <ChevronLeft className="w-4 h-4 text-slate-500" />
+                    </button>
+                    <span className="font-semibold text-slate-900 dark:text-white tabular-nums">{jumpYear}</span>
+                    <button type="button" onClick={() => setJumpYear((y) => y + 1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next year">
+                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                    </button>
+                  </div>
+                  {/* Month grid */}
+                  <div className="grid grid-cols-4 gap-1">
+                    {Array.from({ length: 12 }, (_, i) => {
+                      const isCurrent = currentDate.getFullYear() === jumpYear && currentDate.getMonth() === i;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => jumpToMonth(jumpYear, i)}
+                          className={cn(
+                            "text-xs py-1.5 rounded-lg transition-colors",
+                            isCurrent
+                              ? "bg-blue-600 text-white font-semibold"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700",
+                          )}
+                        >
+                          {format(new Date(2000, i, 1), "MMM", { locale: enUS })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Exact date */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700">
+                    <label className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 block">{t("calendar.jumpToDate")}</label>
+                    <input
+                      type="date"
+                      value={format(selectedDate ?? currentDate, "yyyy-MM-dd")}
+                      onChange={(e) => jumpToDate(e.target.value)}
+                      className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next period">
             <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
