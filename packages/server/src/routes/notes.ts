@@ -226,6 +226,71 @@ router.post("/:id/summarize", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true, data: updated });
 }));
 
+/** Audio containers Gemini accepts for inline transcription. */
+const GEMINI_AUDIO_MIME: Record<string, string> = {
+  ".mp3": "audio/mp3",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".oga": "audio/ogg",
+  ".m4a": "audio/mp4",
+  ".mp4": "audio/mp4",
+  ".aac": "audio/aac",
+  ".flac": "audio/flac",
+  ".webm": "audio/webm",
+};
+
+// POST /api/notes/:id/transcribe — AI transcription of a voice note into its content
+router.post("/:id/transcribe", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = parseInt(req.params.id as string);
+  if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
+  const userId = req.userId!;
+  const [note] = await db.select().from(notes).where(and(eq(notes.id, id), eq(notes.userId, userId)));
+  if (!note) throw new NotFoundError("Note");
+  if (note.type !== "voice" || !note.fileName) throw new ValidationError("Not a voice note");
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new AppError("AI is not configured", 503);
+
+  const ext = path.extname(note.fileName).toLowerCase();
+  const mimeType = GEMINI_AUDIO_MIME[ext];
+  if (!mimeType) throw new ValidationError(`Unsupported audio format: ${ext}`);
+
+  let audioB64: string;
+  try {
+    audioB64 = (await fs.promises.readFile(path.join(UPLOAD_DIR, note.fileName))).toString("base64");
+  } catch {
+    throw new NotFoundError("Note media");
+  }
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  const rawModel = user?.aiModel || "gemini-2.0-flash";
+  const modelName = DEPRECATED_MODELS[rawModel] || rawModel;
+
+  let transcript: string;
+  try {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({ model: modelName });
+    const prompt =
+      "이 오디오를 원문 그대로 받아써줘(전사). 화자의 말을 정확히 텍스트로 옮기고, 부연 설명·요약 없이 전사 내용만 출력해. 알아들을 수 없으면 빈 문자열을 반환해.";
+    const result = await model.generateContent([
+      { inlineData: { mimeType, data: audioB64 } },
+      { text: prompt },
+    ]);
+    transcript = result.response.text().trim();
+  } catch {
+    throw new AppError("Failed to transcribe audio", 502);
+  }
+  if (!transcript) throw new AppError("Empty transcript", 502);
+
+  // Store the transcript as the note's content so it becomes searchable/summarizable.
+  const [updated] = await db
+    .update(notes)
+    .set({ content: transcript, updatedAt: new Date().toISOString() })
+    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .returning();
+  res.json({ success: true, data: updated });
+}));
+
 // PUT /api/notes/:id — update a note
 router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);

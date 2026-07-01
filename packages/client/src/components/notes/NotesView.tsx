@@ -46,6 +46,7 @@ export default function NotesView() {
   const [confirm, setConfirm] = useState<{ id: number; permanent: boolean } | null>(null);
   const [query, setQuery] = useState("");
   const [summarizing, setSummarizing] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [forwarding, setForwarding] = useState<Note | null>(null);
   const [recipients, setRecipients] = useState<{ id: number; username: string; displayName: string | null }[]>([]);
   const [sendingTo, setSendingTo] = useState<number | null>(null);
@@ -141,6 +142,19 @@ export default function NotesView() {
       showToast("success", t("notes.summaryDone"));
     } else {
       showToast("error", res.error || t("notes.summaryFailed"));
+    }
+  }, [t]);
+
+  const transcribeNote = useCallback(async (note: Note) => {
+    setTranscribing(true);
+    const res = await api.post<Note>(`/notes/${note.id}/transcribe`, {});
+    setTranscribing(false);
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
+      setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+      showToast("success", t("notes.transcribeDone"));
+    } else {
+      showToast("error", res.error || t("notes.transcribeFailed"));
     }
   }, [t]);
 
@@ -654,8 +668,29 @@ export default function NotesView() {
                   className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                 />
               ) : (
-                <div onClick={(e) => e.stopPropagation()}>
+                <div onClick={(e) => e.stopPropagation()} className="space-y-2">
                   <NoteMedia noteId={editing.id} type={editing.type} />
+                  {editing.type === "voice" && (
+                    <div className="rounded-xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-900/10 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5" /> {t("notes.transcript")}
+                        </span>
+                        <button
+                          onClick={() => transcribeNote(editing)}
+                          disabled={transcribing}
+                          className="text-[11px] px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white"
+                        >
+                          {transcribing ? t("notes.transcribing") : editing.content.trim() ? t("notes.retranscribe") : t("notes.transcribe")}
+                        </button>
+                      </div>
+                      {editing.content.trim() ? (
+                        <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{editing.content}</p>
+                      ) : (
+                        <p className="text-[11px] text-slate-400">{t("notes.transcribeEmpty")}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {editing.type === "text" && (
