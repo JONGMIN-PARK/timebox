@@ -21,7 +21,7 @@ import { useTodoStore } from "@/stores/todoStore";
 import CalendarTodoAddModal from "@/components/calendar/CalendarTodoAddModal";
 import CalendarTodoEditModal from "@/components/calendar/CalendarTodoEditModal";
 import TimeStats from "./TimeStats";
-import { loadBrainItems, saveBrainItems, uid, type BrainItem } from "@/components/scheduler/elonStorage";
+import { loadBrainItems, saveBrainItems, fetchDayPlan, cacheDayPlanLocal, uid, type BrainItem } from "@/components/scheduler/elonStorage";
 import type { CalendarEvent, Todo } from "@timebox/shared";
 
 const HOUR_HEIGHT = 60; // px per hour
@@ -315,6 +315,16 @@ export default function TimeBoxView() {
 
   useEffect(() => {
     setBrainItems(loadBrainItems(selectedDate));
+    // Reconcile the brain dump with the server (shared with the scheduler).
+    let cancelled = false;
+    void fetchDayPlan(selectedDate).then((dp) => {
+      if (cancelled || !dp || !dp.exists) return;
+      setBrainItems(dp.brain);
+      cacheDayPlanLocal(selectedDate, { brain: dp.brain, top3: dp.top3, memo: dp.memo });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedDate]);
 
   useEffect(() => {

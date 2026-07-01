@@ -75,9 +75,73 @@ function safeSave(key: string, value: string) {
   }
 }
 
+/** Auth token used by the shared api client (see lib/api.ts). */
+function authToken(): string | null {
+  try {
+    return localStorage.getItem("timebox_token");
+  } catch {
+    return null;
+  }
+}
+
 const brainKey = (d: string) => `tb_brain_${d}`;
 const top3Key = (d: string) => `tb_top3_${d}`;
+const memoKey = (d: string) => `tb_memo_${d}`;
 const oldPriorityKey = (d: string) => `tb_priority_${d}`;
+
+/** Server-backed day plan (brain dump + Top 3 + memo). Falls back to the
+ * localStorage cache below when offline or unauthenticated. */
+export interface DayPlan {
+  exists: boolean;
+  brain: BrainItem[];
+  top3: Top3Tuple;
+  memo: string;
+}
+
+/** Fire-and-forget partial sync of the day plan to the server. */
+function syncDayPlan(date: string, patch: Partial<{ brain: BrainItem[]; top3: Top3Tuple; memo: string }>) {
+  const token = authToken();
+  if (!token) return;
+  fetch(`/api/dayplan/${date}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(patch),
+  }).catch(() => {
+    /* offline — localStorage cache still holds the change */
+  });
+}
+
+/** Load the authoritative day plan from the server (null if offline/unauth). */
+export async function fetchDayPlan(date: string): Promise<DayPlan | null> {
+  const token = authToken();
+  if (!token) return null;
+  try {
+    const r = await fetch(`/api/dayplan/${date}`, { headers: { Authorization: `Bearer ${token}` } });
+    const j = await r.json();
+    if (!j?.success || !j.data) return null;
+    const d = j.data;
+    return {
+      exists: !!d.exists,
+      brain: Array.isArray(d.brain) ? (d.brain as BrainItem[]) : [],
+      top3: [d.top3?.[0] ?? "", d.top3?.[1] ?? "", d.top3?.[2] ?? ""],
+      memo: typeof d.memo === "string" ? d.memo : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Push the full local day plan to the server (used for first-time migration). */
+export function pushDayPlan(date: string, plan: { brain: BrainItem[]; top3: Top3Tuple; memo: string }) {
+  syncDayPlan(date, plan);
+}
+
+/** Refresh the localStorage cache from server data WITHOUT syncing back. */
+export function cacheDayPlanLocal(date: string, plan: { brain: BrainItem[]; top3: Top3Tuple; memo: string }) {
+  safeSave(brainKey(date), JSON.stringify(plan.brain));
+  safeSave(top3Key(date), JSON.stringify(plan.top3));
+  safeSave(memoKey(date), plan.memo);
+}
 
 export function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -122,6 +186,7 @@ export function loadBrainItems(date: string): BrainItem[] {
 
 export function saveBrainItems(date: string, items: BrainItem[]) {
   safeSave(brainKey(date), JSON.stringify(items));
+  syncDayPlan(date, { brain: items });
 }
 
 export type Top3Tuple = [string, string, string];
@@ -143,6 +208,20 @@ export function loadTop3(date: string): Top3Tuple {
 
 export function saveTop3(date: string, slots: Top3Tuple) {
   safeSave(top3Key(date), JSON.stringify(slots));
+  syncDayPlan(date, { top3: slots });
+}
+
+export function loadMemo(date: string): string {
+  try {
+    return localStorage.getItem(memoKey(date)) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveMemo(date: string, memo: string) {
+  safeSave(memoKey(date), memo);
+  syncDayPlan(date, { memo });
 }
 
 export const DAY_START_MIN = 5 * 60;
@@ -197,7 +276,7 @@ export function loadDaySketch(date: string): FreehandSketchStroke[] {
     } catch { /* fall through */ }
   }
   // If no local data, try loading from server in background
-  const token = localStorage.getItem("token");
+  const token = authToken();
   if (token) {
     fetch(`/api/sketches/${date}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -217,7 +296,7 @@ export function saveDaySketch(date: string, strokes: FreehandSketchStroke[]): vo
   // Keep localStorage for instant cache
   safeSave(sketchKey(date), JSON.stringify(strokes));
   // Async sync to server (fire-and-forget)
-  const token = localStorage.getItem("token");
+  const token = authToken();
   if (token) {
     fetch(`/api/sketches/${date}`, {
       method: "PUT",

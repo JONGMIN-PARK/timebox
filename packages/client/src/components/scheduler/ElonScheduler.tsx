@@ -52,6 +52,11 @@ import {
   saveBrainItems,
   loadTop3,
   saveTop3,
+  loadMemo,
+  saveMemo,
+  fetchDayPlan,
+  pushDayPlan,
+  cacheDayPlanLocal,
   uid,
   DAY_START_MIN,
   DAY_END_MIN,
@@ -298,6 +303,7 @@ export default function ElonScheduler() {
   const [editMode, setEditMode] = useState(false);
   const top3Debounce = useRef<ReturnType<typeof setTimeout>>();
   const sketchDebounce = useRef<ReturnType<typeof setTimeout>>();
+  const memoDebounce = useRef<ReturnType<typeof setTimeout>>();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -327,15 +333,33 @@ export default function ElonScheduler() {
 
   useEffect(() => {
     void fetchBlocks(selectedDate);
-    setBrainItems(loadBrainItems(selectedDate));
-    setTop3(loadTop3(selectedDate));
+    // Instant render from the local cache…
+    const cachedBrain = loadBrainItems(selectedDate);
+    const cachedTop3 = loadTop3(selectedDate);
+    const cachedMemo = loadMemo(selectedDate);
+    setBrainItems(cachedBrain);
+    setTop3(cachedTop3);
+    setMemoText(cachedMemo);
     setSketchStrokes(loadDaySketch(selectedDate));
     setSketchMode(false);
-    try {
-      setMemoText(localStorage.getItem(`tb_memo_${selectedDate}`) || "");
-    } catch {
-      setMemoText("");
-    }
+    // …then reconcile with the server (source of truth across devices).
+    let cancelled = false;
+    void fetchDayPlan(selectedDate).then((dp) => {
+      if (cancelled || !dp) return;
+      if (dp.exists) {
+        setBrainItems(dp.brain);
+        setTop3(dp.top3);
+        setMemoText(dp.memo);
+        // Refresh the local cache to match the server (no write-back).
+        cacheDayPlanLocal(selectedDate, dp);
+      } else if (cachedBrain.length || cachedTop3.some(Boolean) || cachedMemo) {
+        // No server row yet but we have local-only data → migrate it up once.
+        pushDayPlan(selectedDate, { brain: cachedBrain, top3: cachedTop3, memo: cachedMemo });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedDate]);
 
   const sortedBlocks = useMemo(
@@ -693,7 +717,8 @@ export default function ElonScheduler() {
 
   const handleMemoChange = (val: string) => {
     setMemoText(val);
-    safeSave(`tb_memo_${selectedDate}`, val);
+    if (memoDebounce.current) clearTimeout(memoDebounce.current);
+    memoDebounce.current = setTimeout(() => saveMemo(selectedDate, val), 400);
   };
 
   return (
