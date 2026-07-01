@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -52,6 +52,49 @@ export default function NotesView() {
   const [noteColor, setNoteColor] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("updated");
+  const [converting, setConverting] = useState<Note | null>(null);
+  const [convRemindAt, setConvRemindAt] = useState("");
+  const [convDate, setConvDate] = useState("");
+  const [convStart, setConvStart] = useState("09:00");
+  const [convEnd, setConvEnd] = useState("10:00");
+  const [convBusy, setConvBusy] = useState(false);
+
+  useEffect(() => {
+    if (!converting) return;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const soon = new Date(Date.now() + 60 * 60 * 1000);
+    setConvRemindAt(`${soon.getFullYear()}-${pad(soon.getMonth() + 1)}-${pad(soon.getDate())}T${pad(soon.getHours())}:${pad(soon.getMinutes())}`);
+    const today = new Date();
+    setConvDate(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
+    setConvStart("09:00");
+    setConvEnd("10:00");
+  }, [converting]);
+
+  const noteTitleOf = useCallback((n: Note) => (n.title?.trim() || n.content.split("\n")[0].slice(0, 80) || t("notes.title")), [t]);
+
+  const convertToTodo = useCallback(async () => {
+    if (!converting) return;
+    setConvBusy(true);
+    const res = await api.post("/todos", { title: noteTitleOf(converting), category: "personal", priority: "medium", memo: converting.content.slice(0, 1000) || null });
+    setConvBusy(false);
+    if (res.success) { setConverting(null); showToast("success", t("notes.convertedTodo")); } else showToast("error", res.error || t("notes.convertFailed"));
+  }, [converting, noteTitleOf, t]);
+
+  const convertToReminder = useCallback(async () => {
+    if (!converting || !convRemindAt) return;
+    setConvBusy(true);
+    const res = await api.post("/reminders", { title: noteTitleOf(converting), remindAt: new Date(convRemindAt).toISOString(), message: converting.content.slice(0, 500) || null, channel: "web_push" });
+    setConvBusy(false);
+    if (res.success) { setConverting(null); window.dispatchEvent(new Event("reminders-updated")); showToast("success", t("notes.convertedReminder")); } else showToast("error", res.error || t("notes.convertFailed"));
+  }, [converting, convRemindAt, noteTitleOf, t]);
+
+  const convertToEvent = useCallback(async () => {
+    if (!converting || !convDate) return;
+    setConvBusy(true);
+    const res = await api.post("/events", { title: noteTitleOf(converting), startTime: `${convDate}T${convStart}:00`, endTime: `${convDate}T${convEnd}:00`, allDay: false, description: converting.content.slice(0, 500) || undefined });
+    setConvBusy(false);
+    if (res.success) { setConverting(null); showToast("success", t("notes.convertedEvent")); } else showToast("error", res.error || t("notes.convertFailed"));
+  }, [converting, convDate, convStart, convEnd, noteTitleOf, t]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -638,6 +681,9 @@ export default function NotesView() {
               )}
             </div>
             <div className="flex flex-wrap gap-2 p-4 border-t border-slate-100 dark:border-slate-800">
+              <button onClick={() => setConverting(editing)} className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm flex items-center gap-1">
+                <ArrowRightLeft className="w-4 h-4" /> {t("notes.convert")}
+              </button>
               <button onClick={() => setForwarding(editing)} className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm flex items-center gap-1">
                 <Send className="w-4 h-4" /> {t("notes.forward")}
               </button>
@@ -726,6 +772,93 @@ export default function NotesView() {
                   </button>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Convert modal — turn a note into a todo / reminder / event */}
+      {converting && (
+        <div
+          className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !convBusy && setConverting(null)}
+        >
+          <div
+            className="w-full sm:max-w-sm bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col max-h-[85dvh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <ArrowRightLeft className="w-4 h-4 text-blue-500" /> {t("notes.convertTitle")}
+              </h3>
+              <button onClick={() => setConverting(null)} disabled={convBusy} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{noteTitleOf(converting)}</p>
+
+              {/* Todo */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CheckSquare className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span className="text-sm text-slate-700 dark:text-slate-200 truncate">{t("notes.convertTodo")}</span>
+                </div>
+                <button onClick={convertToTodo} disabled={convBusy} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white shrink-0">
+                  {t("notes.convertDo")}
+                </button>
+              </div>
+
+              {/* Reminder */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-sm text-slate-700 dark:text-slate-200">{t("notes.convertReminder")}</span>
+                </div>
+                <input
+                  type="datetime-local"
+                  value={convRemindAt}
+                  onChange={(e) => setConvRemindAt(e.target.value)}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button onClick={convertToReminder} disabled={convBusy || !convRemindAt} className="w-full text-xs px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white">
+                  {t("notes.convertDo")}
+                </button>
+              </div>
+
+              {/* Event */}
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <CalendarPlus className="w-4 h-4 text-blue-500 shrink-0" />
+                  <span className="text-sm text-slate-700 dark:text-slate-200">{t("notes.convertEvent")}</span>
+                </div>
+                <input
+                  type="date"
+                  value={convDate}
+                  onChange={(e) => setConvDate(e.target.value)}
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={convStart}
+                    onChange={(e) => setConvStart(e.target.value)}
+                    className="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-slate-400 text-sm">–</span>
+                  <input
+                    type="time"
+                    value={convEnd}
+                    onChange={(e) => setConvEnd(e.target.value)}
+                    className="flex-1 text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button onClick={convertToEvent} disabled={convBusy || !convDate} className="w-full text-xs px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white">
+                  {t("notes.convertDo")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
