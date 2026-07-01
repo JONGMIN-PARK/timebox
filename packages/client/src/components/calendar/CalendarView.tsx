@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useEventStore } from "@/stores/eventStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { useTodoStore } from "@/stores/todoStore";
@@ -22,9 +22,11 @@ import {
   isValid,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X, Repeat, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Repeat, Search, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
+import { useSocketEvent } from "@/lib/SocketProvider";
 import { usePageVisible } from "@/lib/useVisibility";
 import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendarTypes";
 import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
@@ -40,6 +42,7 @@ import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
 import CalendarSearchPanel from "./CalendarSearchPanel";
+import RecipientPickerModal from "@/components/common/RecipientPickerModal";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -73,6 +76,7 @@ export default function CalendarView() {
   const [todoEditModalOpen, setTodoEditModalOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<AppTodo | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [forwardingEventId, setForwardingEventId] = useState<number | null>(null);
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -227,6 +231,28 @@ export default function CalendarView() {
     const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
     const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
+  };
+
+  // Live-refresh the calendar when someone forwards an event/to-do to me.
+  useSocketEvent(
+    "events:updated",
+    useCallback(() => {
+      const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
+      const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
+      fetchEvents(start, end);
+    }, [rangeStart, rangeEnd, fetchEvents]),
+  );
+  useSocketEvent("todos:updated", useCallback(() => fetchTodos(), [fetchTodos]));
+
+  const forwardEvent = async (toUserId: number): Promise<boolean> => {
+    if (forwardingEventId == null) return false;
+    const res = await api.post(`/events/${forwardingEventId}/forward`, { toUserId });
+    if (res.success) {
+      showToast("success", t("calendar.forwarded"));
+      return true;
+    }
+    showToast("error", res.error || t("calendar.forwardFailed"));
+    return false;
   };
 
   const handleDeleteEvent = async (id: number) => {
@@ -526,6 +552,16 @@ export default function CalendarView() {
             </div>
             </div>
             <div className="flex-shrink-0 flex gap-2 px-5 py-3 border-t border-slate-100 dark:border-slate-700/50">
+              {editingEventId && (
+                <button
+                  type="button"
+                  onClick={() => setForwardingEventId(editingEventId)}
+                  className="py-2.5 px-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm rounded-lg flex items-center gap-1"
+                  title={t("calendar.forward")}
+                >
+                  <Send className="w-4 h-4" /> {t("calendar.forward")}
+                </button>
+              )}
               <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{editingEventId ? t("common.save") : t("common.add")}</button>
               <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
             </div>
@@ -540,6 +576,13 @@ export default function CalendarView() {
         projectNameById={projectNameById}
         onEditEvent={handleEditEvent}
         onEditTodo={handleEditTodo}
+      />
+
+      <RecipientPickerModal
+        open={forwardingEventId != null}
+        title={t("calendar.forwardEventTitle")}
+        onClose={() => setForwardingEventId(null)}
+        onForward={forwardEvent}
       />
 
       <CalendarTodoAddModal

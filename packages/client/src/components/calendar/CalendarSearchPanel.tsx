@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, X, Calendar as CalIcon, CheckSquare, Repeat } from "lucide-react";
+import { Search, X, Calendar as CalIcon, CheckSquare, Repeat, ArrowDownUp } from "lucide-react";
 import { format, parseISO, isValid } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { eventApi } from "@/lib/apiService";
@@ -9,6 +9,7 @@ import { getCategoryInfo } from "@/lib/categories";
 import type { CalendarEvent, Todo } from "./calendarTypes";
 
 type Kind = "all" | "event" | "todo";
+type SortBy = "dateDesc" | "dateAsc" | "title" | "type";
 
 /** Wrap occurrences of `q` in `text` with a highlight marker (case-insensitive). */
 function highlight(text: string, q: string) {
@@ -76,6 +77,7 @@ export default function CalendarSearchPanel({
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("dateDesc");
 
   // Pull the full event set (not just the visible range) whenever the panel opens.
   useEffect(() => {
@@ -136,10 +138,24 @@ export default function CalendarSearchPanel({
       }
     }
 
-    // Most recent / upcoming first; undated todos (MAX_SAFE_INTEGER) surface at the top.
-    out.sort((a, b) => b.sortAt - a.sortAt);
+    out.sort((a, b) => {
+      switch (sortBy) {
+        case "dateAsc":
+          return a.sortAt - b.sortAt;
+        case "title":
+          return a.title.localeCompare(b.title);
+        case "type":
+          // Events first, then to-dos; each group by most recent date.
+          if (a.kind !== b.kind) return a.kind === "event" ? -1 : 1;
+          return b.sortAt - a.sortAt;
+        case "dateDesc":
+        default:
+          // Most recent / upcoming first; undated todos surface at the top.
+          return b.sortAt - a.sortAt;
+      }
+    });
     return out;
-  }, [events, todos, query, kind]);
+  }, [events, todos, query, kind, sortBy]);
 
   if (!open) return null;
 
@@ -200,7 +216,20 @@ export default function CalendarSearchPanel({
                 {f.label}
               </button>
             ))}
-            <span className="ml-auto text-[11px] text-slate-400 tabular-nums">{rows.length}</span>
+            <div className="ml-auto flex items-center gap-1 text-slate-400">
+              <ArrowDownUp className="w-3.5 h-3.5" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
+                className="text-[11px] bg-transparent outline-none text-slate-500 dark:text-slate-400 cursor-pointer"
+              >
+                <option value="dateDesc">{t("calendar.sortDateDesc")}</option>
+                <option value="dateAsc">{t("calendar.sortDateAsc")}</option>
+                <option value="title">{t("calendar.sortTitle")}</option>
+                <option value="type">{t("calendar.sortType")}</option>
+              </select>
+              <span className="text-[11px] tabular-nums">{rows.length}</span>
+            </div>
           </div>
         </div>
 

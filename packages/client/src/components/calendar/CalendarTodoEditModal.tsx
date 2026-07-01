@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { X, CalendarDays, Clock, Circle, CheckCircle2 } from "lucide-react";
+import { X, CalendarDays, Clock, Circle, CheckCircle2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
+import { showToast } from "@/components/ui/Toast";
 import { TodoCategoryPicker } from "@/components/todo/TodoCategoryPicker";
 import { ProjectPicker } from "@/components/project/ProjectPicker";
+import RecipientPickerModal from "@/components/common/RecipientPickerModal";
 import type { Todo, TodoStatus } from "@timebox/shared";
 import type { CalendarTodoAddValues } from "./CalendarTodoAddModal";
 
@@ -30,6 +33,7 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
   const [projectId, setProjectId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [forwardOpen, setForwardOpen] = useState(false);
 
   useEffect(() => {
     if (!open || !todo) return;
@@ -62,6 +66,16 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
 
   if (!open || !todo) return null;
 
+  const forwardTodo = async (toUserId: number): Promise<boolean> => {
+    const res = await api.post(`/todos/${todo.id}/forward`, { toUserId });
+    if (res.success) {
+      showToast("success", t("calendar.forwarded"));
+      return true;
+    }
+    showToast("error", res.error || t("calendar.forwardFailed"));
+    return false;
+  };
+
   const buildDueDate = (): string => {
     if (!dueDateOnly) return new Date().toISOString().slice(0, 10);
     if (dueTime) return `${dueDateOnly}T${dueTime}`;
@@ -89,6 +103,7 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center sm:bg-black/50 sm:p-4" role="dialog" aria-modal="true" onClick={onClose}>
       <form
         onSubmit={handleSubmit}
@@ -216,6 +231,14 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
         </div>
         <div className="flex-shrink-0 flex gap-2 px-5 py-3 border-t border-slate-100 dark:border-slate-700/50">
           <button
+            type="button"
+            onClick={() => setForwardOpen(true)}
+            className="py-2.5 px-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm rounded-lg flex items-center gap-1"
+            title={t("calendar.forward")}
+          >
+            <Send className="w-4 h-4" /> {t("calendar.forward")}
+          </button>
+          <button
             type="submit"
             disabled={!title.trim() || submitting}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium rounded-lg"
@@ -228,5 +251,13 @@ export default function CalendarTodoEditModal({ open, todo, onClose, onSave }: C
         </div>
       </form>
     </div>
+
+      <RecipientPickerModal
+        open={forwardOpen}
+        title={t("calendar.forwardTodoTitle")}
+        onClose={() => setForwardOpen(false)}
+        onForward={forwardTodo}
+      />
+    </>
   );
 }

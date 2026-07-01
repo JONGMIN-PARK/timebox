@@ -265,6 +265,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.searchNoDate": "No date",
     "calendar.searchEmpty": "Type to search, or browse everything below.",
     "calendar.searchNoResults": "No matching events or to-dos.",
+    "calendar.sortDateDesc": "Newest",
+    "calendar.sortDateAsc": "Oldest",
+    "calendar.sortTitle": "Title",
+    "calendar.sortType": "Type",
+    "calendar.forward": "Send",
+    "calendar.forwardEventTitle": "Send event to…",
+    "calendar.forwardTodoTitle": "Send to-do to…",
+    "calendar.forwarded": "Sent",
+    "calendar.forwardFailed": "Failed to send",
 
     // Settings extras
     "settings.quietHours": "Quiet Hours",
@@ -938,6 +947,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.searchNoDate": "\ub0a0\uc9dc \uc5c6\uc74c",
     "calendar.searchEmpty": "\uac80\uc0c9\uc5b4\ub97c \uc785\ub825\ud558\uac70\ub098 \uc544\ub798 \uc804\uccb4 \ubaa9\ub85d\uc744 \ud655\uc778\ud558\uc138\uc694.",
     "calendar.searchNoResults": "\uc77c\uce58\ud558\ub294 \uc77c\uc815\uc774\ub098 \ud560\uc77c\uc774 \uc5c6\uc5b4\uc694.",
+    "calendar.sortDateDesc": "\ucd5c\uc2e0\uc21c",
+    "calendar.sortDateAsc": "\uc624\ub798\ub41c\uc21c",
+    "calendar.sortTitle": "\uc81c\ubaa9\uc21c",
+    "calendar.sortType": "\uc720\ud615\uc21c",
+    "calendar.forward": "\uc804\ub2ec",
+    "calendar.forwardEventTitle": "\uc77c\uc815 \uc804\ub2ec\ud560 \uc0ac\ub78c",
+    "calendar.forwardTodoTitle": "\ud560\uc77c \uc804\ub2ec\ud560 \uc0ac\ub78c",
+    "calendar.forwarded": "\uc804\ub2ec\ud588\uc5b4\uc694",
+    "calendar.forwardFailed": "\uc804\ub2ec\uc5d0 \uc2e4\ud328\ud588\uc5b4\uc694",
 
     // Settings extras
     "settings.quietHours": "\ubc29\ud574 \uae08\uc9c0 \uc2dc\uac04",

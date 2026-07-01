@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { todos } from "../db/schema.js";
+import { todos, users, inboxMessages } from "../db/schema.js";
 import { eq, and, asc, desc, sql, isNull, isNotNull } from "drizzle-orm";
-import { type AuthRequest } from "../middleware/auth.js";
+import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { resolveOptionalProjectId } from "../lib/projectAccess.js";
+import { emitToUser, emitInboxUpdate } from "../socket/index.js";
 
 const router = Router();
 
@@ -176,6 +177,72 @@ router.post("/", validate(schemas.createTodo), asyncHandler<AuthRequest>(async (
   const result = await db.insert(todos).values(values as typeof todos.$inferInsert).returning();
 
   res.status(201).json({ success: true, data: withStatus(result[0]) });
+}));
+
+// POST /api/todos/:id/forward — copy a to-do into another user's list
+router.post("/:id/forward", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = safeParseId(req.params.id);
+  if (!id) throw new ValidationError("Invalid ID");
+  const fromUserId = req.userId!;
+  const targetId = Number(req.body.toUserId);
+  if (!targetId || Number.isNaN(targetId)) throw new ValidationError("toUserId is required");
+  if (targetId === fromUserId) throw new ValidationError("Cannot forward to yourself");
+
+  const hasStatus = await checkStatusColumn();
+  await ensureDeletedAtColumn();
+  await ensureMemoColumn();
+
+  const [todo] = await db.select().from(todos).where(and(eq(todos.id, id), eq(todos.userId, fromUserId), notTrashed()));
+  if (!todo) throw new NotFoundError("Todo");
+  const [target] = await db.select().from(users).where(and(eq(users.id, targetId), eq(users.active, true)));
+  if (!target) throw new NotFoundError("Recipient");
+
+  const maxOrder = await db
+    .select({ max: sql<number>`COALESCE(MAX(sort_order), 0)` })
+    .from(todos)
+    .where(and(eq(todos.userId, targetId), notTrashed()));
+
+  // Copy as a fresh, active to-do owned by the recipient. Category/dueDate/memo
+  // carry over; project reference is dropped (membership differs).
+  const values: Record<string, unknown> = {
+    userId: targetId,
+    title: todo.title,
+    priority: todo.priority || "medium",
+    category: todo.category || "personal",
+    dueDate: todo.dueDate || null,
+    parentId: null,
+    sortOrder: (maxOrder[0]?.max || 0) + 1,
+    completed: false,
+    progress: 0,
+    projectId: null,
+    memo: todo.memo || null,
+  };
+  if (hasStatus) values.status = "active";
+
+  const [copy] = await db.insert(todos).values(values as typeof todos.$inferInsert).returning();
+
+  // Notify the recipient via their inbox.
+  const [sender] = await db
+    .select({ displayName: users.displayName, username: users.username })
+    .from(users)
+    .where(eq(users.id, fromUserId));
+  const fromName = sender?.displayName || sender?.username || "Someone";
+  const due = todo.dueDate ? `\n🗓 ${todo.dueDate.slice(0, 10)}` : "";
+  const [msg] = await db
+    .insert(inboxMessages)
+    .values({
+      fromUserId,
+      toUserId: targetId,
+      subject: `✅ ${fromName}님이 할일을 보냈습니다`,
+      content: `${todo.title}${due}`,
+      type: "system",
+    })
+    .returning();
+  emitToUser(targetId, "inbox:new-message", { message: msg, fromName });
+  emitInboxUpdate(targetId);
+  emitToUser(targetId, "todos:updated", { reason: "forward" });
+
+  res.status(201).json({ success: true, data: withStatus(copy) });
 }));
 
 router.put("/reorder", asyncHandler<AuthRequest>(async (req, res) => {
