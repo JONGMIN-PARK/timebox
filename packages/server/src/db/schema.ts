@@ -452,6 +452,8 @@ export const notes = pgTable("notes", {
   content: text("content").notNull().default(""),
   /** Optional stored file (voice clip / drawing image) — references files.storedName. */
   fileName: text("file_name"),
+  /** AI-generated summary of the note content (nullable until requested). */
+  summary: text("summary"),
   color: text("color"),
   pinned: boolean("pinned").notNull().default(false),
   /** ISO timestamp when moved to trash (soft delete); null = active. */

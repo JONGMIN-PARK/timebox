@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -18,6 +18,7 @@ interface Note {
   title: string | null;
   content: string;
   fileName: string | null;
+  summary: string | null;
   color: string | null;
   pinned: boolean;
   createdAt: string;
@@ -37,6 +38,51 @@ export default function NotesView() {
   const [showTrash, setShowTrash] = useState(false);
   const [trashed, setTrashed] = useState<Note[]>([]);
   const [confirm, setConfirm] = useState<{ id: number; permanent: boolean } | null>(null);
+  const [query, setQuery] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
+  const [forwarding, setForwarding] = useState<Note | null>(null);
+  const [recipients, setRecipients] = useState<{ id: number; username: string; displayName: string | null }[]>([]);
+  const [sendingTo, setSendingTo] = useState<number | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return notes;
+    return notes.filter((n) =>
+      [n.title, n.content, n.summary].some((f) => f && f.toLowerCase().includes(q)),
+    );
+  }, [notes, query]);
+
+  useEffect(() => {
+    if (!forwarding) return;
+    api.get<{ id: number; username: string; displayName: string | null }[]>("/inbox/users").then((res) => {
+      if (res.success && res.data) setRecipients(res.data);
+    });
+  }, [forwarding]);
+
+  const forwardNote = useCallback(async (note: Note, toUserId: number) => {
+    setSendingTo(toUserId);
+    const res = await api.post(`/notes/${note.id}/forward`, { toUserId });
+    setSendingTo(null);
+    if (res.success) {
+      setForwarding(null);
+      showToast("success", t("notes.forwarded"));
+    } else {
+      showToast("error", res.error || t("notes.forwardFailed"));
+    }
+  }, [t]);
+
+  const summarizeNote = useCallback(async (note: Note) => {
+    setSummarizing(true);
+    const res = await api.post<Note>(`/notes/${note.id}/summarize`, {});
+    setSummarizing(false);
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
+      setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+      showToast("success", t("notes.summaryDone"));
+    } else {
+      showToast("error", res.error || t("notes.summaryFailed"));
+    }
+  }, [t]);
 
   const uploadMedia = useCallback(async (type: "voice" | "drawing", blob: Blob, ext: string, title: string) => {
     const token = localStorage.getItem("timebox_token");
@@ -208,6 +254,30 @@ export default function NotesView() {
         )}
       </div>
 
+      {/* Search */}
+      {!showTrash && (
+        <div className="px-4 pt-3 flex-shrink-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("notes.searchPlaceholder")}
+              className="w-full text-sm pl-9 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                aria-label={t("common.cancel")}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         {showTrash ? (
           trashed.length === 0 ? (
@@ -281,14 +351,14 @@ export default function NotesView() {
         {/* List */}
         {loading ? (
           <p className="text-center text-xs text-slate-400 py-8">{t("common.loading")}</p>
-        ) : notes.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-slate-400">
             <StickyNote className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
-            <p className="text-sm">{t("notes.empty")}</p>
+            <p className="text-sm">{query.trim() ? t("notes.noResults") : t("notes.empty")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {notes.map((note) => (
+            {filtered.map((note) => (
               <div
                 key={note.id}
                 className={cn(
@@ -326,6 +396,12 @@ export default function NotesView() {
                   <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                     <NoteMedia noteId={note.id} type={note.type} />
                   </div>
+                )}
+                {note.summary && (
+                  <p className="text-[10px] text-blue-600 dark:text-blue-300 bg-blue-50/60 dark:bg-blue-900/20 rounded-md px-2 py-1 mt-2 line-clamp-3 flex items-start gap-1">
+                    <Sparkles className="w-3 h-3 shrink-0 mt-0.5" />
+                    <span className="min-w-0">{note.summary}</span>
+                  </p>
                 )}
                 <p className="text-[10px] text-slate-400 mt-2 tabular-nums flex items-center gap-1">
                   {note.type === "voice" && <Mic className="w-3 h-3" />}
@@ -379,8 +455,32 @@ export default function NotesView() {
                   <NoteMedia noteId={editing.id} type={editing.type} />
                 </div>
               )}
+              {editing.type === "text" && (
+                <div className="rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-900/10 p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-medium text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5" /> {t("notes.aiSummary")}
+                    </span>
+                    <button
+                      onClick={() => summarizeNote(editing)}
+                      disabled={summarizing || !editing.content.trim()}
+                      className="text-[11px] px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white"
+                    >
+                      {summarizing ? t("notes.summarizing") : editing.summary ? t("notes.resummarize") : t("notes.summarize")}
+                    </button>
+                  </div>
+                  {editing.summary ? (
+                    <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{editing.summary}</p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">{t("notes.summaryEmpty")}</p>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="flex gap-2 p-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-wrap gap-2 p-4 border-t border-slate-100 dark:border-slate-800">
+              <button onClick={() => setForwarding(editing)} className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm flex items-center gap-1">
+                <Send className="w-4 h-4" /> {t("notes.forward")}
+              </button>
               <button onClick={() => requestDelete(editing.id, false)} className="px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 text-red-600 text-sm flex items-center gap-1">
                 <Trash2 className="w-4 h-4" /> {t("common.delete")}
               </button>
@@ -422,6 +522,53 @@ export default function NotesView() {
               <button onClick={doDelete} className={cn("flex-1 py-2.5 rounded-xl text-white text-sm font-medium", confirm.permanent ? "bg-red-600 hover:bg-red-500" : "bg-amber-600 hover:bg-amber-500")}>
                 {confirm.permanent ? t("notes.deleteForever") : t("notes.moveToTrash")}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forward modal */}
+      {forwarding && (
+        <div
+          className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setForwarding(null)}
+        >
+          <div
+            className="w-full sm:max-w-sm bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col max-h-[80dvh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Send className="w-4 h-4 text-blue-500" /> {t("notes.forwardTitle")}
+              </h3>
+              <button onClick={() => setForwarding(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-2 overflow-y-auto">
+              {recipients.length === 0 ? (
+                <p className="text-xs text-slate-400 text-center py-6">{t("notes.noRecipients")}</p>
+              ) : (
+                recipients.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => forwardNote(forwarding, u.id)}
+                    disabled={sendingTo != null}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 text-left"
+                  >
+                    <span className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white shrink-0">
+                      {(u.displayName || u.username || "U")[0].toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm text-slate-900 dark:text-white truncate">{u.displayName || u.username}</span>
+                      <span className="block text-[11px] text-slate-400 truncate">@{u.username}</span>
+                    </span>
+                    {sendingTo === u.id && <span className="text-[11px] text-blue-500">…</span>}
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
