@@ -1,15 +1,15 @@
 {
-  "version": "1.28.0",
+  "version": "1.29.0",
   "date": "2026-07-01",
   "highlights": [
-    "scheduler: 브레인덤프·Top3·메모를 서버에 저장 (기기 종속 제거) (bdaf8f2)"
+    "calendar: 일정·할일 전체 목록 보기 및 검색 패널 추가 (142f0f8)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "scheduler: 브레인덤프·Top3·메모를 서버에 저장 (기기 종속 제거) (bdaf8f2)"
+        "calendar: 일정·할일 전체 목록 보기 및 검색 패널 추가 (142f0f8)"
       ]
     }
   ]
