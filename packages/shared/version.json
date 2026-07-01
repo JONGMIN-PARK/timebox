@@ -1,15 +1,15 @@
 {
-  "version": "1.24.0",
+  "version": "1.25.0",
   "date": "2026-07-01",
   "highlights": [
-    "notes: 정리/구성 — 색상 라벨 + 타입 필터 + 정렬 (Phase 1) (a86de94)"
+    "notes: 편집 강화 — 체크리스트/자동저장/전체화면 + iOS 녹음 안내 (Phase 2) (dc646f9)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "notes: 정리/구성 — 색상 라벨 + 타입 필터 + 정렬 (Phase 1) (a86de94)"
+        "notes: 편집 강화 — 체크리스트/자동저장/전체화면 + iOS 녹음 안내 (Phase 2) (dc646f9)"
       ]
     }
   ]
