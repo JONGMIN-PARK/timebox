@@ -1,15 +1,15 @@
 {
-  "version": "1.27.0",
+  "version": "1.28.0",
   "date": "2026-07-01",
   "highlights": [
-    "notes: 음성 전사 — 녹음을 AI로 텍스트 전사 (Phase 4) (dbe43ed)"
+    "scheduler: 브레인덤프·Top3·메모를 서버에 저장 (기기 종속 제거) (bdaf8f2)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "notes: 음성 전사 — 녹음을 AI로 텍스트 전사 (Phase 4) (dbe43ed)"
+        "scheduler: 브레인덤프·Top3·메모를 서버에 저장 (기기 종속 제거) (bdaf8f2)"
       ]
     }
   ]
