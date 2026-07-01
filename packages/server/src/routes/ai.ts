@@ -84,4 +84,87 @@ router.post("/parse", asyncHandler<AuthRequest>(async (req, res) => {
   });
 }));
 
+// ── Schedule optimization ──
+
+const toMin = (hhmm: string): number => {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : NaN;
+};
+const toHHMM = (min: number): string => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+
+interface OptSuggestion {
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  brainId?: string;
+  reason?: string;
+}
+
+// POST /api/ai/optimize — propose time slots for unscheduled tasks, respecting
+// existing and protected blocks. AI reasons about ordering; the server then
+// hard-validates every slot against occupied intervals so nothing overlaps.
+router.post("/optimize", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const dayStart = typeof req.body.dayStart === "string" && /^\d{2}:\d{2}$/.test(req.body.dayStart) ? req.body.dayStart : "08:00";
+  const dayEnd = typeof req.body.dayEnd === "string" && /^\d{2}:\d{2}$/.test(req.body.dayEnd) ? req.body.dayEnd : "22:00";
+  const blocks: Array<{ title: string; startTime: string; endTime: string; protected?: boolean; completed?: boolean }> =
+    Array.isArray(req.body.blocks) ? req.body.blocks : [];
+  const unscheduled: Array<{ brainId?: string; title: string; duration?: number; category?: string }> =
+    Array.isArray(req.body.unscheduled) ? req.body.unscheduled : [];
+
+  if (unscheduled.length === 0) throw new ValidationError("Nothing to schedule");
+
+  // Occupied intervals (existing blocks) that suggestions must not overlap.
+  const occupied = blocks
+    .map((b) => ({ s: toMin(b.startTime), e: toMin(b.endTime), protected: !!b.protected }))
+    .filter((o) => Number.isFinite(o.s) && Number.isFinite(o.e) && o.e > o.s)
+    .sort((a, b) => a.s - b.s);
+
+  const model = await getGeminiModel(userId);
+  const prompt =
+    `너는 하루 시간표 최적화 도우미야. 근무 가능 시간은 ${dayStart}~${dayEnd}.\n` +
+    `이미 잡힌 블록(이동 금지, 특히 protected=true는 절대 침범 금지):\n` +
+    JSON.stringify(occupied.map((o, i) => ({ i, start: toHHMM(o.s), end: toHHMM(o.e), protected: o.protected }))) +
+    `\n\n아직 배치 안 된 작업들:\n` +
+    JSON.stringify(unscheduled.map((u) => ({ brainId: u.brainId, title: u.title, duration: u.duration || 30, category: u.category }))) +
+    `\n\n규칙: 집중 작업(deep_work)은 오전에, 가벼운 일은 오후/저녁에 우선 배치. ` +
+    `기존 블록과 겹치지 않는 빈 시간에만 배치. 각 작업의 duration(분)을 지켜. 근무 시간 밖 금지.\n` +
+    `아래 JSON만 출력:\n` +
+    `{ "suggestions": [ { "brainId": string|null, "title": string, "startTime": "HH:MM", "endTime": "HH:MM", "category": string, "reason": string } ] }`;
+
+  let raw: { suggestions?: OptSuggestion[] };
+  try {
+    const result = await model.generateContent(prompt);
+    raw = extractJson<{ suggestions?: OptSuggestion[] }>(result.response.text());
+  } catch {
+    throw new AppError("Failed to optimize schedule", 502);
+  }
+
+  const winStart = toMin(dayStart);
+  const winEnd = toMin(dayEnd);
+  // Greedily accept non-overlapping, in-window suggestions; grow occupied as we go.
+  const accepted: OptSuggestion[] = [];
+  const busy = [...occupied];
+  for (const sug of raw.suggestions || []) {
+    const s = toMin(sug.startTime);
+    const e = toMin(sug.endTime);
+    if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) continue;
+    if (s < winStart || e > winEnd) continue;
+    const clash = busy.some((o) => s < o.e && e > o.s);
+    if (clash) continue;
+    accepted.push({
+      title: (sug.title || "").slice(0, 200),
+      startTime: sug.startTime,
+      endTime: sug.endTime,
+      category: sug.category,
+      brainId: sug.brainId || undefined,
+      reason: typeof sug.reason === "string" ? sug.reason.slice(0, 160) : undefined,
+    });
+    busy.push({ s, e, protected: false });
+  }
+
+  res.json({ success: true, data: { suggestions: accepted } });
+}));
+
 export default router;

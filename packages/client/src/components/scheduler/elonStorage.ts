@@ -19,6 +19,8 @@ export type TimeBlockMeta = {
   linkToBlockId?: number;
   /** Extra callouts on the timeline (owned by this block). */
   annotations?: TimelineAnnotation[];
+  /** Protected/focus time — the AI optimizer never schedules over or moves it. */
+  protected?: boolean;
 };
 
 /** Remove empty optional fields before JSON.stringify. */

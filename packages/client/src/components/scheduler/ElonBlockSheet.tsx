@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Trash2, Copy, Plus } from "lucide-react";
+import { X, Trash2, Copy, Plus, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import {
@@ -75,6 +75,7 @@ export default function ElonBlockSheet({
   const [category, setCategory] = useState<TimeBlockCategory>("deep_work");
   const [color, setColor] = useState<string | null>(null);
   const [showArrow, setShowArrow] = useState(false);
+  const [isProtected, setIsProtected] = useState(false);
   const [variant, setVariant] = useState<NonNullable<TimeBlockMeta["variant"]>>("solid");
   const [caption, setCaption] = useState("");
   const [linkBlockId, setLinkBlockId] = useState<string>("");
@@ -89,6 +90,7 @@ export default function ElonBlockSheet({
     setCategory(initial.category ?? "deep_work");
     setColor(initial.color ?? CATEGORY_CONFIG[initial.category ?? "deep_work"]?.color ?? null);
     setShowArrow(initial.showArrow ?? metaBase.showArrow ?? false);
+    setIsProtected(metaBase.protected ?? false);
     setVariant(initial.variant ?? metaBase.variant ?? "solid");
     setCaption(initial.caption ?? metaBase.caption ?? "");
     const lid = initial.linkToBlockId ?? metaBase.linkToBlockId;
@@ -114,6 +116,8 @@ export default function ElonBlockSheet({
     if (!title.trim()) return;
     const lid = parseInt(linkBlockId, 10);
     const merged: TimeBlockMeta = { ...metaBase, showArrow, variant };
+    if (isProtected) merged.protected = true;
+    else delete merged.protected;
     const cap = caption.trim();
     if (cap) merged.caption = cap;
     else delete merged.caption;
@@ -251,6 +255,11 @@ export default function ElonBlockSheet({
           <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
             <input type="checkbox" checked={showArrow} onChange={(e) => setShowArrow(e.target.checked)} className="rounded border-slate-300" />
             {t("elon.showArrow")}
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+            <input type="checkbox" checked={isProtected} onChange={(e) => setIsProtected(e.target.checked)} className="rounded border-slate-300" />
+            <Shield className="w-3.5 h-3.5 text-emerald-500" />
+            {t("elon.protectTime")}
           </label>
           <div>
             <label className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block mb-1">{t("elon.caption")}</label>

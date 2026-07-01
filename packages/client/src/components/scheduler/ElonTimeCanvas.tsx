@@ -1,4 +1,5 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from "react";
+import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { CATEGORY_CONFIG, type TimeBlock } from "@/stores/timeblockStore";
@@ -585,6 +586,9 @@ export default function ElonTimeCanvas({
                       >
                         ←{incoming}
                       </span>
+                    )}
+                    {meta.protected && (
+                      <Shield className="w-2.5 h-2.5 text-emerald-500 shrink-0 mt-0.5" aria-label={t("elon.protectedBlock")} />
                     )}
                     <span className="text-[10px] font-medium text-slate-900 dark:text-white leading-tight line-clamp-3">
                       {cat.icon} {block.title}

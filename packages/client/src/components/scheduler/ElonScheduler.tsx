@@ -15,7 +15,10 @@ import {
   Pencil,
   Undo2,
   Check,
+  Wand2,
+  Shield,
 } from "lucide-react";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import {
@@ -73,6 +76,16 @@ import {
   saveDaySketch,
   type FreehandSketchStroke,
 } from "./elonStorage";
+
+/** An AI-proposed placement for an unscheduled task (from POST /api/ai/optimize). */
+interface OptSuggestion {
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  brainId?: string;
+  reason?: string;
+}
 
 function safeSave(key: string, value: string) {
   try {
@@ -301,6 +314,8 @@ export default function ElonScheduler() {
   const [sketchMode, setSketchMode] = useState(false);
   const [sketchColor, setSketchColor] = useState<string>(SKETCH_PALETTE[0]);
   const [editMode, setEditMode] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optSuggestions, setOptSuggestions] = useState<(OptSuggestion & { accepted: boolean })[] | null>(null);
   const top3Debounce = useRef<ReturnType<typeof setTimeout>>();
   const sketchDebounce = useRef<ReturnType<typeof setTimeout>>();
   const memoDebounce = useRef<ReturnType<typeof setTimeout>>();
@@ -721,6 +736,66 @@ export default function ElonScheduler() {
     memoDebounce.current = setTimeout(() => saveMemo(selectedDate, val), 400);
   };
 
+  // ── AI schedule optimization ──
+  const runOptimize = useCallback(async () => {
+    if (brainItems.length === 0) return;
+    setOptimizing(true);
+    const payload = {
+      dayStart: "08:00",
+      dayEnd: "22:00",
+      blocks: sortedBlocks.map((b) => ({
+        title: b.title,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        protected: parseBlockMeta(b.meta ?? null).protected === true,
+        completed: b.completed,
+      })),
+      unscheduled: brainItems.map((i) => ({ brainId: i.id, title: i.text, duration: i.duration, category: i.category })),
+    };
+    const res = await api.post<{ suggestions: OptSuggestion[] }>("/ai/optimize", payload);
+    setOptimizing(false);
+    if (res.success && res.data) {
+      const list = res.data.suggestions || [];
+      if (list.length === 0) {
+        showToast("info", t("elon.optimizeNone"));
+        return;
+      }
+      setOptSuggestions(list.map((s) => ({ ...s, accepted: true })));
+    } else {
+      showToast("error", res.error || t("elon.optimizeFailed"));
+    }
+  }, [brainItems, sortedBlocks, t]);
+
+  const applyOptimize = useCallback(async () => {
+    if (!optSuggestions) return;
+    const chosen = optSuggestions.filter((s) => s.accepted);
+    if (chosen.length === 0) { setOptSuggestions(null); return; }
+    const scheduledBrainIds = new Set<string>();
+    for (const s of chosen) {
+      const cat = (s.category && s.category in CATEGORY_CONFIG ? s.category : "other") as TimeBlockCategory;
+      const metaStr = s.brainId ? stringifyBlockMeta(compactMeta({ brainId: s.brainId })) : null;
+      await addBlock({
+        date: selectedDate,
+        title: s.title,
+        notes: null,
+        meta: metaStr,
+        startTime: normTime(s.startTime),
+        endTime: normTime(s.endTime),
+        category: cat,
+        color: CATEGORY_CONFIG[cat].color,
+      });
+      if (s.brainId) scheduledBrainIds.add(s.brainId);
+    }
+    if (scheduledBrainIds.size > 0) {
+      const next = brainItems.filter((i) => !scheduledBrainIds.has(i.id));
+      setBrainItems(next);
+      saveBrainItems(selectedDate, next);
+    }
+    setOptSuggestions(null);
+    fetchBlocks(selectedDate);
+    showToast("success", t("elon.optimizeApplied"));
+  }, [optSuggestions, brainItems, selectedDate, addBlock, fetchBlocks, t]);
+
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-slate-50 dark:bg-slate-900">
       <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shrink-0">
@@ -745,11 +820,22 @@ export default function ElonScheduler() {
             <ChevronRight className="w-4 h-4 text-slate-500" />
           </button>
         </div>
-        {!isToday(parseISO(selectedDate)) && (
-          <button type="button" onClick={goToday} className="text-[10px] px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500">
-            {t("elon.today")}
+        <div className="flex items-center gap-1">
+          {!isToday(parseISO(selectedDate)) && (
+            <button type="button" onClick={goToday} className="text-[10px] px-2 py-1 rounded bg-slate-100 dark:bg-slate-700 text-slate-500">
+              {t("elon.today")}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={runOptimize}
+            disabled={optimizing || brainItems.length === 0}
+            className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 disabled:opacity-40"
+            title={t("elon.optimizeHint")}
+          >
+            <Wand2 className="w-3 h-3" /> {optimizing ? t("ai.parsing") : t("elon.optimize")}
           </button>
-        )}
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 p-3 space-y-3 pb-6">
@@ -1058,6 +1144,53 @@ export default function ElonScheduler() {
         onDelete={sheet?.mode === "edit" && sheet.initial.blockId ? (id) => void handleBlockDelete(id) : undefined}
         onDuplicate={sheet?.mode === "edit" && sheet.initial.blockId ? () => void handleDuplicateBlock() : undefined}
       />
+
+      {/* AI optimize suggestions */}
+      {optSuggestions && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/40" role="dialog" aria-modal="true" onClick={() => setOptSuggestions(null)}>
+          <div
+            className="w-full sm:max-w-md bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col max-h-[85dvh] pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px))] sm:pb-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Wand2 className="w-4 h-4 text-violet-500" /> {t("elon.optimizeTitle")}
+              </h3>
+              <button onClick={() => setOptSuggestions(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 space-y-2 overflow-y-auto">
+              <p className="text-[11px] text-slate-400 px-1">{t("elon.optimizeSubtitle")}</p>
+              {optSuggestions.map((s, i) => (
+                <label key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={s.accepted}
+                    onChange={(e) => setOptSuggestions((cur) => cur ? cur.map((x, j) => (j === i ? { ...x, accepted: e.target.checked } : x)) : cur)}
+                    className="mt-0.5 rounded border-slate-300"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-violet-600 dark:text-violet-300 tabular-nums shrink-0">{s.startTime}–{s.endTime}</span>
+                      <span className="text-sm text-slate-900 dark:text-white truncate">{s.title}</span>
+                    </span>
+                    {s.reason && <span className="block text-[11px] text-slate-400 mt-0.5">{s.reason}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 p-3 border-t border-slate-100 dark:border-slate-800">
+              <button onClick={() => setOptSuggestions(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm">
+                {t("common.cancel")}
+              </button>
+              <button onClick={applyOptimize} className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium">
+                {t("elon.optimizeApply")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
