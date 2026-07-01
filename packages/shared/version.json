@@ -1,15 +1,15 @@
 {
-  "version": "1.25.0",
+  "version": "1.26.0",
   "date": "2026-07-01",
   "highlights": [
-    "notes: 편집 강화 — 체크리스트/자동저장/전체화면 + iOS 녹음 안내 (Phase 2) (dc646f9)"
+    "notes: 앱 연동 — 메모를 할일/리마인더/일정으로 변환 (Phase 3) (a3aa98d)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "notes: 편집 강화 — 체크리스트/자동저장/전체화면 + iOS 녹음 안내 (Phase 2) (dc646f9)"
+        "notes: 앱 연동 — 메모를 할일/리마인더/일정으로 변환 (Phase 3) (a3aa98d)"
       ]
     }
   ]
