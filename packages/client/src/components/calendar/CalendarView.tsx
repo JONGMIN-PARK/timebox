@@ -22,7 +22,7 @@ import {
   isValid,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X, Repeat, Search, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Repeat, Search, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
@@ -43,6 +43,7 @@ import WeekView from "./WeekView";
 import DayView from "./DayView";
 import CalendarSearchPanel from "./CalendarSearchPanel";
 import RecipientPickerModal from "@/components/common/RecipientPickerModal";
+import NLQuickAddModal, { type NLEventValues, type NLTodoValues } from "./NLQuickAddModal";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -77,6 +78,7 @@ export default function CalendarView() {
   const [editingTodo, setEditingTodo] = useState<AppTodo | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardingEventId, setForwardingEventId] = useState<number | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -255,6 +257,34 @@ export default function CalendarView() {
     return false;
   };
 
+  const quickCreateEvent = async (v: NLEventValues): Promise<boolean> => {
+    try {
+      await addEvent({
+        title: v.title,
+        description: v.description || undefined,
+        startTime: `${v.date}T${v.startTime}:00`,
+        endTime: `${v.date}T${v.endTime}:00`,
+        allDay: v.allDay,
+        color: "#3b82f6",
+      });
+      showToast("success", t("calendar.eventCreated"));
+      const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
+      const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
+      fetchEvents(start, end);
+      return true;
+    } catch {
+      showToast("error", t("calendar.createFailed"));
+      return false;
+    }
+  };
+
+  const quickCreateTodo = async (v: NLTodoValues): Promise<boolean> => {
+    const ok = await addTodo(v.title, v.priority, v.dueDate, "personal", "active", null, v.memo);
+    if (ok) showToast("success", t("calendar.todoCreated"));
+    else showToast("error", t("calendar.createFailed"));
+    return !!ok;
+  };
+
   const handleDeleteEvent = async (id: number) => {
     try {
       await deleteEvent(id);
@@ -348,6 +378,14 @@ export default function CalendarView() {
           </button>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setQuickAddOpen(true)}
+            className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60"
+            aria-label={t("ai.quickAddTitle")}
+            title={t("ai.quickAddTitle")}
+          >
+            <Sparkles className="w-4 h-4" />
+          </button>
           <button
             onClick={() => setSearchOpen(true)}
             className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
@@ -583,6 +621,13 @@ export default function CalendarView() {
         title={t("calendar.forwardEventTitle")}
         onClose={() => setForwardingEventId(null)}
         onForward={forwardEvent}
+      />
+
+      <NLQuickAddModal
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onCreateEvent={quickCreateEvent}
+        onCreateTodo={quickCreateTodo}
       />
 
       <CalendarTodoAddModal

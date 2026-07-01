@@ -274,6 +274,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.forwardTodoTitle": "Send to-do to…",
     "calendar.forwarded": "Sent",
     "calendar.forwardFailed": "Failed to send",
+    "ai.quickAddTitle": "Quick add with AI",
+    "ai.quickAddPlaceholder": "e.g. Team meeting tomorrow at 3pm / Pay rent by Friday",
+    "ai.parse": "Interpret",
+    "ai.parsing": "Interpreting…",
+    "ai.parseFailed": "Couldn't interpret that",
+    "ai.kindEvent": "Event",
+    "ai.kindTodo": "To-do",
+    "ai.allDay": "All day",
+    "ai.titlePlaceholder": "Title",
+    "ai.create": "Create",
 
     // Settings extras
     "settings.quietHours": "Quiet Hours",
@@ -956,6 +966,16 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.forwardTodoTitle": "\ud560\uc77c \uc804\ub2ec\ud560 \uc0ac\ub78c",
     "calendar.forwarded": "\uc804\ub2ec\ud588\uc5b4\uc694",
     "calendar.forwardFailed": "\uc804\ub2ec\uc5d0 \uc2e4\ud328\ud588\uc5b4\uc694",
+    "ai.quickAddTitle": "AI \ube60\ub978 \ucd94\uac00",
+    "ai.quickAddPlaceholder": "\uc608: \ub0b4\uc77c \uc624\ud6c4 3\uc2dc \ud300 \ud68c\uc758 / \uae08\uc694\uc77c\uae4c\uc9c0 \uc6d4\uc138 \ub0b4\uae30",
+    "ai.parse": "\ud574\uc11d\ud558\uae30",
+    "ai.parsing": "\ud574\uc11d \uc911\u2026",
+    "ai.parseFailed": "\ud574\uc11d\ud558\uc9c0 \ubabb\ud588\uc5b4\uc694",
+    "ai.kindEvent": "\uc77c\uc815",
+    "ai.kindTodo": "\ud560\uc77c",
+    "ai.allDay": "\uc885\uc77c",
+    "ai.titlePlaceholder": "\uc81c\ubaa9",
+    "ai.create": "\ucd94\uac00",
 
     // Settings extras
     "settings.quietHours": "\ubc29\ud574 \uae08\uc9c0 \uc2dc\uac04",
