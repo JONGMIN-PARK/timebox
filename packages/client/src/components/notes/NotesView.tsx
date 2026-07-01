@@ -12,6 +12,24 @@ import AutoGrowTextarea from "./AutoGrowTextarea";
 
 type Mode = "text" | "voice" | "drawing";
 
+/** Wrap occurrences of `query` in the text with a highlight marker (case-insensitive). */
+function highlight(text: string | null | undefined, query: string): React.ReactNode {
+  const q = query.trim();
+  if (!q || !text) return text ?? null;
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  const lower = q.toLowerCase();
+  return parts.map((part, i) =>
+    part.toLowerCase() === lower ? (
+      <mark key={i} className="bg-yellow-200 dark:bg-yellow-500/40 text-inherit rounded-sm px-0.5">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  );
+}
+
 interface Note {
   id: number;
   type: string;
@@ -369,7 +387,7 @@ export default function NotesView() {
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
                   {note.title ? (
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-1 flex-1">{note.title}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-1 flex-1">{highlight(note.title, query)}</p>
                   ) : (
                     <span className="flex-1" />
                   )}
@@ -391,7 +409,7 @@ export default function NotesView() {
                   </div>
                 </div>
                 {note.type === "text" ? (
-                  <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words flex-1">{note.content}</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words flex-1">{highlight(note.content, query)}</p>
                 ) : (
                   <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                     <NoteMedia noteId={note.id} type={note.type} />
@@ -400,7 +418,7 @@ export default function NotesView() {
                 {note.summary && (
                   <p className="text-[10px] text-blue-600 dark:text-blue-300 bg-blue-50/60 dark:bg-blue-900/20 rounded-md px-2 py-1 mt-2 line-clamp-3 flex items-start gap-1">
                     <Sparkles className="w-3 h-3 shrink-0 mt-0.5" />
-                    <span className="min-w-0">{note.summary}</span>
+                    <span className="min-w-0">{highlight(note.summary, query)}</span>
                   </p>
                 )}
                 <p className="text-[10px] text-slate-400 mt-2 tabular-nums flex items-center gap-1">
