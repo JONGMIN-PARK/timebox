@@ -227,7 +227,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex min-h-0 h-dvh flex-col bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right overflow-hidden">
+    <div className="flex min-h-0 h-[var(--app-height,100dvh)] flex-col bg-slate-50 dark:bg-slate-900 bg-ambient safe-top safe-left safe-right overflow-hidden">
       <div className="flex-1 flex min-h-0">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="flex-1 flex flex-col min-w-0">
