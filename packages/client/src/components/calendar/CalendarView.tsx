@@ -18,9 +18,11 @@ import {
   addDays,
   subDays,
   isSameDay,
+  parseISO,
+  isValid,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X, Repeat } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Repeat, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
 import { usePageVisible } from "@/lib/useVisibility";
@@ -37,6 +39,7 @@ import { getCategoryInfo } from "@/lib/categories";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
+import CalendarSearchPanel from "./CalendarSearchPanel";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -69,6 +72,7 @@ export default function CalendarView() {
   const [todoAddModalDate, setTodoAddModalDate] = useState("");
   const [todoEditModalOpen, setTodoEditModalOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<AppTodo | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -236,6 +240,10 @@ export default function CalendarView() {
 
   const handleEditEvent = (ev: CalendarEvent) => {
     setEditingEventId(ev.id);
+    // Anchor the edit to the event's own date so saving keeps it there
+    // (the add/edit form derives the date from selectedDate).
+    const evDate = parseISO(ev.startTime);
+    if (isValid(evDate)) setSelectedDate(evDate);
     setNewEvent({
       title: ev.title,
       description: ev.description || "",
@@ -314,6 +322,14 @@ export default function CalendarView() {
           </button>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+            aria-label={t("calendar.searchTitle")}
+            title={t("calendar.searchTitle")}
+          >
+            <Search className="w-4 h-4" />
+          </button>
           <select
             value={projectFilter ?? ""}
             onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : null)}
@@ -516,6 +532,15 @@ export default function CalendarView() {
           </form>
         </div>
       )}
+
+      <CalendarSearchPanel
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        todos={todos as AppTodo[]}
+        projectNameById={projectNameById}
+        onEditEvent={handleEditEvent}
+        onEditTodo={handleEditTodo}
+      />
 
       <CalendarTodoAddModal
         open={todoAddModalOpen}

@@ -257,6 +257,14 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.noRepeat": "None",
     "calendar.allProjects": "All Projects",
     "calendar.filterByProject": "Filter by project",
+    "calendar.searchTitle": "Search events & to-dos",
+    "calendar.searchPlaceholder": "Search by title or memo…",
+    "calendar.searchAll": "All",
+    "calendar.searchEvents": "Events",
+    "calendar.searchTodos": "To-dos",
+    "calendar.searchNoDate": "No date",
+    "calendar.searchEmpty": "Type to search, or browse everything below.",
+    "calendar.searchNoResults": "No matching events or to-dos.",
 
     // Settings extras
     "settings.quietHours": "Quiet Hours",
@@ -922,6 +930,14 @@ const translations: Record<Locale, Record<string, string>> = {
     "calendar.noRepeat": "\uc5c6\uc74c",
     "calendar.allProjects": "\ubaa8\ub4e0 \ud504\ub85c\uc81d\ud2b8",
     "calendar.filterByProject": "\ud504\ub85c\uc81d\ud2b8 \ud544\ud130",
+    "calendar.searchTitle": "\uc77c\uc815\u00b7\ud560\uc77c \uac80\uc0c9",
+    "calendar.searchPlaceholder": "\uc81c\ubaa9\uc774\ub098 \uba54\ubaa8\ub85c \uac80\uc0c9\u2026",
+    "calendar.searchAll": "\uc804\uccb4",
+    "calendar.searchEvents": "\uc77c\uc815",
+    "calendar.searchTodos": "\ud560\uc77c",
+    "calendar.searchNoDate": "\ub0a0\uc9dc \uc5c6\uc74c",
+    "calendar.searchEmpty": "\uac80\uc0c9\uc5b4\ub97c \uc785\ub825\ud558\uac70\ub098 \uc544\ub798 \uc804\uccb4 \ubaa9\ub85d\uc744 \ud655\uc778\ud558\uc138\uc694.",
+    "calendar.searchNoResults": "\uc77c\uce58\ud558\ub294 \uc77c\uc815\uc774\ub098 \ud560\uc77c\uc774 \uc5c6\uc5b4\uc694.",
 
     // Settings extras
     "settings.quietHours": "\ubc29\ud574 \uae08\uc9c0 \uc2dc\uac04",
