@@ -1,15 +1,15 @@
 {
-  "version": "1.33.1",
-  "date": "2026-07-01",
+  "version": "1.34.0",
+  "date": "2026-07-02",
   "highlights": [
-    "calendar: 날짜 바로가기 컨트롤을 화면 중앙 모달로 배치 (484a5d5)"
+    "calendar: 일정을 기간(여러 날)으로 등록 (b5f0993)"
   ],
   "changes": [
     {
-      "category": "버그 수정",
-      "emoji": "🐛",
+      "category": "신규 기능",
+      "emoji": "✨",
       "items": [
-        "calendar: 날짜 바로가기 컨트롤을 화면 중앙 모달로 배치 (484a5d5)"
+        "calendar: 일정을 기간(여러 날)으로 등록 (b5f0993)"
       ]
     }
   ]
