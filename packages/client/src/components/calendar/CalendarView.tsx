@@ -57,7 +57,7 @@ export default function CalendarView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [newEvent, setNewEvent] = useState({
-    title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null as number | null, recurrenceRule: "",
+    title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null as number | null, recurrenceRule: "",
   });
   const { projects, fetchProjects } = useProjectStore();
   const projectNameById = useMemo(
@@ -144,10 +144,25 @@ export default function CalendarView() {
       : events;
     const map = new Map<string, typeof events>();
     filteredEvents.forEach((ev) => {
-      const dateKey = ev.startTime.slice(0, 10);
-      const existing = map.get(dateKey) || [];
-      existing.push(ev);
-      map.set(dateKey, existing);
+      const startKey = ev.startTime.slice(0, 10);
+      let endKey = ev.endTime ? ev.endTime.slice(0, 10) : startKey;
+      if (endKey < startKey) endKey = startKey;
+      if (endKey === startKey) {
+        const existing = map.get(startKey) || [];
+        existing.push(ev);
+        map.set(startKey, existing);
+        return;
+      }
+      // Multi-day event: list it on every day it spans (inclusive), capped for safety.
+      let d = parseISO(startKey);
+      const end = parseISO(endKey);
+      for (let guard = 0; d <= end && guard < 400; guard++) {
+        const key = format(d, "yyyy-MM-dd");
+        const existing = map.get(key) || [];
+        existing.push(ev);
+        map.set(key, existing);
+        d = addDays(d, 1);
+      }
     });
     return map;
   }, [events, projectFilter]);
@@ -219,15 +234,27 @@ export default function CalendarView() {
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEvent.title.trim() || !selectedDate) return;
-    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    const fallbackDate = format(selectedDate, "yyyy-MM-dd");
+    const sDate = newEvent.startDate || fallbackDate;
+    const eDate = newEvent.endDate || sDate;
+    const sTime = newEvent.allDay ? "00:00" : newEvent.startTime;
+    const eTime = newEvent.allDay ? "23:59" : newEvent.endTime;
+    const startTime = `${sDate}T${sTime}:00`;
+    const endTime = `${eDate}T${eTime}:00`;
+    // Guard against an end that lands before the start (spanning date ranges).
+    if (parseISO(endTime) < parseISO(startTime)) {
+      showToast("error", t("calendar.endBeforeStart"));
+      return;
+    }
     const cat = categories.find((c) => c.id === newEvent.categoryId);
     try {
       if (editingEventId) {
         await updateEvent(editingEventId, {
           title: newEvent.title.trim(),
           description: newEvent.description.trim() || null,
-          startTime: `${dateStr}T${newEvent.startTime}:00`,
-          endTime: `${dateStr}T${newEvent.endTime}:00`,
+          startTime,
+          endTime,
+          allDay: newEvent.allDay,
           categoryId: newEvent.categoryId || undefined,
           color: cat?.color || "#3b82f6",
           projectId: newEvent.projectId,
@@ -238,9 +265,9 @@ export default function CalendarView() {
         await addEvent({
           title: newEvent.title.trim(),
           description: newEvent.description.trim() || undefined,
-          startTime: `${dateStr}T${newEvent.startTime}:00`,
-          endTime: `${dateStr}T${newEvent.endTime}:00`,
-          allDay: false,
+          startTime,
+          endTime,
+          allDay: newEvent.allDay,
           categoryId: newEvent.categoryId || undefined,
           recurrenceRule: newEvent.recurrenceRule || undefined,
           color: cat?.color || "#3b82f6",
@@ -251,7 +278,7 @@ export default function CalendarView() {
     } catch {
       showToast("error", t("calendar.createFailed"));
     }
-    setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null, recurrenceRule: "" });
+    setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
     setRecurrence("");
     setEditingEventId(null);
     setShowAddModal(false);
@@ -259,6 +286,14 @@ export default function CalendarView() {
     const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
   };
+
+  // On a fresh (non-edit) open, clear any leftover range/all-day so the modal
+  // defaults to the selected day. Editing sets these fields explicitly.
+  useEffect(() => {
+    if (showAddModal && editingEventId == null) {
+      setNewEvent((prev) => (prev.startDate || prev.endDate || prev.allDay ? { ...prev, startDate: "", endDate: "", allDay: false } : prev));
+    }
+  }, [showAddModal, editingEventId]);
 
   // Live-refresh the calendar when someone forwards an event/to-do to me.
   useSocketEvent(
@@ -328,8 +363,11 @@ export default function CalendarView() {
     setNewEvent({
       title: ev.title,
       description: ev.description || "",
+      startDate: ev.startTime.slice(0, 10),
+      endDate: ev.endTime.slice(0, 10),
       startTime: ev.startTime.slice(11, 16),
       endTime: ev.endTime.slice(11, 16),
+      allDay: !!ev.allDay,
       categoryId: ev.categoryId || 0,
       projectId: ev.projectId ?? null,
       recurrenceRule: ev.recurrenceRule || "",
@@ -532,7 +570,7 @@ export default function CalendarView() {
           onDayLeave={() => setHoverDateKey(null)}
           onShowAddModal={() => {
             setEditingEventId(null);
-            setNewEvent({ title: "", description: "", startTime: "09:00", endTime: "10:00", categoryId: 0, projectId: null, recurrenceRule: "" });
+            setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
             setShowAddModal(true);
           }}
           onDeleteEvent={handleDeleteEvent}
@@ -640,16 +678,60 @@ export default function CalendarView() {
                 </div>
               </div>
             )}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
-                <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
-              </div>
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
-                <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
-              </div>
-            </div>
+            {(() => {
+              const fallback = format(selectedDate, "yyyy-MM-dd");
+              const sDate = newEvent.startDate || fallback;
+              const eDate = newEvent.endDate || sDate;
+              return (
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500 mb-1 block">{t("calendar.startDate")}</label>
+                      <input
+                        type="date"
+                        value={sDate}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setNewEvent({ ...newEvent, startDate: v, endDate: eDate < v ? v : eDate });
+                        }}
+                        className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500 mb-1 block">{t("calendar.endDate")}</label>
+                      <input
+                        type="date"
+                        value={eDate}
+                        min={sDate}
+                        onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
+                        className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newEvent.allDay}
+                      onChange={(e) => setNewEvent({ ...newEvent, allDay: e.target.checked })}
+                      className="rounded border-slate-300"
+                    />
+                    {t("calendar.allDayEvent")}
+                  </label>
+                  {!newEvent.allDay && (
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
+                        <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
+                        <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <ProjectPicker value={newEvent.projectId} onChange={(pid) => setNewEvent({ ...newEvent, projectId: pid })} />
             <div>
               <label className="text-xs text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1">
