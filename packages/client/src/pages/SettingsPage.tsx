@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { useThemeStore } from "@/stores/themeStore";
+import { useThemeStore, ACCENTS, ACCENT_SWATCH } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { authApi } from "@/lib/apiService";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles, Calendar } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, Check, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles, Calendar } from "lucide-react";
 import { getQuietHoursConfig, saveQuietHoursConfig, type QuietHoursConfig } from "@/lib/quietHours";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
@@ -56,7 +56,7 @@ interface TeamGroupMember {
 
 export default function SettingsPage() {
   const { user, logout, fetchMe } = useAuthStore();
-  const { theme, setTheme } = useThemeStore();
+  const { theme, setTheme, accent, setAccent } = useThemeStore();
   const { t, setLocale, locale } = useI18n();
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [requests, setRequests] = useState<RegRequest[]>([]);
@@ -267,6 +267,28 @@ export default function SettingsPage() {
                   {t(labelKey)}
                 </button>
               ))}
+            </div>
+            {/* Accent color */}
+            <div className="mt-4">
+              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">{t("settings.accentColor")}</p>
+              <div className="flex flex-wrap gap-2.5">
+                {ACCENTS.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => setAccent(a)}
+                    aria-label={a}
+                    aria-pressed={accent === a}
+                    title={a}
+                    className={cn(
+                      "w-8 h-8 rounded-full transition-transform hover:scale-110 flex items-center justify-center",
+                      accent === a ? "ring-2 ring-offset-2 ring-slate-400 dark:ring-slate-300 dark:ring-offset-slate-800 scale-110" : "ring-1 ring-black/5",
+                    )}
+                    style={{ backgroundColor: ACCENT_SWATCH[a] }}
+                  >
+                    {accent === a && <Check className="w-4 h-4 text-white drop-shadow" />}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
