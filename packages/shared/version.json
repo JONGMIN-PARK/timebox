@@ -1,15 +1,15 @@
 {
-  "version": "1.35.0",
+  "version": "1.35.1",
   "date": "2026-07-04",
   "highlights": [
     "theme: 강조 색상 테마 10종 추가 (bb08a0e)"
   ],
   "changes": [
     {
-      "category": "신규 기능",
-      "emoji": "✨",
+      "category": "기타",
+      "emoji": "🔧",
       "items": [
-        "theme: 강조 색상 테마 10종 추가 (bb08a0e)"
+        "refactor: 서버 공용 헬퍼로 중복 제거 + 클라 highlight 유틸 통합 (b17d1f2)"
       ]
     }
   ]
