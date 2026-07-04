@@ -1,15 +1,15 @@
 {
-  "version": "1.37.0",
+  "version": "1.38.0",
   "date": "2026-07-04",
   "highlights": [
-    "calendar: 여러날/종일 일정 표시 개선 (WS2) (91731cf)"
+    "notes: 음성 전사 전 webm/mp4 → WAV 트랜스코드 (WS3) (e06df60)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 여러날/종일 일정 표시 개선 (WS2) (91731cf)"
+        "notes: 음성 전사 전 webm/mp4 → WAV 트랜스코드 (WS3) (e06df60)"
       ]
     }
   ]
