@@ -460,6 +460,8 @@ export const notes = pgTable("notes", {
   pinned: boolean("pinned").notNull().default(false),
   /** Manual drag-sort position (lower = earlier). Applied when sorting by "manual". */
   sortOrder: integer("sort_order").notNull().default(0),
+  /** ISO timestamp for a note reminder; cleared once fired. Null = no reminder. */
+  remindAt: text("remind_at"),
   /** ISO timestamp when moved to trash (soft delete); null = active. */
   trashedAt: text("trashed_at"),
   /** ISO timestamp when archived (hidden but not deleted); null = not archived. */

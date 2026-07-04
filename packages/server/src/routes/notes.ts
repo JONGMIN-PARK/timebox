@@ -12,6 +12,7 @@ import { upload, UPLOAD_DIR, safeUnlink } from "../lib/upload.js";
 import { getGeminiModel } from "../lib/gemini.js";
 import { notifyForward } from "../lib/forwardNotify.js";
 import { transcodeToWav } from "../lib/audio.js";
+import { emitToUser } from "../socket/index.js";
 
 const router = Router();
 
@@ -204,6 +205,9 @@ router.post("/:id/forward", asyncHandler<AuthRequest>(async (req, res) => {
     content: preview,
   });
 
+  // Realtime: push the new note to the recipient so it appears without a refresh.
+  emitToUser(targetId, "note:shared", { note: copy });
+
   res.status(201).json({ success: true, data: copy });
 }));
 
@@ -375,6 +379,10 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   if (req.body.color !== undefined) updates.color = req.body.color ? String(req.body.color) : null;
   if (req.body.labels !== undefined) updates.labels = normalizeLabels(req.body.labels);
   if (req.body.pinned !== undefined) updates.pinned = Boolean(req.body.pinned);
+  if (req.body.remindAt !== undefined) {
+    const v = req.body.remindAt;
+    updates.remindAt = v ? new Date(String(v)).toISOString() : null;
+  }
 
   const result = await db
     .update(notes)

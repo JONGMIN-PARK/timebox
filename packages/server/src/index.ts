@@ -341,6 +341,48 @@ httpServer.listen(PORT, () => {
     }
   });
 
+  // Check for due note reminders every minute; fire once (realtime + Telegram), then clear.
+  cron.schedule("* * * * *", async () => {
+    try {
+      const { db } = await import("./db/index.js");
+      const { notes, telegramConfig } = await import("./db/schema.js");
+      const { eq, and, lte, isNotNull, isNull } = await import("drizzle-orm");
+      const { getTelegramBot } = await import("./telegram/bot.js");
+      const { emitToUser } = await import("./socket/index.js");
+
+      const now = new Date().toISOString();
+      const due = await db.select().from(notes).where(and(
+        isNotNull(notes.remindAt),
+        lte(notes.remindAt, now),
+        isNull(notes.trashedAt),
+      ));
+
+      if (due.length === 0) return;
+      logger.info("Due note reminders found", { count: due.length });
+
+      const bot = getTelegramBot();
+      for (const n of due) {
+        // Clear the reminder first so it never double-fires.
+        await db.update(notes).set({ remindAt: null }).where(eq(notes.id, n.id));
+        const title = n.title || (n.content ? n.content.split("\n")[0].slice(0, 60) : "메모");
+        emitToUser(n.userId, "note:reminder", { id: n.id, title });
+        if (bot) {
+          const conf = await db.select().from(telegramConfig).where(eq(telegramConfig.userId, n.userId));
+          if (conf[0]?.chatId && conf[0]?.active) {
+            const msg = `🔔 *메모 리마인더*\n\n📝 *${title}*${n.content ? `\n${n.content.slice(0, 200)}` : ""}`;
+            try {
+              await bot.sendMessage(conf[0].chatId, msg, { parse_mode: "Markdown" });
+            } catch (e) {
+              logger.error("Telegram note reminder failed", { error: (e as Error).message });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.error("Note reminder cron failed", { error: (err as Error).message });
+    }
+  });
+
   // Auto-cleanup: permanently delete soft-deleted messages older than 30 days (runs daily at 3 AM KST)
   cron.schedule("0 3 * * *", async () => {
     try {

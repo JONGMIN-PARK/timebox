@@ -12,6 +12,7 @@ import { SortableContext, useSortable, arrayMove, rectSortingStrategy, verticalL
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useSocketEvent } from "@/lib/SocketProvider";
 import { useI18n } from "@/lib/useI18n";
 import { fmtDateTime } from "@/lib/dateUtils";
 import { showToast } from "@/components/ui/Toast";
@@ -65,10 +66,19 @@ interface Note {
   labels?: string | string[] | null;
   pinned: boolean;
   sortOrder?: number;
+  remindAt?: string | null;
   createdAt: string;
   updatedAt: string;
   trashedAt?: string | null;
   archivedAt?: string | null;
+}
+
+/** ISO timestamp → "YYYY-MM-DDTHH:mm" in local time for a datetime-local input. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** Labels are stored as a JSON string on the server; read them as an array. */
@@ -371,6 +381,30 @@ export default function NotesView() {
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
+
+  // Set or clear a note's reminder. `value` is a datetime-local string or null.
+  const setNoteReminder = useCallback(async (note: Note, value: string | null) => {
+    const res = await api.put<Note>(`/notes/${note.id}`, { remindAt: value ? new Date(value).toISOString() : null });
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
+      setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+      showToast("success", value ? t("notes.reminderSet") : t("notes.reminderCleared"));
+    }
+  }, [t]);
+
+  // Realtime: a note shared to me appears live in my list.
+  useSocketEvent<{ note: Note }>("note:shared", useCallback((data) => {
+    if (!data?.note) return;
+    setNotes((prev) => (prev.some((n) => n.id === data.note.id) ? prev : [data.note, ...prev]));
+    showToast("info", t("notes.sharedIncoming"));
+  }, [t]));
+
+  // Realtime: a due note reminder fired.
+  useSocketEvent<{ id: number; title: string }>("note:reminder", useCallback((data) => {
+    if (!data) return;
+    setNotes((prev) => prev.map((n) => (n.id === data.id ? { ...n, remindAt: null } : n)));
+    showToast("info", `🔔 ${data.title}`);
+  }, []));
 
   const addNote = async () => {
     if (!content.trim() && !title.trim()) return;
@@ -894,6 +928,18 @@ export default function NotesView() {
                     ))}
                   </div>
                 )}
+                {note.remindAt && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 mt-2 self-start text-[10px] px-1.5 py-0.5 rounded-full",
+                      new Date(note.remindAt) <= new Date()
+                        ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                        : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+                    )}
+                  >
+                    <Bell className="w-2.5 h-2.5" /> {fmtDateTime(note.remindAt)}
+                  </span>
+                )}
                 <p className="text-[10px] text-slate-400 mt-2 tabular-nums flex items-center gap-1">
                   {note.type === "voice" && <Mic className="w-3 h-3" />}
                   {note.type === "drawing" && <PenLine className="w-3 h-3" />}
@@ -993,6 +1039,21 @@ export default function NotesView() {
                   placeholder={t("notes.addLabel")}
                   className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-slate-300 dark:border-slate-600 bg-transparent text-slate-600 dark:text-slate-300 outline-none focus:border-blue-400 w-24"
                 />
+              </div>
+              {/* Reminder */}
+              <div className="flex flex-wrap items-center gap-2 px-1">
+                <Bell className={cn("w-3.5 h-3.5", editing.remindAt ? "text-amber-500" : "text-slate-400")} />
+                <input
+                  type="datetime-local"
+                  value={editing.remindAt ? toLocalInput(editing.remindAt) : ""}
+                  onChange={(e) => setNoteReminder(editing, e.target.value || null)}
+                  className="text-[11px] px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-blue-500/40"
+                />
+                {editing.remindAt && (
+                  <button type="button" onClick={() => setNoteReminder(editing, null)} className="text-[10px] text-slate-400 hover:text-red-500">
+                    {t("notes.reminderClear")}
+                  </button>
+                )}
               </div>
               {editing.type === "text" ? (
                 <>

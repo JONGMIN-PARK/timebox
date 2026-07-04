@@ -540,6 +540,7 @@ export async function initDb() {
       ALTER TABLE notes ADD COLUMN IF NOT EXISTS labels TEXT;
       ALTER TABLE notes ADD COLUMN IF NOT EXISTS archived_at TEXT;
       ALTER TABLE notes ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS remind_at TEXT;
     `);
 
     // Seed default categories if empty
