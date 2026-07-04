@@ -1,15 +1,15 @@
 {
-  "version": "1.45.0",
+  "version": "1.46.0",
   "date": "2026-07-04",
   "highlights": [
-    "settings: 설정 화면에 앱 정보·업데이트 내역(버전 기록) 추가 (41c554b)"
+    "build: ffmpeg-static 빌드 스크립트 무시하도록 추가 — Render 배포 실패 해결 (4ddb7c5)"
   ],
   "changes": [
     {
-      "category": "신규 기능",
-      "emoji": "✨",
+      "category": "버그 수정",
+      "emoji": "🐛",
       "items": [
-        "settings: 설정 화면에 앱 정보·업데이트 내역(버전 기록) 추가 (41c554b)"
+        "build: ffmpeg-static 빌드 스크립트 무시하도록 추가 — Render 배포 실패 해결 (4ddb7c5)"
       ]
     }
   ]

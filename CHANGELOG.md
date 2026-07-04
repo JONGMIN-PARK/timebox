@@ -1,5 +1,11 @@
 # TimeBox — Changelog & Development Progress
 
+## v1.46.0 (4ddb7c5) — 2026-07-04
+
+| 항목 | 설명 | 커밋 |
+|------|------|------|
+| 🐛 수정 | ffmpeg-static 빌드 스크립트 무시하도록 추가 — Render 배포 실패 해결 | 4ddb7c5 |
+
 ## v1.45.0 (41c554b) — 2026-07-04
 
 | 항목 | 설명 | 커밋 |
