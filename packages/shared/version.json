@@ -1,15 +1,15 @@
 {
-  "version": "1.43.0",
+  "version": "1.44.0",
   "date": "2026-07-04",
   "highlights": [
-    "notes: Keep 확장 3단계(C) — 이미지 첨부 + AI 텍스트 추출(OCR) (5273d43)"
+    "notes: Keep 확장 4단계(D) — 노트 리마인더 + 실시간 공유 (3c0156c)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "notes: Keep 확장 3단계(C) — 이미지 첨부 + AI 텍스트 추출(OCR) (5273d43)"
+        "notes: Keep 확장 4단계(D) — 노트 리마인더 + 실시간 공유 (3c0156c)"
       ]
     }
   ]
