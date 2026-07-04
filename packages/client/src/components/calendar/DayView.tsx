@@ -52,10 +52,11 @@ function packColumns(events: CalendarEvent[]): Map<number, { col: number; cols: 
 
 // Memoized calendar event item for day timeline view
 const DayEventItem = memo(function DayEventItem({
-  ev, onDelete, col, cols,
+  ev, onDelete, onClick, col, cols,
 }: {
   ev: CalendarEvent;
   onDelete: (id: number) => void;
+  onClick?: (ev: CalendarEvent) => void;
   col: number;
   cols: number;
 }) {
@@ -71,15 +72,16 @@ const DayEventItem = memo(function DayEventItem({
   const width = `calc(${track} / ${cols} - 2px)`;
   return (
     <div
-      className="absolute rounded-lg border-l-4 px-3 py-1.5 group"
+      className="absolute rounded-lg border-l-4 px-3 py-1.5 group cursor-pointer"
       style={{ top, height, left, width, borderLeftColor: ev.color || "#3b82f6", backgroundColor: (ev.color || "#3b82f6") + "18" }}
+      onClick={() => onClick?.(ev)}
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{ev.title}</p>
           {height >= 40 && <p className="text-xs text-slate-400">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>}
         </div>
-        <button onClick={() => onDelete(ev.id)} className="hidden group-hover:flex w-5 h-5 items-center justify-center">
+        <button onClick={(e) => { e.stopPropagation(); onDelete(ev.id); }} className="hidden group-hover:flex w-5 h-5 items-center justify-center">
           <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
         </button>
       </div>
@@ -115,6 +117,7 @@ interface DayViewProps {
   timelineRef: React.RefObject<HTMLDivElement>;
   onAddEvent: () => void;
   onDeleteEvent: (id: number) => void;
+  onEventClick?: (ev: CalendarEvent) => void;
 }
 
 export default function DayView({
@@ -126,6 +129,7 @@ export default function DayView({
   timelineRef,
   onAddEvent,
   onDeleteEvent,
+  onEventClick,
 }: DayViewProps) {
   const { t } = useI18n();
   const dateKey = format(currentDate, "yyyy-MM-dd");
@@ -157,14 +161,15 @@ export default function DayView({
         {allDayEvents.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap gap-1.5">
             {allDayEvents.map((ev) => (
-              <span
+              <button
                 key={ev.id}
-                className="inline-flex items-center gap-1.5 max-w-full min-w-0 text-xs px-2 py-1 rounded-md"
+                onClick={() => onEventClick?.(ev)}
+                className="inline-flex items-center gap-1.5 max-w-full min-w-0 text-xs px-2 py-1 rounded-md cursor-pointer"
                 style={{ backgroundColor: (ev.color || "#3b82f6") + "22", color: ev.color || "#3b82f6" }}
               >
                 <span className="truncate min-w-0 font-medium">{ev.title}</span>
                 <span className="shrink-0 opacity-70 tabular-nums">{eventTimeLabel(ev, t("calendar.allDay"))}</span>
-              </span>
+              </button>
             ))}
           </div>
         )}
@@ -195,7 +200,7 @@ export default function DayView({
           {timedEvents.map((ev) => {
             const pos = layout.get(ev.id) || { col: 0, cols: 1 };
             return (
-              <DayEventItem key={ev.id} ev={ev} onDelete={onDeleteEvent} col={pos.col} cols={pos.cols} />
+              <DayEventItem key={ev.id} ev={ev} onDelete={onDeleteEvent} onClick={onEventClick} col={pos.col} cols={pos.cols} />
             );
           })}
         </div>

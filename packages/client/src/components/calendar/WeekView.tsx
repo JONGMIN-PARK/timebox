@@ -11,20 +11,21 @@ import type { CalendarEvent, Todo } from "./calendarTypes";
 // ── Shared sub-components ──
 
 const WeekEventCard = memo(function WeekEventCard({
-  ev, onDelete,
+  ev, onDelete, onClick,
 }: {
   ev: CalendarEvent;
   onDelete: (id: number) => void;
+  onClick?: (ev: CalendarEvent) => void;
 }) {
   const { t } = useI18n();
   return (
     <div
-      className="group rounded px-1.5 py-1 border-l-[3px] overflow-hidden relative"
+      className="group rounded px-1.5 py-1 border-l-[3px] overflow-hidden relative cursor-pointer"
       style={{
         borderLeftColor: ev.color || "#3b82f6",
         backgroundColor: (ev.color || "#3b82f6") + "15",
       }}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); onClick?.(ev); }}
     >
       <p className="text-[10px] font-medium text-slate-900 dark:text-white truncate leading-tight">
         {ev.title}
@@ -33,7 +34,7 @@ const WeekEventCard = memo(function WeekEventCard({
         {eventTimeLabel(ev, t("calendar.allDay"))}
       </p>
       <button
-        onClick={() => onDelete(ev.id)}
+        onClick={(e) => { e.stopPropagation(); onDelete(ev.id); }}
         className="absolute top-0.5 right-0.5 hidden group-hover:flex w-4 h-4 items-center justify-center rounded bg-white/80 dark:bg-slate-800/80"
       >
         <X className="w-3 h-3 text-red-500" />
@@ -60,7 +61,7 @@ const WeekTodoItem = memo(function WeekTodoItem({ todo }: { todo: Todo }) {
 // ── Mobile: horizontal row per day ──
 
 const WeekDayRow = memo(function WeekDayRow({
-  day, dayEvents, dayTodos, onDayClick, onCellClick, onDeleteEvent,
+  day, dayEvents, dayTodos, onDayClick, onCellClick, onDeleteEvent, onEventClick,
 }: {
   day: Date;
   dayEvents: CalendarEvent[];
@@ -68,6 +69,7 @@ const WeekDayRow = memo(function WeekDayRow({
   onDayClick: (day: Date) => void;
   onCellClick: (day: Date) => void;
   onDeleteEvent: (id: number) => void;
+  onEventClick?: (ev: CalendarEvent) => void;
 }) {
   const dow = day.getDay();
   const empty = dayEvents.length === 0 && dayTodos.length === 0;
@@ -99,7 +101,7 @@ const WeekDayRow = memo(function WeekDayRow({
       {/* Items */}
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 justify-center">
         {dayEvents.map((ev) => (
-          <WeekEventCard key={`e-${ev.id}`} ev={ev} onDelete={onDeleteEvent} />
+          <WeekEventCard key={`e-${ev.id}`} ev={ev} onDelete={onDeleteEvent} onClick={onEventClick} />
         ))}
         {dayTodos.map((t) => (
           <WeekTodoItem key={`t-${t.id}`} todo={t} />
@@ -115,7 +117,7 @@ const WeekDayRow = memo(function WeekDayRow({
 // ── Desktop: column cell per day (existing) ──
 
 const WeekDayCell = memo(function WeekDayCell({
-  day, dayEvents, dayTodos, onDayClick, onCellClick, onDeleteEvent,
+  day, dayEvents, dayTodos, onDayClick, onCellClick, onDeleteEvent, onEventClick,
 }: {
   day: Date;
   dayEvents: CalendarEvent[];
@@ -123,6 +125,7 @@ const WeekDayCell = memo(function WeekDayCell({
   onDayClick: (day: Date) => void;
   onCellClick: (day: Date) => void;
   onDeleteEvent: (id: number) => void;
+  onEventClick?: (ev: CalendarEvent) => void;
 }) {
   const dow = day.getDay();
   return (
@@ -148,7 +151,7 @@ const WeekDayCell = memo(function WeekDayCell({
       </button>
       <div className="flex-1 overflow-y-auto p-1 space-y-0.5">
         {dayEvents.map((ev) => (
-          <WeekEventCard key={`e-${ev.id}`} ev={ev} onDelete={onDeleteEvent} />
+          <WeekEventCard key={`e-${ev.id}`} ev={ev} onDelete={onDeleteEvent} onClick={onEventClick} />
         ))}
         {dayTodos.map((t) => (
           <WeekTodoItem key={`t-${t.id}`} todo={t} />
@@ -170,6 +173,7 @@ interface WeekViewProps {
   onDayClick: (day: Date) => void;
   onCellClick: (day: Date) => void;
   onDeleteEvent: (id: number) => void;
+  onEventClick?: (ev: CalendarEvent) => void;
 }
 
 export default function WeekView({
@@ -179,6 +183,7 @@ export default function WeekView({
   onDayClick,
   onCellClick,
   onDeleteEvent,
+  onEventClick,
 }: WeekViewProps) {
   const dayData = days.map((day) => {
     const dateKey = format(day, "yyyy-MM-dd");
@@ -203,6 +208,7 @@ export default function WeekView({
             onDayClick={onDayClick}
             onCellClick={onCellClick}
             onDeleteEvent={onDeleteEvent}
+            onEventClick={onEventClick}
           />
         ))}
       </div>
@@ -217,6 +223,7 @@ export default function WeekView({
             onDayClick={onDayClick}
             onCellClick={onCellClick}
             onDeleteEvent={onDeleteEvent}
+            onEventClick={onEventClick}
           />
         ))}
       </div>

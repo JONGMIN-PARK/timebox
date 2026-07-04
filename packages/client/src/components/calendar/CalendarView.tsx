@@ -47,6 +47,7 @@ import DayView from "./DayView";
 import CalendarSearchPanel from "./CalendarSearchPanel";
 import RecipientPickerModal from "@/components/common/RecipientPickerModal";
 import NLQuickAddModal, { type NLEventValues, type NLTodoValues } from "./NLQuickAddModal";
+import EventDetailPopover from "./EventDetailPopover";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -67,6 +68,10 @@ export default function CalendarView() {
     () => Object.fromEntries(projects.filter((p) => !p.archived).map((p) => [p.id, p.name])) as Record<number, string>,
     [projects],
   );
+  const categoryNameById = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c.name])) as Record<number, string>,
+    [categories],
+  );
 
   useEffect(() => {
     fetchProjects();
@@ -81,6 +86,7 @@ export default function CalendarView() {
   const [editingTodo, setEditingTodo] = useState<AppTodo | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardingEventId, setForwardingEventId] = useState<number | null>(null);
+  const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpYear, setJumpYear] = useState(new Date().getFullYear());
@@ -622,6 +628,7 @@ export default function CalendarView() {
           onDayClick={(day) => { setViewMode("day"); setCurrentDate(day); }}
           onCellClick={(day) => { setSelectedDate(day); setShowAddModal(true); }}
           onDeleteEvent={handleDeleteEvent}
+          onEventClick={setDetailEvent}
         />
       )}
 
@@ -637,6 +644,7 @@ export default function CalendarView() {
           timelineRef={timelineRef}
           onAddEvent={() => { setSelectedDate(currentDate); setShowAddModal(true); }}
           onDeleteEvent={handleDeleteEvent}
+          onEventClick={setDetailEvent}
         />
       )}
 
@@ -809,6 +817,18 @@ export default function CalendarView() {
         onEditEvent={handleEditEvent}
         onEditTodo={handleEditTodo}
       />
+
+      {detailEvent && (
+        <EventDetailPopover
+          event={detailEvent}
+          categoryName={detailEvent.categoryId ? categoryNameById[detailEvent.categoryId] : undefined}
+          projectName={detailEvent.projectId ? projectNameById[detailEvent.projectId] : undefined}
+          onClose={() => setDetailEvent(null)}
+          onEdit={handleEditEvent}
+          onDelete={handleDeleteEvent}
+          onForward={setForwardingEventId}
+        />
+      )}
 
       <RecipientPickerModal
         open={forwardingEventId != null}
