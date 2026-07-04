@@ -1,15 +1,15 @@
 {
-  "version": "1.46.1",
+  "version": "1.47.0",
   "date": "2026-07-04",
   "highlights": [
-    "notes: 편집/전달/변환 모달이 헤더와 겹치는 문제 수정 (portal + 상단 여백) (7e87ae7)"
+    "header: 모바일 상단 TimeBox 타이틀 옆에 버전 배지 추가 (929665a)"
   ],
   "changes": [
     {
-      "category": "버그 수정",
-      "emoji": "🐛",
+      "category": "신규 기능",
+      "emoji": "✨",
       "items": [
-        "notes: 편집/전달/변환 모달이 헤더와 겹치는 문제 수정 (portal + 상단 여백) (7e87ae7)"
+        "header: 모바일 상단 TimeBox 타이틀 옆에 버전 배지 추가 (929665a)"
       ]
     }
   ]
