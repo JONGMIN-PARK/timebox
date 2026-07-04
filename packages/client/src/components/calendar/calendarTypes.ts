@@ -1,4 +1,4 @@
-export type ViewMode = "month" | "week" | "day";
+export type ViewMode = "month" | "week" | "day" | "agenda";
 
 export const HOUR_HEIGHT = 56;
 export const START_HOUR = 6;

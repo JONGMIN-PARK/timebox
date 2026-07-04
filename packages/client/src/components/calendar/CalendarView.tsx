@@ -44,6 +44,7 @@ import { getCategoryInfo } from "@/lib/categories";
 import MonthView from "./MonthView";
 import WeekView from "./WeekView";
 import DayView from "./DayView";
+import AgendaView from "./AgendaView";
 import CalendarSearchPanel from "./CalendarSearchPanel";
 import RecipientPickerModal from "@/components/common/RecipientPickerModal";
 import NLQuickAddModal, { type NLEventValues, type NLTodoValues } from "./NLQuickAddModal";
@@ -113,6 +114,9 @@ export default function CalendarView() {
       const ms = startOfMonth(currentDate);
       const me = endOfMonth(currentDate);
       return { rangeStart: startOfWeek(ms, { weekStartsOn: 0 }), rangeEnd: endOfWeek(me, { weekStartsOn: 0 }) };
+    } else if (viewMode === "agenda") {
+      // Agenda lists the whole month (no week padding).
+      return { rangeStart: startOfMonth(currentDate), rangeEnd: endOfMonth(currentDate) };
     } else if (viewMode === "week") {
       return { rangeStart: startOfWeek(currentDate, { weekStartsOn: 0 }), rangeEnd: endOfWeek(currentDate, { weekStartsOn: 0 }) };
     } else {
@@ -220,7 +224,7 @@ export default function CalendarView() {
     : [];
 
   const navigate = (direction: -1 | 1) => {
-    if (viewMode === "month") setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+    if (viewMode === "month" || viewMode === "agenda") setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
     else if (viewMode === "week") setCurrentDate(direction === 1 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
     else setCurrentDate(direction === 1 ? addDays(currentDate, 1) : subDays(currentDate, 1));
   };
@@ -249,7 +253,7 @@ export default function CalendarView() {
   };
 
   const headerTitle = () => {
-    if (viewMode === "month") return format(currentDate, "MMMM yyyy", { locale: enUS });
+    if (viewMode === "month" || viewMode === "agenda") return format(currentDate, "MMMM yyyy", { locale: enUS });
     if (viewMode === "week") {
       const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
       const we = endOfWeek(currentDate, { weekStartsOn: 0 });
@@ -561,7 +565,7 @@ export default function CalendarView() {
             </select>
           </div>
           <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-            {(["month", "week", "day"] as ViewMode[]).map((mode) => (
+            {(["month", "week", "day", "agenda"] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
@@ -572,7 +576,7 @@ export default function CalendarView() {
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
                 )}
               >
-                {{ month: t("calendar.month"), week: t("calendar.week"), day: t("calendar.day") }[mode]}
+                {{ month: t("calendar.month"), week: t("calendar.week"), day: t("calendar.day"), agenda: t("calendar.agenda") }[mode]}
               </button>
             ))}
           </div>
@@ -645,6 +649,18 @@ export default function CalendarView() {
           onAddEvent={() => { setSelectedDate(currentDate); setShowAddModal(true); }}
           onDeleteEvent={handleDeleteEvent}
           onEventClick={setDetailEvent}
+        />
+      )}
+
+      {/* === AGENDA VIEW === */}
+      {viewMode === "agenda" && (
+        <AgendaView
+          days={days}
+          eventsByDate={eventsByDate}
+          todosByDate={todosByDate}
+          onEventClick={setDetailEvent}
+          onToggleTodo={toggleTodo}
+          onEditTodo={handleEditTodo}
         />
       )}
 

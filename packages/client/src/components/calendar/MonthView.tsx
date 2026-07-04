@@ -276,9 +276,13 @@ export default function MonthView({
                     <p className={cn("text-[10px] leading-tight truncate min-w-0", td.completed ? "line-through text-slate-400" : "text-slate-600 dark:text-slate-400")}>{td.title}</p>
                   </div>
                 ))}
-                {(dayEvents.length + dayTodos.length) > 6 && (
-                  <span className="text-[9px] text-slate-400 px-0.5">+{dayEvents.length + dayTodos.length - 6} more</span>
-                )}
+                {(() => {
+                  const shown = Math.min(dayEvents.length, 3) + Math.min(dayTodos.length, 3);
+                  const hidden = dayEvents.length + dayTodos.length - shown;
+                  return hidden > 0 ? (
+                    <span className="text-[9px] font-medium text-slate-400 px-0.5">+{hidden} {t("calendar.more")}</span>
+                  ) : null;
+                })()}
               </div>
               {hoverDateKey === dateKey && (dayEvents.length > 0 || dayTodos.length > 0) && (
                 <HoverTooltip items={getHoverItems(dateKey)} />
