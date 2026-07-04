@@ -6,28 +6,11 @@ import { eventApi } from "@/lib/apiService";
 import { useI18n } from "@/lib/useI18n";
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
+import { highlight } from "@/lib/highlight";
 import type { CalendarEvent, Todo } from "./calendarTypes";
 
 type Kind = "all" | "event" | "todo";
 type SortBy = "dateDesc" | "dateAsc" | "title" | "type";
-
-/** Wrap occurrences of `q` in `text` with a highlight marker (case-insensitive). */
-function highlight(text: string, q: string) {
-  const query = q.trim();
-  if (!query) return text;
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
-  const lower = query.toLowerCase();
-  return parts.map((part, i) =>
-    part.toLowerCase() === lower ? (
-      <mark key={i} className="bg-yellow-200 dark:bg-yellow-500/40 text-inherit rounded-sm px-0.5">
-        {part}
-      </mark>
-    ) : (
-      part
-    ),
-  );
-}
 
 interface EventRow {
   kind: "event";

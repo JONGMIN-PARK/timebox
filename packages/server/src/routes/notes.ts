@@ -2,22 +2,15 @@ import { Router } from "express";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../db/index.js";
-import { notes, users, inboxMessages } from "../db/schema.js";
+import { notes, users } from "../db/schema.js";
 import { eq, and, desc, isNull, isNotNull } from "drizzle-orm";
 import { type AuthRequest } from "../middleware/auth.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError, AppError } from "../lib/errors.js";
 import { upload, UPLOAD_DIR, safeUnlink } from "../lib/upload.js";
-import { emitToUser, emitInboxUpdate } from "../socket/index.js";
-
-/** Deprecated preview model IDs → current stable ones (mirrors telegram bot). */
-const DEPRECATED_MODELS: Record<string, string> = {
-  "gemini-2.5-pro-preview-05-06": "gemini-2.5-pro",
-  "gemini-2.5-flash-preview-05-20": "gemini-2.5-flash",
-  "gemini-3-pro-preview": "gemini-3.1-pro-preview",
-};
+import { getGeminiModel } from "../lib/gemini.js";
+import { notifyForward } from "../lib/forwardNotify.js";
 
 const router = Router();
 
@@ -163,26 +156,15 @@ router.post("/:id/forward", asyncHandler<AuthRequest>(async (req, res) => {
     .returning();
 
   // Notify the recipient via their inbox.
-  const [sender] = await db
-    .select({ displayName: users.displayName, username: users.username })
-    .from(users)
-    .where(eq(users.id, fromUserId));
-  const fromName = sender?.displayName || sender?.username || "Someone";
   const preview =
     note.title ||
     (note.content ? note.content.slice(0, 80) : note.type === "voice" ? "🎤 음성 메모" : "✏️ 손글씨 메모");
-  const [msg] = await db
-    .insert(inboxMessages)
-    .values({
-      fromUserId,
-      toUserId: targetId,
-      subject: `📝 ${fromName}님이 메모를 보냈습니다`,
-      content: preview,
-      type: "system",
-    })
-    .returning();
-  emitToUser(targetId, "inbox:new-message", { message: msg, fromName });
-  emitInboxUpdate(targetId);
+  await notifyForward({
+    fromUserId,
+    toUserId: targetId,
+    subjectFor: (name) => `📝 ${name}님이 메모를 보냈습니다`,
+    content: preview,
+  });
 
   res.status(201).json({ success: true, data: copy });
 }));
@@ -197,17 +179,10 @@ router.post("/:id/summarize", asyncHandler<AuthRequest>(async (req, res) => {
   if (note.type !== "text" || !note.content.trim()) {
     throw new ValidationError("Nothing to summarize");
   }
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) throw new AppError("AI is not configured", 503);
-
-  const [user] = await db.select().from(users).where(eq(users.id, userId));
-  const rawModel = user?.aiModel || "gemini-2.0-flash";
-  const modelName = DEPRECATED_MODELS[rawModel] || rawModel;
+  const model = await getGeminiModel(userId);
 
   let summary: string;
   try {
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: modelName });
     const prompt =
       "다음 메모를 핵심만 담아 2~3문장으로 간결하게 요약해줘. 부연 설명 없이 요약문만 출력해.\n\n" +
       `제목: ${note.title || "(없음)"}\n내용:\n${note.content}`;
@@ -248,12 +223,11 @@ router.post("/:id/transcribe", asyncHandler<AuthRequest>(async (req, res) => {
   if (!note) throw new NotFoundError("Note");
   if (note.type !== "voice" || !note.fileName) throw new ValidationError("Not a voice note");
 
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) throw new AppError("AI is not configured", 503);
-
   const ext = path.extname(note.fileName).toLowerCase();
   const mimeType = GEMINI_AUDIO_MIME[ext];
   if (!mimeType) throw new ValidationError(`Unsupported audio format: ${ext}`);
+
+  const model = await getGeminiModel(userId);
 
   let audioB64: string;
   try {
@@ -262,14 +236,8 @@ router.post("/:id/transcribe", asyncHandler<AuthRequest>(async (req, res) => {
     throw new NotFoundError("Note media");
   }
 
-  const [user] = await db.select().from(users).where(eq(users.id, userId));
-  const rawModel = user?.aiModel || "gemini-2.0-flash";
-  const modelName = DEPRECATED_MODELS[rawModel] || rawModel;
-
   let transcript: string;
   try {
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: modelName });
     const prompt =
       "이 오디오를 원문 그대로 받아써줘(전사). 화자의 말을 정확히 텍스트로 옮기고, 부연 설명·요약 없이 전사 내용만 출력해. 알아들을 수 없으면 빈 문자열을 반환해.";
     const result = await model.generateContent([

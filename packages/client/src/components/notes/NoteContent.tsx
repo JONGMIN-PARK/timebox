@@ -1,26 +1,11 @@
-import type React from "react";
 import { Check } from "lucide-react";
+import { highlight } from "@/lib/highlight";
+
+// Re-exported for existing importers (e.g. NotesView).
+export { highlight };
 
 /** Matches a markdown-style checklist line: `- [ ] task` or `- [x] task`. */
 export const CHECK_RE = /^(\s*)- \[([ xX])\] (.*)$/;
-
-/** Wrap occurrences of `query` in the text with a highlight marker (case-insensitive). */
-export function highlight(text: string | null | undefined, query: string): React.ReactNode {
-  const q = query.trim();
-  if (!q || !text) return text ?? null;
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
-  const lower = q.toLowerCase();
-  return parts.map((part, i) =>
-    part.toLowerCase() === lower ? (
-      <mark key={i} className="bg-yellow-200 dark:bg-yellow-500/40 text-inherit rounded-sm px-0.5">
-        {part}
-      </mark>
-    ) : (
-      part
-    ),
-  );
-}
 
 /** True if the text contains at least one checklist line. */
 export function hasChecklist(content: string): boolean {

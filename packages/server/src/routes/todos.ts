@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { todos, users, inboxMessages } from "../db/schema.js";
+import { todos, users } from "../db/schema.js";
 import { eq, and, asc, desc, sql, isNull, isNotNull } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
@@ -8,7 +8,8 @@ import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import { resolveOptionalProjectId } from "../lib/projectAccess.js";
-import { emitToUser, emitInboxUpdate } from "../socket/index.js";
+import { emitToUser } from "../socket/index.js";
+import { notifyForward } from "../lib/forwardNotify.js";
 
 const router = Router();
 
@@ -222,24 +223,13 @@ router.post("/:id/forward", asyncHandler<AuthRequest>(async (req, res) => {
   const [copy] = await db.insert(todos).values(values as typeof todos.$inferInsert).returning();
 
   // Notify the recipient via their inbox.
-  const [sender] = await db
-    .select({ displayName: users.displayName, username: users.username })
-    .from(users)
-    .where(eq(users.id, fromUserId));
-  const fromName = sender?.displayName || sender?.username || "Someone";
   const due = todo.dueDate ? `\n🗓 ${todo.dueDate.slice(0, 10)}` : "";
-  const [msg] = await db
-    .insert(inboxMessages)
-    .values({
-      fromUserId,
-      toUserId: targetId,
-      subject: `✅ ${fromName}님이 할일을 보냈습니다`,
-      content: `${todo.title}${due}`,
-      type: "system",
-    })
-    .returning();
-  emitToUser(targetId, "inbox:new-message", { message: msg, fromName });
-  emitInboxUpdate(targetId);
+  await notifyForward({
+    fromUserId,
+    toUserId: targetId,
+    subjectFor: (name) => `✅ ${name}님이 할일을 보냈습니다`,
+    content: `${todo.title}${due}`,
+  });
   emitToUser(targetId, "todos:updated", { reason: "forward" });
 
   res.status(201).json({ success: true, data: withStatus(copy) });

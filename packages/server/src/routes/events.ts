@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { events, users, inboxMessages } from "../db/schema.js";
+import { events, users } from "../db/schema.js";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler } from "../lib/asyncHandler.js";
 import { ValidationError, NotFoundError } from "../lib/errors.js";
 import { resolveOptionalProjectId } from "../lib/projectAccess.js";
-import { emitToUser, emitInboxUpdate } from "../socket/index.js";
+import { emitToUser } from "../socket/index.js";
+import { notifyForward } from "../lib/forwardNotify.js";
 
 const router = Router();
 
@@ -107,24 +108,13 @@ router.post("/:id/forward", asyncHandler<AuthRequest>(async (req, res) => {
     .returning();
 
   // Notify the recipient via their inbox.
-  const [sender] = await db
-    .select({ displayName: users.displayName, username: users.username })
-    .from(users)
-    .where(eq(users.id, fromUserId));
-  const fromName = sender?.displayName || sender?.username || "Someone";
   const when = event.allDay ? event.startTime.slice(0, 10) : `${event.startTime.slice(0, 10)} ${event.startTime.slice(11, 16)}`;
-  const [msg] = await db
-    .insert(inboxMessages)
-    .values({
-      fromUserId,
-      toUserId: targetId,
-      subject: `📅 ${fromName}님이 일정을 보냈습니다`,
-      content: `${event.title}\n🗓 ${when}`,
-      type: "system",
-    })
-    .returning();
-  emitToUser(targetId, "inbox:new-message", { message: msg, fromName });
-  emitInboxUpdate(targetId);
+  await notifyForward({
+    fromUserId,
+    toUserId: targetId,
+    subjectFor: (name) => `📅 ${name}님이 일정을 보냈습니다`,
+    content: `${event.title}\n🗓 ${when}`,
+  });
   // Nudge the recipient's calendar to refresh if they have it open.
   emitToUser(targetId, "events:updated", { reason: "forward" });
 
