@@ -1,5 +1,11 @@
 # TimeBox — Changelog & Development Progress
 
+## v1.38.1 (4d73fbd) — 2026-07-04
+
+| 항목 | 설명 | 커밋 |
+|------|------|------|
+| 🐛 수정 | 음성녹음을 Web Audio WAV 방식으로 교체 (iOS Safari 대응) | 4d73fbd |
+
 ## v1.38.0 (e06df60) — 2026-07-04
 
 | 항목 | 설명 | 커밋 |

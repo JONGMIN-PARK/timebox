@@ -1,15 +1,15 @@
 {
-  "version": "1.38.0",
+  "version": "1.38.1",
   "date": "2026-07-04",
   "highlights": [
-    "notes: 음성 전사 전 webm/mp4 → WAV 트랜스코드 (WS3) (e06df60)"
+    "notes: 음성녹음을 Web Audio WAV 방식으로 교체 (iOS Safari 대응) (4d73fbd)"
   ],
   "changes": [
     {
-      "category": "신규 기능",
-      "emoji": "✨",
+      "category": "버그 수정",
+      "emoji": "🐛",
       "items": [
-        "notes: 음성 전사 전 webm/mp4 → WAV 트랜스코드 (WS3) (e06df60)"
+        "notes: 음성녹음을 Web Audio WAV 방식으로 교체 (iOS Safari 대응) (4d73fbd)"
       ]
     }
   ]
