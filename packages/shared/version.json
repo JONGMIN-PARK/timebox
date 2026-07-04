@@ -1,15 +1,15 @@
 {
-  "version": "1.44.0",
+  "version": "1.45.0",
   "date": "2026-07-04",
   "highlights": [
-    "notes: Keep 확장 4단계(D) — 노트 리마인더 + 실시간 공유 (3c0156c)"
+    "settings: 설정 화면에 앱 정보·업데이트 내역(버전 기록) 추가 (41c554b)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "notes: Keep 확장 4단계(D) — 노트 리마인더 + 실시간 공유 (3c0156c)"
+        "settings: 설정 화면에 앱 정보·업데이트 내역(버전 기록) 추가 (41c554b)"
       ]
     }
   ]
