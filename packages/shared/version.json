@@ -1,15 +1,15 @@
 {
-  "version": "1.41.0",
+  "version": "1.42.0",
   "date": "2026-07-04",
   "highlights": [
-    "calendar: 일(Day) 타임라인 드래그 상호작용 추가 (8f5d787)"
+    "notes: Keep 확장 2단계(B) — 보기 전환·드래그 정렬·체크리스트 강화 (1dae122)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 일(Day) 타임라인 드래그 상호작용 추가 (8f5d787)"
+        "notes: Keep 확장 2단계(B) — 보기 전환·드래그 정렬·체크리스트 강화 (1dae122)"
       ]
     }
   ]
