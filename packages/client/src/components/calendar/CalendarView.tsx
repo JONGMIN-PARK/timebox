@@ -20,6 +20,8 @@ import {
   isSameDay,
   parseISO,
   isValid,
+  differenceInCalendarDays,
+  differenceInCalendarMonths,
 } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, X, Repeat, Search, Send, Sparkles } from "lucide-react";
@@ -143,29 +145,47 @@ export default function CalendarView() {
       ? events.filter(ev => ev.projectId === projectFilter)
       : events;
     const map = new Map<string, typeof events>();
+    // Place `ev` on every day of one occurrence (inclusive span), capped for safety.
+    const placeSpan = (ev: (typeof events)[number], start: Date, spanDays: number) => {
+      let d = start;
+      for (let g = 0; g <= spanDays && g < 400; g++) {
+        const key = format(d, "yyyy-MM-dd");
+        const arr = map.get(key) || [];
+        arr.push(ev);
+        map.set(key, arr);
+        d = addDays(d, 1);
+      }
+    };
     filteredEvents.forEach((ev) => {
       const startKey = ev.startTime.slice(0, 10);
       let endKey = ev.endTime ? ev.endTime.slice(0, 10) : startKey;
       if (endKey < startKey) endKey = startKey;
-      if (endKey === startKey) {
-        const existing = map.get(startKey) || [];
-        existing.push(ev);
-        map.set(startKey, existing);
+      const base = parseISO(startKey);
+      const spanDays = Math.max(0, differenceInCalendarDays(parseISO(endKey), base));
+
+      const rule = ev.recurrenceRule;
+      if (rule !== "daily" && rule !== "weekly" && rule !== "monthly") {
+        placeSpan(ev, base, spanDays); // single- or multi-day, no recurrence
         return;
       }
-      // Multi-day event: list it on every day it spans (inclusive), capped for safety.
-      let d = parseISO(startKey);
-      const end = parseISO(endKey);
-      for (let guard = 0; d <= end && guard < 400; guard++) {
-        const key = format(d, "yyyy-MM-dd");
-        const existing = map.get(key) || [];
-        existing.push(ev);
-        map.set(key, existing);
-        d = addDays(d, 1);
+      // Recurring: emit each occurrence that intersects the visible range.
+      const advance = (dt: Date, k: number) =>
+        rule === "daily" ? addDays(dt, k) : rule === "weekly" ? addWeeks(dt, k) : addMonths(dt, k);
+      // Fast-forward to the first occurrence that could still be visible.
+      let k = 0;
+      const diffDays = differenceInCalendarDays(rangeStart, base);
+      if (diffDays > spanDays) {
+        k = rule === "daily" ? diffDays : rule === "weekly" ? Math.floor(diffDays / 7) : differenceInCalendarMonths(rangeStart, base);
+        k = Math.max(0, k - 1);
+      }
+      let occ = advance(base, k);
+      for (let g = 0; occ <= rangeEnd && g < 500; g++) {
+        if (addDays(occ, spanDays) >= rangeStart) placeSpan(ev, occ, spanDays);
+        occ = advance(occ, 1);
       }
     });
     return map;
-  }, [events, projectFilter]);
+  }, [events, projectFilter, rangeStart, rangeEnd]);
 
   const todosByDate = useMemo(() => {
     const map = new Map<string, typeof todos>();

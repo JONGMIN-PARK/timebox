@@ -90,6 +90,11 @@ router.get(
       if (ev.description) {
         lines.push(`DESCRIPTION:${icsEscape(ev.description)}`);
       }
+      // Recurrence: map the simple rule to an RRULE so subscribers repeat it.
+      const freq = ev.recurrenceRule === "daily" ? "DAILY" : ev.recurrenceRule === "weekly" ? "WEEKLY" : ev.recurrenceRule === "monthly" ? "MONTHLY" : null;
+      if (freq) {
+        lines.push(`RRULE:FREQ=${freq}`);
+      }
       lines.push("END:VEVENT");
     }
 
