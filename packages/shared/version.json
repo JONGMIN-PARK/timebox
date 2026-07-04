@@ -1,15 +1,15 @@
 {
-  "version": "1.36.0",
+  "version": "1.37.0",
   "date": "2026-07-04",
   "highlights": [
-    "calendar: 반복 일정 실제 반복 표시 + ICS RRULE (WS1) (f693fd9)"
+    "calendar: 여러날/종일 일정 표시 개선 (WS2) (91731cf)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 반복 일정 실제 반복 표시 + ICS RRULE (WS1) (f693fd9)"
+        "calendar: 여러날/종일 일정 표시 개선 (WS2) (91731cf)"
       ]
     }
   ]
