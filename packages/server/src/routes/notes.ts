@@ -11,6 +11,7 @@ import { ValidationError, NotFoundError, AppError } from "../lib/errors.js";
 import { upload, UPLOAD_DIR, safeUnlink } from "../lib/upload.js";
 import { getGeminiModel } from "../lib/gemini.js";
 import { notifyForward } from "../lib/forwardNotify.js";
+import { transcodeToWav } from "../lib/audio.js";
 
 const router = Router();
 
@@ -229,11 +230,25 @@ router.post("/:id/transcribe", asyncHandler<AuthRequest>(async (req, res) => {
 
   const model = await getGeminiModel(userId);
 
+  const filePath = path.join(UPLOAD_DIR, note.fileName);
+  if (!fs.existsSync(filePath)) throw new NotFoundError("Note media");
+
+  // Browsers record webm (Chrome) / mp4 (iOS) — containers Gemini's inline audio
+  // often rejects. Transcode those to WAV first; fall back to the original if
+  // ffmpeg is unavailable (strictly no worse than before).
+  const NEEDS_TRANSCODE = new Set([".webm", ".mp4", ".m4a", ".aac"]);
+  let sendMime = mimeType;
   let audioB64: string;
-  try {
-    audioB64 = (await fs.promises.readFile(path.join(UPLOAD_DIR, note.fileName))).toString("base64");
-  } catch {
-    throw new NotFoundError("Note media");
+  if (NEEDS_TRANSCODE.has(ext)) {
+    const wav = await transcodeToWav(filePath);
+    if (wav) {
+      sendMime = "audio/wav";
+      audioB64 = wav.toString("base64");
+    } else {
+      audioB64 = (await fs.promises.readFile(filePath)).toString("base64");
+    }
+  } else {
+    audioB64 = (await fs.promises.readFile(filePath)).toString("base64");
   }
 
   let transcript: string;
@@ -241,7 +256,7 @@ router.post("/:id/transcribe", asyncHandler<AuthRequest>(async (req, res) => {
     const prompt =
       "이 오디오를 원문 그대로 받아써줘(전사). 화자의 말을 정확히 텍스트로 옮기고, 부연 설명·요약 없이 전사 내용만 출력해. 알아들을 수 없으면 빈 문자열을 반환해.";
     const result = await model.generateContent([
-      { inlineData: { mimeType, data: audioB64 } },
+      { inlineData: { mimeType: sendMime, data: audioB64 } },
       { text: prompt },
     ]);
     transcript = result.response.text().trim();
