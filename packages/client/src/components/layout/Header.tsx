@@ -94,6 +94,13 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">TimeBox</span>
+            <button
+              onClick={onVersionClick}
+              className="shrink-0 text-[9px] font-semibold leading-none text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 border border-blue-200/60 dark:border-blue-500/30 px-1.5 py-0.5 rounded-full active:scale-95 transition-transform"
+              aria-label={`Version ${APP_VERSION}`}
+            >
+              v{APP_VERSION}
+            </button>
             <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user?.displayName || user?.username}</span>
           </div>
           <p className="text-[9px] text-slate-400 truncate">
