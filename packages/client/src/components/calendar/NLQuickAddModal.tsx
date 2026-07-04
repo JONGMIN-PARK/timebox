@@ -81,7 +81,7 @@ export default function NLQuickAddModal({
         endTime: d.endTime || "10:00",
       });
     } else {
-      showToast("error", res.error || t("ai.parseFailed"));
+      showToast("error", res.status === 503 ? t("ai.unavailable") : t("ai.parseFailed"));
     }
   };
 

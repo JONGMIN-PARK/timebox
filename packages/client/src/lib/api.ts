@@ -19,7 +19,7 @@ export function isAuthenticated(): boolean {
 async function request<T>(
   path: string,
   options: RequestInit = {},
-): Promise<{ success: boolean; data?: T; error?: string }> {
+): Promise<{ success: boolean; data?: T; error?: string; status?: number }> {
   const token = getToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -37,10 +37,11 @@ async function request<T>(
   if (res.status === 401) {
     clearToken();
     window.location.href = "/";
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: "Unauthorized", status: 401 };
   }
 
-  return res.json();
+  const body = await res.json().catch(() => ({ success: false, error: "Invalid response" }));
+  return { ...body, status: res.status };
 }
 
 export const api = {

@@ -762,7 +762,7 @@ export default function ElonScheduler() {
       }
       setOptSuggestions(list.map((s) => ({ ...s, accepted: true })));
     } else {
-      showToast("error", res.error || t("elon.optimizeFailed"));
+      showToast("error", res.status === 503 ? t("ai.unavailable") : t("elon.optimizeFailed"));
     }
   }, [brainItems, sortedBlocks, t]);
 

@@ -248,6 +248,12 @@ initSocket(httpServer);
 httpServer.listen(PORT, () => {
   logger.info(`TimeBox server running on http://localhost:${PORT}`);
 
+  // Warn when AI features are unconfigured (parse/optimize/summarize/transcribe
+  // all return 503 until GEMINI_API_KEY is set) — mirrors the Telegram warning.
+  if (!process.env.GEMINI_API_KEY) {
+    logger.warn("GEMINI_API_KEY not set — AI features (natural-language add, schedule optimize, note summary/transcribe) are disabled");
+  }
+
   // Initialize Telegram bot only in production (prevents polling conflict with local dev)
   if (env.NODE_ENV === "production") {
     initTelegramBot()

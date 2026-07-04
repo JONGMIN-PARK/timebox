@@ -141,7 +141,7 @@ export default function NotesView() {
       setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
       showToast("success", t("notes.summaryDone"));
     } else {
-      showToast("error", res.error || t("notes.summaryFailed"));
+      showToast("error", res.status === 503 ? t("ai.unavailable") : t("notes.summaryFailed"));
     }
   }, [t]);
 
@@ -154,7 +154,7 @@ export default function NotesView() {
       setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
       showToast("success", t("notes.transcribeDone"));
     } else {
-      showToast("error", res.error || t("notes.transcribeFailed"));
+      showToast("error", res.status === 503 ? t("ai.unavailable") : t("notes.transcribeFailed"));
     }
   }, [t]);
 
