@@ -12,9 +12,82 @@ export interface VersionEntry {
   changes: { category: string; emoji?: string; items: string[] }[];
 }
 
-// Current version from version.json as first entry, then hardcoded history
-export const VERSION_HISTORY: VersionEntry[] = [
-  versionData as VersionEntry,
+// Manually curated release notes — shown in Settings → 앱 정보 → 업데이트 내역.
+// ⚠️ On every version bump, add a new entry at the TOP of this array so the
+// change is recorded in the Settings screen. Newest first; keep it in sync with
+// the deployed version numbers (CI bumps the minor per deploy).
+const HISTORY: VersionEntry[] = [
+  {
+    version: "1.44.0",
+    date: "2026-07-04",
+    highlights: ["노트 리마인더", "노트 실시간 공유"],
+    changes: [
+      { category: "노트 (Google Keep 확장 4단계)", emoji: "🔔", items: [
+        "노트에 직접 리마인더 지정 (편집 모달 날짜/시간 선택, 카드 벨 칩)",
+        "기한 도래 시 실시간·텔레그램 알림 후 1회 발화",
+        "메모 전달 시 수신자에게 Socket.io 실시간 도착 (새로고침 불필요)",
+      ] },
+    ],
+  },
+  {
+    version: "1.43.0",
+    date: "2026-07-04",
+    highlights: ["이미지 첨부", "AI 텍스트 추출(OCR)"],
+    changes: [
+      { category: "노트 (Google Keep 확장 3단계)", emoji: "🖼️", items: [
+        "이미지 캡처 유형 추가 (파일 선택으로 이미지 노트 생성)",
+        "Gemini 비전 OCR로 이미지 속 텍스트 추출",
+        "이미지/손글씨 노트 탭하면 편집 모달 열림",
+      ] },
+    ],
+  },
+  {
+    version: "1.42.0",
+    date: "2026-07-04",
+    highlights: ["보기 전환", "드래그 정렬", "체크리스트 강화"],
+    changes: [
+      { category: "노트 (Google Keep 확장 2단계)", emoji: "🗂️", items: [
+        "그리드/리스트 보기 전환",
+        "수동 정렬 모드 + 노트 카드 드래그 정렬 (서버 저장)",
+        "체크리스트: 완료 항목 숨기기·모두 해제·완료 항목 삭제",
+      ] },
+    ],
+  },
+  {
+    version: "1.41.0",
+    date: "2026-07-04",
+    highlights: ["일 타임라인 드래그"],
+    changes: [
+      { category: "캘린더 (Google Calendar 참고)", emoji: "🗓️", items: [
+        "빈 타임라인 드래그로 이벤트 생성 (선택 범위 표시)",
+        "이벤트 드래그 이동 + 하단 핸들 리사이즈 (15분 스냅, 서버 반영)",
+      ] },
+    ],
+  },
+  {
+    version: "1.40.0",
+    date: "2026-07-04",
+    highlights: ["겹치는 일정 나란히", "상세 팝오버", "아젠다 뷰"],
+    changes: [
+      { category: "캘린더 (Google Calendar 참고)", emoji: "🗓️", items: [
+        "겹치는 일정을 나란히 배치 (컬럼 패킹)",
+        "이벤트 클릭 상세 팝오버 (수정/전달/삭제)",
+        "아젠다(목록) 뷰 추가 + 월 셀 더보기 정확도 개선",
+      ] },
+    ],
+  },
+  {
+    version: "1.39.0",
+    date: "2026-07-03",
+    highlights: ["라벨/태그", "보관(Archive)"],
+    changes: [
+      { category: "노트 (Google Keep 확장 1단계)", emoji: "🏷️", items: [
+        "노트 라벨/태그 + 라벨 필터",
+        "노트 보관(Archive) 및 보관함",
+        "iOS Safari 음성녹음 대응 (Web Audio WAV)",
+      ] },
+    ],
+  },
   {
     version: "1.1.0",
     date: "2026-03-28",
@@ -65,3 +138,14 @@ export const VERSION_HISTORY: VersionEntry[] = [
     ],
   },
 ];
+
+// Build the changelog shown in Settings / the version modal.
+// If the current (CI-generated) version is already curated in HISTORY, show the
+// curated list as-is (nicer wording). Otherwise prepend the auto-generated
+// entry so a freshly deployed version is never missing from the record.
+const current = versionData as VersionEntry;
+export const VERSION_HISTORY: VersionEntry[] = HISTORY.some(
+  (e) => e.version === current.version,
+)
+  ? HISTORY
+  : [current, ...HISTORY];

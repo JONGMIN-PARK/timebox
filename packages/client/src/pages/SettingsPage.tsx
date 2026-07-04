@@ -4,7 +4,9 @@ import { useThemeStore, ACCENTS, ACCENT_SWATCH } from "@/stores/themeStore";
 import { api } from "@/lib/api";
 import { authApi } from "@/lib/apiService";
 import { cn } from "@/lib/utils";
-import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, Check, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles, Calendar } from "lucide-react";
+import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, Check, CheckCircle, XCircle, Clock, Download, Upload, AlertTriangle, Globe, LogOut, Sparkles, Calendar, Info, ChevronRight } from "lucide-react";
+import VersionModal from "@/components/VersionModal";
+import { APP_VERSION, APP_BUILD_DATE, VERSION_HISTORY } from "@/lib/version";
 import { getQuietHoursConfig, saveQuietHoursConfig, type QuietHoursConfig } from "@/lib/quietHours";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
@@ -63,6 +65,7 @@ export default function SettingsPage() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ username: "", password: "", displayName: "", role: "user" });
   const [message, setMessage] = useState("");
+  const [showVersion, setShowVersion] = useState(false);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
@@ -832,6 +835,43 @@ export default function SettingsPage() {
           </section>
         )}
 
+        {/* App info / version history */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Info className="w-3.5 h-3.5" />
+            {t("settings.appInfo")}
+          </h2>
+          <div className="card overflow-hidden">
+            <button
+              onClick={() => setShowVersion(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shrink-0">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-900 dark:text-white">
+                  TimeBox <span className="text-blue-600 dark:text-blue-400">v{APP_VERSION}</span>
+                </p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {t("settings.updateHistory")} · {APP_BUILD_DATE}
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+            </button>
+            {/* Latest highlights preview */}
+            {VERSION_HISTORY[0]?.highlights?.length > 0 && (
+              <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                {VERSION_HISTORY[0].highlights.slice(0, 3).map((h) => (
+                  <span key={h} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    {h}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Logout */}
         <section className="pb-6">
           <button
@@ -843,6 +883,7 @@ export default function SettingsPage() {
           </button>
         </section>
       </div>
+      <VersionModal open={showVersion} onClose={() => setShowVersion(false)} />
     </div>
   );
 }
