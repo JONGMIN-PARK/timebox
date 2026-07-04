@@ -649,6 +649,13 @@ export default function CalendarView() {
           onAddEvent={() => { setSelectedDate(currentDate); setShowAddModal(true); }}
           onDeleteEvent={handleDeleteEvent}
           onEventClick={setDetailEvent}
+          onCreateAt={(startHHMM, endHHMM) => {
+            setEditingEventId(null);
+            setSelectedDate(currentDate);
+            setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: startHHMM, endTime: endHHMM, allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
+            setShowAddModal(true);
+          }}
+          onUpdateTime={(id, startISO, endISO) => { updateEvent(id, { startTime: startISO, endTime: endISO }); }}
         />
       )}
 

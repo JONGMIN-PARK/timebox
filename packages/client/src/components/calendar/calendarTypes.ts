@@ -10,6 +10,13 @@ export function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+export function minutesToHHMM(min: number): string {
+  const clamped = Math.max(0, Math.min(24 * 60, Math.round(min)));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export interface CalendarEvent {
   id: number;
   title: string;
