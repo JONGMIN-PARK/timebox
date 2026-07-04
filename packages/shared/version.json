@@ -1,15 +1,15 @@
 {
-  "version": "1.46.0",
+  "version": "1.46.1",
   "date": "2026-07-04",
   "highlights": [
-    "build: ffmpeg-static 빌드 스크립트 무시하도록 추가 — Render 배포 실패 해결 (4ddb7c5)"
+    "notes: 편집/전달/변환 모달이 헤더와 겹치는 문제 수정 (portal + 상단 여백) (7e87ae7)"
   ],
   "changes": [
     {
       "category": "버그 수정",
       "emoji": "🐛",
       "items": [
-        "build: ffmpeg-static 빌드 스크립트 무시하도록 추가 — Render 배포 실패 해결 (4ddb7c5)"
+        "notes: 편집/전달/변환 모달이 헤더와 겹치는 문제 수정 (portal + 상단 여백) (7e87ae7)"
       ]
     }
   ]
