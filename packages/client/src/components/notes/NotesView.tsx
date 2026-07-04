@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus, Archive, ArchiveRestore, Tag, LayoutGrid, List, GripVertical, EyeOff, Eraser, Image as ImageIcon, ScanText } from "lucide-react";
 import {
   DndContext,
@@ -959,9 +960,9 @@ export default function NotesView() {
       </div>
 
       {/* Edit modal */}
-      {editing && (
+      {editing && createPortal((
         <div
-          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
+          className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] sm:p-4 sm:pt-4 bg-black/40"
           role="dialog"
           aria-modal="true"
           onClick={closeEditor}
@@ -1171,10 +1172,10 @@ export default function NotesView() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Delete confirmation */}
-      {confirm && (
+      {confirm && createPortal((
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50"
           role="dialog"
@@ -1203,12 +1204,12 @@ export default function NotesView() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Forward modal */}
-      {forwarding && (
+      {forwarding && createPortal((
         <div
-          className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
+          className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] sm:p-4 sm:pt-4 bg-black/40"
           role="dialog"
           aria-modal="true"
           onClick={() => setForwarding(null)}
@@ -1250,12 +1251,12 @@ export default function NotesView() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Convert modal — turn a note into a todo / reminder / event */}
-      {converting && (
+      {converting && createPortal((
         <div
-          className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center sm:p-4 bg-black/40"
+          className="fixed inset-0 z-[85] flex items-end sm:items-center justify-center pt-[calc(env(safe-area-inset-top,0px)+3.5rem)] sm:p-4 sm:pt-4 bg-black/40"
           role="dialog"
           aria-modal="true"
           onClick={() => !convBusy && setConverting(null)}
@@ -1337,7 +1338,7 @@ export default function NotesView() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }
