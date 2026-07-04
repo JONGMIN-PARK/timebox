@@ -1,8 +1,10 @@
-import React, { memo, useCallback } from "react";
+import React, { memo } from "react";
 import { format, isToday } from "date-fns";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
+import { useI18n } from "@/lib/useI18n";
+import { isAllDayLike, eventTimeLabel } from "@/lib/eventFormat";
 import {
   HOUR_HEIGHT,
   START_HOUR,
@@ -73,7 +75,6 @@ interface DayViewProps {
 
 export default function DayView({
   currentDate,
-  events,
   eventsByDate,
   todosByDate,
   currentTimeTop,
@@ -82,9 +83,13 @@ export default function DayView({
   onAddEvent,
   onDeleteEvent,
 }: DayViewProps) {
+  const { t } = useI18n();
   const dateKey = format(currentDate, "yyyy-MM-dd");
   const dayEvents = eventsByDate.get(dateKey) || [];
   const dayTodos = todosByDate.get(dateKey) || [];
+  // All-day / multi-day events go in a top lane; only timed events sit on the grid.
+  const allDayEvents = dayEvents.filter(isAllDayLike);
+  const timedEvents = dayEvents.filter((e) => !isAllDayLike(e));
 
   return (
     <>
@@ -92,7 +97,7 @@ export default function DayView({
       <div className="border-b border-slate-100 dark:border-slate-700/50">
         <div className="flex items-center justify-between px-4 py-2">
           <span className="text-sm text-slate-500 dark:text-slate-400">
-            {events.filter((e) => e.startTime.startsWith(dateKey)).length} events
+            {dayEvents.length} events
             {dayTodos.length > 0 && (
               <span className="ml-2">
                 · {dayTodos.length} todos
@@ -103,11 +108,26 @@ export default function DayView({
             <Plus className="w-4 h-4" />
           </button>
         </div>
+        {/* All-day / multi-day events lane */}
+        {allDayEvents.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+            {allDayEvents.map((ev) => (
+              <span
+                key={ev.id}
+                className="inline-flex items-center gap-1.5 max-w-full min-w-0 text-xs px-2 py-1 rounded-md"
+                style={{ backgroundColor: (ev.color || "#3b82f6") + "22", color: ev.color || "#3b82f6" }}
+              >
+                <span className="truncate min-w-0 font-medium">{ev.title}</span>
+                <span className="shrink-0 opacity-70 tabular-nums">{eventTimeLabel(ev, t("calendar.allDay"))}</span>
+              </span>
+            ))}
+          </div>
+        )}
         {/* Todos for this day */}
         {dayTodos.length > 0 && (
           <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-            {dayTodos.map((t) => (
-              <DayTodoChip key={t.id} todo={t} />
+            {dayTodos.map((td) => (
+              <DayTodoChip key={td.id} todo={td} />
             ))}
           </div>
         )}
@@ -127,7 +147,7 @@ export default function DayView({
               <div className="flex-1 h-0.5 bg-red-500" />
             </div>
           )}
-          {dayEvents.map((ev) => (
+          {timedEvents.map((ev) => (
             <DayEventItem key={ev.id} ev={ev} onDelete={onDeleteEvent} />
           ))}
         </div>

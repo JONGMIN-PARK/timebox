@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/useI18n";
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
 import { highlight } from "@/lib/highlight";
+import { eventTimeLabel } from "@/lib/eventFormat";
 import type { CalendarEvent, Todo } from "./calendarTypes";
 
 type Kind = "all" | "event" | "todo";
@@ -229,10 +230,7 @@ export default function CalendarSearchPanel({
             <ul className="space-y-1">
               {rows.map((row) => {
                 const dateStr = row.kind === "event" ? dayLabel(row.ev.startTime) : dayLabel(row.td.dueDate ?? null);
-                const timeStr =
-                  row.kind === "event" && !row.ev.allDay
-                    ? `${row.ev.startTime.slice(11, 16)}–${row.ev.endTime.slice(11, 16)}`
-                    : "";
+                const timeStr = row.kind === "event" ? eventTimeLabel(row.ev, t("calendar.allDay")) : "";
                 const projName = row.kind === "event" ? (row.ev.projectId ? projectNameById[row.ev.projectId] : "") : row.td.projectId ? projectNameById[row.td.projectId] : "";
                 return (
                   <li key={`${row.kind}-${row.id}`}>

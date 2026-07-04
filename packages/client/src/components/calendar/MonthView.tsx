@@ -5,6 +5,7 @@ import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check, Repeat } from "l
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
 import { useI18n } from "@/lib/useI18n";
+import { eventTimeLabel } from "@/lib/eventFormat";
 import type { CalendarEvent, Todo, HoverTooltipItem } from "./calendarTypes";
 import HoverTooltip from "./HoverTooltip";
 
@@ -23,13 +24,14 @@ const MonthEventDetailItem = memo(function MonthEventDetailItem({
   onEditEvent?: (event: CalendarEvent) => void;
   projectLabel?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="group flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/50 dark:hover:bg-slate-700/40 transition-colors">
       <div className="w-1 self-stretch rounded-full flex-shrink-0" style={{ backgroundColor: ev.color || "#3b82f6" }} />
       <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-slate-900 dark:text-white truncate flex items-center gap-1">{ev.title}{ev.recurrenceRule && <Repeat className="w-3 h-3 text-slate-400 shrink-0" />}</p>
-        <p className="text-[11px] text-slate-400 tabular-nums">{ev.startTime.slice(11, 16)} - {ev.endTime.slice(11, 16)}</p>
+        <p className="text-[11px] text-slate-400 tabular-nums">{eventTimeLabel(ev, t("calendar.allDay"))}</p>
         {projectLabel && (
           <p className="text-[10px] text-blue-600 dark:text-blue-400 truncate mt-0.5">{projectLabel}</p>
         )}

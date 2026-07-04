@@ -4,6 +4,8 @@ import { enUS } from "date-fns/locale";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
+import { useI18n } from "@/lib/useI18n";
+import { eventTimeLabel } from "@/lib/eventFormat";
 import type { CalendarEvent, Todo } from "./calendarTypes";
 
 // ── Shared sub-components ──
@@ -14,6 +16,7 @@ const WeekEventCard = memo(function WeekEventCard({
   ev: CalendarEvent;
   onDelete: (id: number) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className="group rounded px-1.5 py-1 border-l-[3px] overflow-hidden relative"
@@ -27,7 +30,7 @@ const WeekEventCard = memo(function WeekEventCard({
         {ev.title}
       </p>
       <p className="text-[9px] text-slate-400 leading-tight">
-        {ev.startTime.slice(11, 16)}{"\u2013"}{ev.endTime.slice(11, 16)}
+        {eventTimeLabel(ev, t("calendar.allDay"))}
       </p>
       <button
         onClick={() => onDelete(ev.id)}

@@ -26,6 +26,7 @@ import {
 import { enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, X, Repeat, Search, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { eventTimeLabel } from "@/lib/eventFormat";
 import { api } from "@/lib/api";
 import { useI18n } from "@/lib/useI18n";
 import { useSocketEvent } from "@/lib/SocketProvider";
@@ -410,7 +411,7 @@ export default function CalendarView() {
       items.push({
         type: "event",
         title: ev.title,
-        time: `${ev.startTime.slice(11, 16)} - ${ev.endTime.slice(11, 16)}`,
+        time: eventTimeLabel(ev, t("calendar.allDay")),
         color: ev.color || "#3b82f6",
       });
     });
