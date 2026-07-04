@@ -1,5 +1,11 @@
 # TimeBox — Changelog & Development Progress
 
+## v1.35.2 (eff7af9) — 2026-07-04
+
+| 항목 | 설명 | 커밋 |
+|------|------|------|
+| 🐛 수정 | AI 오류 메시지 현지화 + GEMINI_API_KEY 설정 문서화 (WS4) | eff7af9 |
+
 ## v1.35.1 (b17d1f2) — 2026-07-04
 
 | 항목 | 설명 | 커밋 |
