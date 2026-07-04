@@ -1,5 +1,11 @@
 # TimeBox — Changelog & Development Progress
 
+## v1.39.0 (6a63753) — 2026-07-04
+
+| 항목 | 설명 | 커밋 |
+|------|------|------|
+| ✨ 기능 | 라벨/태그 + 보관(Archive) — Google Keep 확장 1단계 (Phase A) | 6a63753 |
+
 ## v1.38.1 (4d73fbd) — 2026-07-04
 
 | 항목 | 설명 | 커밋 |
