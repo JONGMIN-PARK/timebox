@@ -311,6 +311,59 @@ router.post("/:id/transcribe", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true, data: updated });
 }));
 
+/** Image formats Gemini accepts for inline vision/OCR. */
+const GEMINI_IMAGE_MIME: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+};
+
+// POST /api/notes/:id/ocr — extract text from an image note via Gemini vision
+router.post("/:id/ocr", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = parseInt(req.params.id as string);
+  if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
+  const userId = req.userId!;
+  const [note] = await db.select().from(notes).where(and(eq(notes.id, id), eq(notes.userId, userId)));
+  if (!note) throw new NotFoundError("Note");
+  if (note.type !== "image" || !note.fileName) throw new ValidationError("Not an image note");
+
+  const ext = path.extname(note.fileName).toLowerCase();
+  const mimeType = GEMINI_IMAGE_MIME[ext];
+  if (!mimeType) throw new ValidationError(`Unsupported image format: ${ext}`);
+
+  const filePath = path.join(UPLOAD_DIR, note.fileName);
+  if (!fs.existsSync(filePath)) throw new NotFoundError("Note media");
+
+  const model = await getGeminiModel(userId);
+  const imageB64 = (await fs.promises.readFile(filePath)).toString("base64");
+
+  let text: string;
+  try {
+    const prompt =
+      "이 이미지에 있는 모든 글자를 그대로 추출해줘(OCR). 표나 목록은 최대한 원래 구조를 유지하고, " +
+      "부연 설명·요약 없이 추출한 텍스트만 출력해. 글자가 없으면 빈 문자열을 반환해.";
+    const result = await model.generateContent([
+      { inlineData: { mimeType, data: imageB64 } },
+      { text: prompt },
+    ]);
+    text = result.response.text().trim();
+  } catch {
+    throw new AppError("Failed to extract text", 502);
+  }
+  if (!text) throw new AppError("No text found", 502);
+
+  // Append the extracted text to any existing content so a caption isn't lost.
+  const newContent = note.content.trim() ? `${note.content.trim()}\n\n${text}` : text;
+  const [updated] = await db
+    .update(notes)
+    .set({ content: newContent, updatedAt: new Date().toISOString() })
+    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .returning();
+  res.json({ success: true, data: updated });
+}));
+
 // PUT /api/notes/:id — update a note
 router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   const id = parseInt(req.params.id as string);

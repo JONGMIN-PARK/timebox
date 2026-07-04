@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus, Archive, ArchiveRestore, Tag, LayoutGrid, List, GripVertical, EyeOff, Eraser } from "lucide-react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus, Archive, ArchiveRestore, Tag, LayoutGrid, List, GripVertical, EyeOff, Eraser, Image as ImageIcon, ScanText } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -21,8 +21,8 @@ import NoteMedia from "./NoteMedia";
 import AutoGrowTextarea from "./AutoGrowTextarea";
 import NoteContent, { highlight, CHECK_RE, hasChecklist } from "./NoteContent";
 
-type Mode = "text" | "voice" | "drawing";
-type TypeFilter = "all" | "text" | "voice" | "drawing";
+type Mode = "text" | "voice" | "drawing" | "image";
+type TypeFilter = "all" | "text" | "voice" | "drawing" | "image";
 type SortBy = "updated" | "created" | "title" | "manual";
 type ViewLayout = "grid" | "list";
 
@@ -302,6 +302,19 @@ export default function NotesView() {
     }
   }, [t]);
 
+  const ocrNote = useCallback(async (note: Note) => {
+    setTranscribing(true);
+    const res = await api.post<Note>(`/notes/${note.id}/ocr`, {});
+    setTranscribing(false);
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
+      setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+      showToast("success", t("notes.ocrDone"));
+    } else {
+      showToast("error", res.status === 503 ? t("ai.unavailable") : t("notes.ocrFailed"));
+    }
+  }, [t]);
+
   const updateColor = useCallback(async (note: Note, color: string | null) => {
     const next = note.color === color ? null : color; // tap same color to clear
     const res = await api.put<Note>(`/notes/${note.id}`, { color: next });
@@ -325,7 +338,7 @@ export default function NotesView() {
     }
   }, []);
 
-  const uploadMedia = useCallback(async (type: "voice" | "drawing", blob: Blob, ext: string, title: string) => {
+  const uploadMedia = useCallback(async (type: "voice" | "drawing" | "image", blob: Blob, ext: string, title: string) => {
     const token = localStorage.getItem("timebox_token");
     const fd = new FormData();
     fd.append("type", type);
@@ -513,6 +526,7 @@ export default function NotesView() {
               { id: "text", icon: StickyNote, label: t("notes.typeText") },
               { id: "voice", icon: Mic, label: t("notes.typeVoice") },
               { id: "drawing", icon: PenLine, label: t("notes.typeDraw") },
+              { id: "image", icon: ImageIcon, label: t("notes.typeImage") },
             ] as const).map((m) => (
               <button
                 key={m.id}
@@ -581,6 +595,7 @@ export default function NotesView() {
             { id: "text", label: t("notes.typeText") },
             { id: "voice", label: t("notes.typeVoice") },
             { id: "drawing", label: t("notes.typeDraw") },
+            { id: "image", label: t("notes.typeImage") },
           ] as const).map((f) => (
             <button
               key={f.id}
@@ -767,6 +782,24 @@ export default function NotesView() {
           )}
           {mode === "voice" && <VoiceRecorder onSave={(blob, ext, ti) => uploadMedia("voice", blob, ext, ti)} />}
           {mode === "drawing" && <DrawingPad onSave={(blob, ext, ti) => uploadMedia("drawing", blob, ext, ti)} />}
+          {mode === "image" && (
+            <label className="flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors">
+              <ImageIcon className="w-8 h-8" />
+              <span className="text-xs font-medium">{t("notes.imagePick")}</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const ext = (file.name.split(".").pop() || "png").toLowerCase();
+                  uploadMedia("image", file, ext, file.name.replace(/\.[^.]+$/, ""));
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
         </div>
 
         {/* List */}
@@ -844,7 +877,7 @@ export default function NotesView() {
                     className="text-xs text-slate-600 dark:text-slate-300 flex-1"
                   />
                 ) : (
-                  <div className="flex-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex-1" onClick={note.type === "voice" ? (e) => e.stopPropagation() : undefined}>
                     <NoteMedia noteId={note.id} type={note.type} />
                   </div>
                 )}
@@ -864,6 +897,7 @@ export default function NotesView() {
                 <p className="text-[10px] text-slate-400 mt-2 tabular-nums flex items-center gap-1">
                   {note.type === "voice" && <Mic className="w-3 h-3" />}
                   {note.type === "drawing" && <PenLine className="w-3 h-3" />}
+                  {note.type === "image" && <ImageIcon className="w-3 h-3" />}
                   {fmtDateTime(note.updatedAt)}
                 </p>
               </div>
@@ -1012,6 +1046,27 @@ export default function NotesView() {
                         <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{editing.content}</p>
                       ) : (
                         <p className="text-[11px] text-slate-400">{t("notes.transcribeEmpty")}</p>
+                      )}
+                    </div>
+                  )}
+                  {editing.type === "image" && (
+                    <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-900/10 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                          <ScanText className="w-3.5 h-3.5" /> {t("notes.ocrTitle")}
+                        </span>
+                        <button
+                          onClick={() => ocrNote(editing)}
+                          disabled={transcribing}
+                          className="text-[11px] px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white"
+                        >
+                          {transcribing ? t("notes.ocrRunning") : editing.content.trim() ? t("notes.ocrAgain") : t("notes.ocrRun")}
+                        </button>
+                      </div>
+                      {editing.content.trim() ? (
+                        <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{editing.content}</p>
+                      ) : (
+                        <p className="text-[11px] text-slate-400">{t("notes.ocrEmpty")}</p>
                       )}
                     </div>
                   )}
