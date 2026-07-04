@@ -1,15 +1,15 @@
 {
-  "version": "1.34.0",
-  "date": "2026-07-02",
+  "version": "1.34.1",
+  "date": "2026-07-04",
   "highlights": [
-    "calendar: 일정을 기간(여러 날)으로 등록 (b5f0993)"
+    "mobile: 앱 셸을 fixed inset-0로 고정해 하단 탭바가 항상 화면 맨 아래에 붙도록 (7086250)"
   ],
   "changes": [
     {
-      "category": "신규 기능",
-      "emoji": "✨",
+      "category": "버그 수정",
+      "emoji": "🐛",
       "items": [
-        "calendar: 일정을 기간(여러 날)으로 등록 (b5f0993)"
+        "mobile: 앱 셸을 fixed inset-0로 고정해 하단 탭바가 항상 화면 맨 아래에 붙도록 (7086250)"
       ]
     }
   ]
