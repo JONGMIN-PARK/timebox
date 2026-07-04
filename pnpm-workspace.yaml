@@ -5,14 +5,19 @@ packages:
 # esbuild must run its install script to fetch the platform binary used by the Vite client build.
 # better-sqlite3 is an unused transitive native dep (the server uses Postgres via `pg`), so its
 # native compile is skipped to avoid ERR_PNPM_IGNORED_BUILDS failing the deploy.
+# ffmpeg-static's postinstall downloads an ffmpeg binary from GitHub releases, which fails behind
+# restricted networks; its build is skipped and transcodeToWav() falls back gracefully (returns
+# null → original audio is sent as-is), so skipping it must not fail the deploy either.
 
 # pnpm v10.26+ / v11 — current home for build-script policy (map of name -> allow?).
 allowBuilds:
   esbuild: true
   better-sqlite3: false
+  ffmpeg-static: false
 
 # pnpm v10.0–v10.25 fallback (these keys were removed in v11, kept for older pnpm versions).
 onlyBuiltDependencies:
   - esbuild
 ignoredBuiltDependencies:
   - better-sqlite3
+  - ffmpeg-static
