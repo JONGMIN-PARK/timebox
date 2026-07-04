@@ -1,19 +1,15 @@
 {
-  "version": "1.40.0",
+  "version": "1.41.0",
   "date": "2026-07-04",
   "highlights": [
-    "calendar: 아젠다(목록) 뷰 추가 + 월 셀 더보기 개선 (a320a85)",
-    "calendar: 일정 클릭 상세 팝오버 추가 (385e21a)",
-    "calendar: 겹치는 일정 나란히 배치 (Day 타임라인 컬럼 패킹) (0cffbde)"
+    "calendar: 일(Day) 타임라인 드래그 상호작용 추가 (8f5d787)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 아젠다(목록) 뷰 추가 + 월 셀 더보기 개선 (a320a85)",
-        "calendar: 일정 클릭 상세 팝오버 추가 (385e21a)",
-        "calendar: 겹치는 일정 나란히 배치 (Day 타임라인 컬럼 패킹) (0cffbde)"
+        "calendar: 일(Day) 타임라인 드래그 상호작용 추가 (8f5d787)"
       ]
     }
   ]
