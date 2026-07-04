@@ -458,6 +458,8 @@ export const notes = pgTable("notes", {
   /** JSON array of label strings (Google Keep-style tags). */
   labels: text("labels"),
   pinned: boolean("pinned").notNull().default(false),
+  /** Manual drag-sort position (lower = earlier). Applied when sorting by "manual". */
+  sortOrder: integer("sort_order").notNull().default(0),
   /** ISO timestamp when moved to trash (soft delete); null = active. */
   trashedAt: text("trashed_at"),
   /** ISO timestamp when archived (hidden but not deleted); null = not archived. */

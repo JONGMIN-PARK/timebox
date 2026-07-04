@@ -1,5 +1,15 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus, Archive, ArchiveRestore, Tag } from "lucide-react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus, Archive, ArchiveRestore, Tag, LayoutGrid, List, GripVertical, EyeOff, Eraser } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, rectSortingStrategy, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -9,11 +19,37 @@ import VoiceRecorder from "./VoiceRecorder";
 import DrawingPad from "./DrawingPad";
 import NoteMedia from "./NoteMedia";
 import AutoGrowTextarea from "./AutoGrowTextarea";
-import NoteContent, { highlight, CHECK_RE } from "./NoteContent";
+import NoteContent, { highlight, CHECK_RE, hasChecklist } from "./NoteContent";
 
 type Mode = "text" | "voice" | "drawing";
 type TypeFilter = "all" | "text" | "voice" | "drawing";
-type SortBy = "updated" | "created" | "title";
+type SortBy = "updated" | "created" | "title" | "manual";
+type ViewLayout = "grid" | "list";
+
+/** Sortable wrapper: exposes drag handle props to a render-prop child. */
+function SortableCard({
+  id,
+  disabled,
+  children,
+}: {
+  id: number;
+  disabled: boolean;
+  children: (p: {
+    setNodeRef: (el: HTMLElement | null) => void;
+    style: React.CSSProperties;
+    handleProps: Record<string, unknown>;
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 30 : undefined,
+  };
+  return <>{children({ setNodeRef, style, handleProps: { ...attributes, ...listeners }, isDragging })}</>;
+}
 
 /** Preset color labels for notes (stored as hex in note.color). */
 const NOTE_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ef4444"];
@@ -28,6 +64,7 @@ interface Note {
   color: string | null;
   labels?: string | string[] | null;
   pinned: boolean;
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
   trashedAt?: string | null;
@@ -70,6 +107,8 @@ export default function NotesView() {
   const [noteColor, setNoteColor] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("updated");
+  const [viewLayout, setViewLayout] = useState<ViewLayout>("grid");
+  const [hideCompleted, setHideCompleted] = useState(false);
   const [labelFilter, setLabelFilter] = useState<string | null>(null);
   const [showArchive, setShowArchive] = useState(false);
   const [archived, setArchived] = useState<Note[]>([]);
@@ -128,12 +167,65 @@ export default function NotesView() {
     });
     list = [...list].sort((a, b) => {
       if (a.pinned !== b.pinned) return Number(b.pinned) - Number(a.pinned);
+      if (sortBy === "manual") {
+        const ao = a.sortOrder ?? 0;
+        const bo = b.sortOrder ?? 0;
+        if (ao !== bo) return ao - bo;
+        return a.updatedAt < b.updatedAt ? 1 : -1;
+      }
       if (sortBy === "title") return (a.title || "").localeCompare(b.title || "");
       const key = sortBy === "created" ? "createdAt" : "updatedAt";
       return a[key] < b[key] ? 1 : a[key] > b[key] ? -1 : 0;
     });
     return list;
   }, [notes, query, typeFilter, sortBy, labelFilter]);
+
+  // Drag-reorder is only meaningful on the full, unfiltered list.
+  const reorderEnabled = sortBy === "manual" && !query.trim() && typeFilter === "all" && !labelFilter;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const handleDragEnd = useCallback((e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    setNotes((prev) => {
+      // Reorder within the same pinned group the two items share.
+      const activeNote = prev.find((n) => n.id === Number(active.id));
+      const ids = prev
+        .filter((n) => !n.trashedAt && !n.archivedAt && n.pinned === activeNote?.pinned)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || (a.updatedAt < b.updatedAt ? 1 : -1))
+        .map((n) => n.id);
+      const oldI = ids.indexOf(Number(active.id));
+      const newI = ids.indexOf(Number(over.id));
+      if (oldI < 0 || newI < 0) return prev;
+      const newIds = arrayMove(ids, oldI, newI);
+      const orderMap = new Map(newIds.map((id, idx) => [id, idx]));
+      api.post("/notes/reorder", { ids: newIds });
+      return prev.map((n) => (orderMap.has(n.id) ? { ...n, sortOrder: orderMap.get(n.id)! } : n));
+    });
+  }, []);
+
+  /** Rewrite a note's content by transforming its checklist lines. */
+  const transformChecklist = useCallback((note: Note, fn: (lines: string[]) => string[]) => {
+    const newContent = fn(note.content.split("\n")).join("\n");
+    if (newContent === note.content) return;
+    setNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, content: newContent } : n)));
+    setEditing((cur) => (cur && cur.id === note.id ? { ...cur, content: newContent } : cur));
+    api.put<Note>(`/notes/${note.id}`, { content: newContent });
+  }, []);
+
+  const uncheckAll = useCallback((note: Note) => {
+    transformChecklist(note, (lines) => lines.map((l) => {
+      const m = l.match(CHECK_RE);
+      return m ? `${m[1]}- [ ] ${m[3]}` : l;
+    }));
+  }, [transformChecklist]);
+
+  const clearCompleted = useCallback((note: Note) => {
+    transformChecklist(note, (lines) => lines.filter((l) => {
+      const m = l.match(CHECK_RE);
+      return !(m && m[2].toLowerCase() === "x");
+    }));
+  }, [transformChecklist]);
 
   /** Union of all labels across active notes (for the filter row). */
   const allLabels = useMemo(() => {
@@ -504,17 +596,42 @@ export default function NotesView() {
               {f.label}
             </button>
           ))}
-          <div className="ml-auto flex items-center gap-1 text-slate-400 shrink-0">
-            <ArrowDownUp className="w-3.5 h-3.5" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortBy)}
-              className="text-[11px] bg-transparent outline-none text-slate-500 dark:text-slate-400 cursor-pointer"
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            {/* Hide-completed checklist toggle */}
+            <button
+              type="button"
+              onClick={() => setHideCompleted((v) => !v)}
+              className={cn(
+                "p-1 rounded-md transition-colors",
+                hideCompleted ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300" : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50",
+              )}
+              title={t("notes.hideCompleted")}
+              aria-pressed={hideCompleted}
             >
-              <option value="updated">{t("notes.sortUpdated")}</option>
-              <option value="created">{t("notes.sortCreated")}</option>
-              <option value="title">{t("notes.sortTitle")}</option>
-            </select>
+              <EyeOff className="w-3.5 h-3.5" />
+            </button>
+            {/* Grid / list layout toggle */}
+            <button
+              type="button"
+              onClick={() => setViewLayout((v) => (v === "grid" ? "list" : "grid"))}
+              className="p-1 rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+              title={viewLayout === "grid" ? t("notes.viewList") : t("notes.viewGrid")}
+            >
+              {viewLayout === "grid" ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+            </button>
+            <div className="flex items-center gap-1 text-slate-400">
+              <ArrowDownUp className="w-3.5 h-3.5" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
+                className="text-[11px] bg-transparent outline-none text-slate-500 dark:text-slate-400 cursor-pointer"
+              >
+                <option value="updated">{t("notes.sortUpdated")}</option>
+                <option value="created">{t("notes.sortCreated")}</option>
+                <option value="title">{t("notes.sortTitle")}</option>
+                <option value="manual">{t("notes.sortManual")}</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
@@ -661,18 +778,34 @@ export default function NotesView() {
             <p className="text-sm">{query.trim() ? t("notes.noResults") : t("notes.empty")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filtered.map((note) => (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={filtered.map((n) => n.id)} strategy={viewLayout === "grid" ? rectSortingStrategy : verticalListSortingStrategy}>
+              <div className={viewLayout === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "flex flex-col gap-2"}>
+                {filtered.map((note) => (
+                  <SortableCard key={note.id} id={note.id} disabled={!reorderEnabled}>
+                    {({ setNodeRef, style, handleProps, isDragging }) => (
               <div
-                key={note.id}
+                ref={setNodeRef}
                 className={cn(
                   "group relative rounded-xl border p-3 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow cursor-pointer flex flex-col",
                   note.pinned ? "border-amber-300 dark:border-amber-500/40" : "border-slate-200 dark:border-slate-700",
+                  isDragging && "shadow-lg",
                 )}
-                style={note.color ? { borderLeftColor: note.color, borderLeftWidth: "4px" } : undefined}
+                style={{ ...(note.color ? { borderLeftColor: note.color, borderLeftWidth: "4px" } : {}), ...style }}
                 onClick={() => setEditing(note)}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
+                  {reorderEnabled && (
+                    <button
+                      {...handleProps}
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-0.5 -ml-1 rounded text-slate-300 dark:text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing touch-none shrink-0"
+                      title={t("notes.dragReorder")}
+                      aria-label={t("notes.dragReorder")}
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </button>
+                  )}
                   {note.title ? (
                     <p className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-1 flex-1">{highlight(note.title, query)}</p>
                   ) : (
@@ -706,6 +839,7 @@ export default function NotesView() {
                   <NoteContent
                     content={note.content}
                     query={query}
+                    hideCompleted={hideCompleted}
                     onToggle={(i) => toggleChecklistItem(note, i)}
                     className="text-xs text-slate-600 dark:text-slate-300 flex-1"
                   />
@@ -733,8 +867,12 @@ export default function NotesView() {
                   {fmtDateTime(note.updatedAt)}
                 </p>
               </div>
-            ))}
-          </div>
+                    )}
+                  </SortableCard>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
         </>
         )}
@@ -823,14 +961,36 @@ export default function NotesView() {
                 />
               </div>
               {editing.type === "text" ? (
-                <AutoGrowTextarea
-                  value={editing.content}
-                  onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-                  minRows={expanded ? 16 : 8}
-                  maxHeight={expanded ? 2000 : 480}
-                  placeholder={t("notes.contentPlaceholder")}
-                  className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <>
+                  {hasChecklist(editing.content) && (
+                    <div className="flex items-center gap-2 px-1 text-[11px]">
+                      <CheckSquare className="w-3.5 h-3.5 text-emerald-500" />
+                      <span className="text-slate-400">{t("notes.checklist")}</span>
+                      <button
+                        type="button"
+                        onClick={() => uncheckAll(editing)}
+                        className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                      >
+                        <RotateCcw className="w-3 h-3" /> {t("notes.uncheckAll")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => clearCompleted(editing)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                      >
+                        <Eraser className="w-3 h-3" /> {t("notes.clearCompleted")}
+                      </button>
+                    </div>
+                  )}
+                  <AutoGrowTextarea
+                    value={editing.content}
+                    onChange={(e) => setEditing({ ...editing, content: e.target.value })}
+                    minRows={expanded ? 16 : 8}
+                    maxHeight={expanded ? 2000 : 480}
+                    placeholder={t("notes.contentPlaceholder")}
+                    className="w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </>
               ) : (
                 <div onClick={(e) => e.stopPropagation()} className="space-y-2">
                   <NoteMedia noteId={editing.id} type={editing.type} />

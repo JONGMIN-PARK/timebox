@@ -21,11 +21,14 @@ export default function NoteContent({
   query = "",
   onToggle,
   className,
+  hideCompleted = false,
 }: {
   content: string;
   query?: string;
   onToggle?: (lineIndex: number) => void;
   className?: string;
+  /** When true, checked checklist lines are not rendered (indices stay stable). */
+  hideCompleted?: boolean;
 }) {
   const lines = content.split("\n");
   return (
@@ -34,6 +37,7 @@ export default function NoteContent({
         const m = line.match(CHECK_RE);
         if (m) {
           const checked = m[2].toLowerCase() === "x";
+          if (hideCompleted && checked) return null;
           return (
             <div
               key={i}

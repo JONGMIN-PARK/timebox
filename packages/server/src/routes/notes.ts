@@ -73,6 +73,21 @@ router.get("/trash", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true, data: result });
 }));
 
+// POST /api/notes/reorder — persist manual drag order (ids in desired order)
+router.post("/reorder", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const clean = ids.map((v: unknown) => Number(v)).filter((n: number) => Number.isInteger(n));
+  if (clean.length === 0) throw new ValidationError("ids required");
+  // Assign sortOrder by position; scoped to the user so foreign ids are ignored.
+  await Promise.all(
+    clean.map((id: number, index: number) =>
+      db.update(notes).set({ sortOrder: index }).where(and(eq(notes.id, id), eq(notes.userId, userId))),
+    ),
+  );
+  res.json({ success: true });
+}));
+
 // POST /api/notes — create a note
 router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
