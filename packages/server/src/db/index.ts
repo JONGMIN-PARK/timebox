@@ -537,6 +537,8 @@ export async function initDb() {
       CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id, pinned DESC, updated_at DESC);
       ALTER TABLE notes ADD COLUMN IF NOT EXISTS trashed_at TEXT;
       ALTER TABLE notes ADD COLUMN IF NOT EXISTS summary TEXT;
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS labels TEXT;
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS archived_at TEXT;
     `);
 
     // Seed default categories if empty

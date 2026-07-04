@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus } from "lucide-react";
+import { Plus, Pin, PinOff, Trash2, X, StickyNote, Mic, PenLine, Trash, RotateCcw, AlertTriangle, Search, Sparkles, Send, ArrowDownUp, Maximize2, Minimize2, ArrowRightLeft, CheckSquare, Bell, CalendarPlus, Archive, ArchiveRestore, Tag } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/useI18n";
@@ -26,10 +26,27 @@ interface Note {
   fileName: string | null;
   summary: string | null;
   color: string | null;
+  labels?: string | string[] | null;
   pinned: boolean;
   createdAt: string;
   updatedAt: string;
   trashedAt?: string | null;
+  archivedAt?: string | null;
+}
+
+/** Labels are stored as a JSON string on the server; read them as an array. */
+function labelsOf(note: Note): string[] {
+  const v = note.labels;
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    try {
+      const p = JSON.parse(v);
+      return Array.isArray(p) ? p : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 export default function NotesView() {
@@ -53,6 +70,10 @@ export default function NotesView() {
   const [noteColor, setNoteColor] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("updated");
+  const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  const [showArchive, setShowArchive] = useState(false);
+  const [archived, setArchived] = useState<Note[]>([]);
+  const [labelDraft, setLabelDraft] = useState("");
   const [converting, setConverting] = useState<Note | null>(null);
   const [convRemindAt, setConvRemindAt] = useState("");
   const [convDate, setConvDate] = useState("");
@@ -101,6 +122,7 @@ export default function NotesView() {
     const q = query.trim().toLowerCase();
     let list = notes.filter((n) => {
       if (typeFilter !== "all" && n.type !== typeFilter) return false;
+      if (labelFilter && !labelsOf(n).includes(labelFilter)) return false;
       if (q && ![n.title, n.content, n.summary].some((f) => f && f.toLowerCase().includes(q))) return false;
       return true;
     });
@@ -111,7 +133,37 @@ export default function NotesView() {
       return a[key] < b[key] ? 1 : a[key] > b[key] ? -1 : 0;
     });
     return list;
-  }, [notes, query, typeFilter, sortBy]);
+  }, [notes, query, typeFilter, sortBy, labelFilter]);
+
+  /** Union of all labels across active notes (for the filter row). */
+  const allLabels = useMemo(() => {
+    const set = new Set<string>();
+    notes.forEach((n) => labelsOf(n).forEach((l) => set.add(l)));
+    return Array.from(set).sort();
+  }, [notes]);
+
+  const archiveNote = useCallback(async (note: Note, archive: boolean) => {
+    const res = await api.post<Note>(`/notes/${note.id}/archive`, { archived: archive });
+    if (res.success && res.data) {
+      if (archive) {
+        setNotes((prev) => prev.filter((n) => n.id !== note.id));
+        setEditing((cur) => (cur?.id === note.id ? null : cur));
+        showToast("success", t("notes.archived"));
+      } else {
+        setArchived((prev) => prev.filter((n) => n.id !== note.id));
+        setNotes((prev) => [res.data!, ...prev]);
+        showToast("success", t("notes.unarchived"));
+      }
+    }
+  }, [t]);
+
+  const updateLabels = useCallback(async (note: Note, labels: string[]) => {
+    const res = await api.put<Note>(`/notes/${note.id}`, { labels });
+    if (res.success && res.data) {
+      setNotes((prev) => prev.map((n) => (n.id === note.id ? res.data! : n)));
+      setEditing((cur) => (cur && cur.id === note.id ? res.data! : cur));
+    }
+  }, []);
 
   useEffect(() => {
     if (!forwarding) return;
@@ -283,6 +335,13 @@ export default function NotesView() {
     fetchTrash();
   };
 
+  const openArchive = () => {
+    setShowArchive(true);
+    api.get<Note[]>("/notes/archived").then((res) => {
+      if (res.success && res.data) setArchived(res.data);
+    });
+  };
+
   // ── Autosave (edit modal) ──
   const savedRef = useRef<{ id: number; title: string | null; content: string } | null>(null);
   const [autoSaved, setAutoSaved] = useState(true);
@@ -329,7 +388,16 @@ export default function NotesView() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-2">
-          {showTrash ? (
+          {showArchive ? (
+            <>
+              <button onClick={() => setShowArchive(false)} className="p-1 -ml-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500" title={t("notes.back")}>
+                <X className="w-4 h-4" />
+              </button>
+              <Archive className="w-4 h-4 text-slate-500" />
+              <h2 className="font-semibold text-slate-900 dark:text-white">{t("notes.archiveTitle")}</h2>
+              <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">{archived.length}</span>
+            </>
+          ) : showTrash ? (
             <>
               <button onClick={() => setShowTrash(false)} className="p-1 -ml-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500" title={t("notes.back")}>
                 <X className="w-4 h-4" />
@@ -347,7 +415,7 @@ export default function NotesView() {
           )}
         </div>
         {/* Capture type switcher + trash */}
-        {!showTrash && (
+        {!showTrash && !showArchive && (
           <div className="flex items-center gap-1 text-[10px]">
             {([
               { id: "text", icon: StickyNote, label: t("notes.typeText") },
@@ -371,8 +439,16 @@ export default function NotesView() {
             ))}
             <button
               type="button"
-              onClick={openTrash}
+              onClick={openArchive}
               className="flex items-center gap-0.5 px-1.5 py-1 rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 ml-0.5 border-l border-slate-200 dark:border-slate-700 pl-1.5"
+              title={t("notes.archiveTitle")}
+            >
+              <Archive className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={openTrash}
+              className="flex items-center gap-0.5 px-1.5 py-1 rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50"
               title={t("notes.trash")}
             >
               <Trash className="w-3 h-3" />
@@ -382,7 +458,7 @@ export default function NotesView() {
       </div>
 
       {/* Search */}
-      {!showTrash && (
+      {!showTrash && !showArchive && (
         <div className="px-4 pt-3 flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -406,7 +482,7 @@ export default function NotesView() {
       )}
 
       {/* Type filter + sort */}
-      {!showTrash && (
+      {!showTrash && !showArchive && (
         <div className="px-4 pt-2 flex items-center gap-1.5 flex-shrink-0 overflow-x-auto scrollbar-hide">
           {([
             { id: "all", label: t("notes.filterAll") },
@@ -443,8 +519,56 @@ export default function NotesView() {
         </div>
       )}
 
+      {/* Label filter chips */}
+      {!showTrash && !showArchive && allLabels.length > 0 && (
+        <div className="px-4 pt-2 flex items-center gap-1.5 flex-shrink-0 overflow-x-auto scrollbar-hide">
+          <Tag className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          {allLabels.map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLabelFilter((cur) => (cur === l ? null : l))}
+              className={cn(
+                "text-[11px] px-2 py-1 rounded-full border whitespace-nowrap transition-colors",
+                labelFilter === l
+                  ? "border-blue-400 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300"
+                  : "border-slate-200 dark:border-slate-700 text-slate-500",
+              )}
+            >
+              #{l}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-        {showTrash ? (
+        {showArchive ? (
+          archived.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+              <Archive className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm">{t("notes.archiveEmpty")}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {archived.map((note) => (
+                <div key={note.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-800 flex flex-col">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 line-clamp-1">{note.title || t(`notes.type${note.type === "voice" ? "Voice" : note.type === "drawing" ? "Draw" : "Text"}`)}</p>
+                  {note.type === "text" && <p className="text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap line-clamp-4 flex-1 mt-1">{note.content}</p>}
+                  {labelsOf(note).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {labelsOf(note).map((l) => (
+                        <span key={l} className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">#{l}</span>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={() => archiveNote(note, false)} className="mt-2 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <ArchiveRestore className="w-3.5 h-3.5" /> {t("notes.unarchive")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        ) : showTrash ? (
           trashed.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Trash className="w-10 h-10 mb-2 text-slate-300 dark:text-slate-600" />
@@ -563,6 +687,13 @@ export default function NotesView() {
                       {note.pinned ? <Pin className="w-3.5 h-3.5 fill-current" /> : <PinOff className="w-3.5 h-3.5" />}
                     </button>
                     <button
+                      onClick={() => archiveNote(note, true)}
+                      className="p-1 rounded text-slate-300 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity"
+                      title={t("notes.archive")}
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={() => requestDelete(note.id, false)}
                       className="p-1 rounded text-slate-300 dark:text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity"
                       title={t("common.delete")}
@@ -588,6 +719,13 @@ export default function NotesView() {
                     <Sparkles className="w-3 h-3 shrink-0 mt-0.5" />
                     <span className="min-w-0">{highlight(note.summary, query)}</span>
                   </p>
+                )}
+                {labelsOf(note).length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+                    {labelsOf(note).map((l) => (
+                      <button key={l} onClick={() => setLabelFilter(l)} className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600">#{l}</button>
+                    ))}
+                  </div>
                 )}
                 <p className="text-[10px] text-slate-400 mt-2 tabular-nums flex items-center gap-1">
                   {note.type === "voice" && <Mic className="w-3 h-3" />}
@@ -657,6 +795,32 @@ export default function NotesView() {
                     {t("notes.colorClear")}
                   </button>
                 )}
+              </div>
+              {/* Label editor */}
+              <div className="flex flex-wrap items-center gap-1.5 px-1">
+                <Tag className="w-3.5 h-3.5 text-slate-400" />
+                {labelsOf(editing).map((l) => (
+                  <span key={l} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    #{l}
+                    <button type="button" onClick={() => updateLabels(editing, labelsOf(editing).filter((x) => x !== l))} className="text-slate-400 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={labelDraft}
+                  onChange={(e) => setLabelDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const v = labelDraft.trim();
+                      if (v && !labelsOf(editing).includes(v)) updateLabels(editing, [...labelsOf(editing), v]);
+                      setLabelDraft("");
+                    }
+                  }}
+                  placeholder={t("notes.addLabel")}
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-slate-300 dark:border-slate-600 bg-transparent text-slate-600 dark:text-slate-300 outline-none focus:border-blue-400 w-24"
+                />
               </div>
               {editing.type === "text" ? (
                 <AutoGrowTextarea

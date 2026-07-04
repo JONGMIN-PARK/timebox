@@ -15,7 +15,16 @@ import { transcodeToWav } from "../lib/audio.js";
 
 const router = Router();
 
-const ALLOWED_TYPES = ["text", "voice", "drawing"] as const;
+const ALLOWED_TYPES = ["text", "voice", "drawing", "image"] as const;
+
+/** Normalize a labels array to a trimmed, de-duplicated JSON string (or null). */
+function normalizeLabels(v: unknown): string | null {
+  if (!Array.isArray(v)) return null;
+  const labels = Array.from(
+    new Set(v.map((x) => String(x).trim()).filter((x) => x && x.length <= 40)),
+  ).slice(0, 20);
+  return labels.length ? JSON.stringify(labels) : null;
+}
 
 const MEDIA_MIME: Record<string, string> = {
   ".webm": "audio/webm",
@@ -37,8 +46,19 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   const result = await db
     .select()
     .from(notes)
-    .where(and(eq(notes.userId, userId), isNull(notes.trashedAt)))
+    .where(and(eq(notes.userId, userId), isNull(notes.trashedAt), isNull(notes.archivedAt)))
     .orderBy(desc(notes.pinned), desc(notes.updatedAt));
+  res.json({ success: true, data: result });
+}));
+
+// GET /api/notes/archived — list archived notes (most recently updated first)
+router.get("/archived", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const result = await db
+    .select()
+    .from(notes)
+    .where(and(eq(notes.userId, userId), isNull(notes.trashedAt), isNotNull(notes.archivedAt)))
+    .orderBy(desc(notes.updatedAt));
   res.json({ success: true, data: result });
 }));
 
@@ -56,7 +76,7 @@ router.get("/trash", asyncHandler<AuthRequest>(async (req, res) => {
 // POST /api/notes — create a note
 router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
-  const { type, title, content, fileName, color, pinned } = req.body;
+  const { type, title, content, fileName, color, pinned, labels } = req.body;
   const noteType = ALLOWED_TYPES.includes(type) ? type : "text";
   const body = typeof content === "string" ? content : "";
   if (noteType === "text" && !body.trim() && !(title && String(title).trim())) {
@@ -71,6 +91,7 @@ router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
       content: body,
       fileName: fileName ? String(fileName) : null,
       color: color ? String(color) : null,
+      labels: normalizeLabels(labels),
       pinned: Boolean(pinned),
     })
     .returning();
@@ -152,6 +173,7 @@ router.post("/:id/forward", asyncHandler<AuthRequest>(async (req, res) => {
       fileName: newFileName,
       summary: note.summary,
       color: note.color,
+      labels: note.labels,
       pinned: false,
     })
     .returning();
@@ -283,11 +305,27 @@ router.put("/:id", asyncHandler<AuthRequest>(async (req, res) => {
   if (req.body.title !== undefined) updates.title = req.body.title ? String(req.body.title).trim() : null;
   if (req.body.content !== undefined) updates.content = typeof req.body.content === "string" ? req.body.content : "";
   if (req.body.color !== undefined) updates.color = req.body.color ? String(req.body.color) : null;
+  if (req.body.labels !== undefined) updates.labels = normalizeLabels(req.body.labels);
   if (req.body.pinned !== undefined) updates.pinned = Boolean(req.body.pinned);
 
   const result = await db
     .update(notes)
     .set(updates)
+    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .returning();
+  if (!result[0]) throw new NotFoundError("Note");
+  res.json({ success: true, data: result[0] });
+}));
+
+// POST /api/notes/:id/archive — hide without deleting
+router.post("/:id/archive", asyncHandler<AuthRequest>(async (req, res) => {
+  const id = parseInt(req.params.id as string);
+  if (Number.isNaN(id)) throw new ValidationError("Invalid ID");
+  const userId = req.userId!;
+  const archive = req.body.archived !== false; // default: archive; pass {archived:false} to unarchive
+  const result = await db
+    .update(notes)
+    .set({ archivedAt: archive ? new Date().toISOString() : null, updatedAt: new Date().toISOString() })
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
     .returning();
   if (!result[0]) throw new NotFoundError("Note");

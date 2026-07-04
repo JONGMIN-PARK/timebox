@@ -455,9 +455,13 @@ export const notes = pgTable("notes", {
   /** AI-generated summary of the note content (nullable until requested). */
   summary: text("summary"),
   color: text("color"),
+  /** JSON array of label strings (Google Keep-style tags). */
+  labels: text("labels"),
   pinned: boolean("pinned").notNull().default(false),
   /** ISO timestamp when moved to trash (soft delete); null = active. */
   trashedAt: text("trashed_at"),
+  /** ISO timestamp when archived (hidden but not deleted); null = not archived. */
+  archivedAt: text("archived_at"),
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
 });
