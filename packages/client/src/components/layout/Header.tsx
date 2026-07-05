@@ -84,7 +84,7 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
   useSocketEvent("inbox:update", useCallback(() => fetchUnread(), []));
 
   return (
-    <header className="relative h-12 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
+    <header className="relative h-12 short:h-9 flex-shrink-0 flex items-center justify-between px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50">
       {/* Top gradient accent line */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-blue-500/30 via-blue-400/30 to-transparent" />
       <div className="flex items-center gap-2 md:hidden">

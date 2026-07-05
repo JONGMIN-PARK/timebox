@@ -501,8 +501,10 @@ export default function CalendarView() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Navigation header — stacks into two rows on mobile, single row on desktop */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-slate-200 dark:border-slate-700">
+      {/* Navigation header — stacks into two rows on mobile, single row on desktop.
+          On short viewports (landscape phones) it always collapses to one compact
+          row so the month grid keeps as much vertical space as possible. */}
+      <div className="flex flex-col gap-2 short:flex-row short:items-center short:gap-1 sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 py-2 sm:py-3 short:py-1 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-1 sm:gap-2">
           <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous period">
             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />

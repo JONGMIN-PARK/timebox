@@ -255,6 +255,20 @@ export default function MonthView({
     localStorage.setItem(SPLIT_STORAGE_KEY, String(splitRatio));
   }, [splitRatio]);
 
+  // On short viewports (landscape phones) the total height is tiny, so a 1:1
+  // split leaves the month grid with only ~2 rows. Bias the split toward the
+  // grid there without touching the user's saved ratio.
+  const [isShort, setIsShort] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-height: 500px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-height: 500px)");
+    const onChange = () => setIsShort(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const gridGrow = isShort ? Math.max(splitRatio, 0.68) : splitRatio;
+
   const onResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const apply = (clientY: number) => {
@@ -283,15 +297,15 @@ export default function MonthView({
     <div ref={containerRef} className="flex-1 flex flex-col min-h-0">
       <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
-          <div key={day} className={cn("text-center text-xs font-medium py-2", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
+          <div key={day} className={cn("text-center text-xs font-medium py-2 short:py-0.5", i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-slate-500")}>
             {day}
           </div>
         ))}
       </div>
       <div
         ref={gridRef}
-        className="min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)]"
-        style={selectedDate ? { flexGrow: splitRatio, flexShrink: 1, flexBasis: 0 } : undefined}
+        className="min-h-0 overflow-y-auto grid grid-cols-7 auto-rows-[minmax(3.2rem,4.5rem)] short:auto-rows-[minmax(2.1rem,2.6rem)]"
+        style={(selectedDate || isShort) ? { flexGrow: gridGrow, flexShrink: 1, flexBasis: 0 } : undefined}
       >
         {days.map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
@@ -440,7 +454,7 @@ export default function MonthView({
       {/* Bottom panel — upcoming overview (agenda) or one-day detail */}
       <div
         className="flex flex-col border-blue-500/30 dark:border-blue-400/20 bg-white dark:bg-slate-800"
-        style={{ flexGrow: 1 - splitRatio, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
+        style={{ flexGrow: 1 - gridGrow, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
       >
         {/* Header: mode tabs + add */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-750/50">

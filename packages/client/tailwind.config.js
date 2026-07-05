@@ -53,5 +53,12 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // `short:` variant targets short viewports — landscape phones (height <= 500px)
+    // without affecting tablets/desktops. Used to compact the calendar chrome so
+    // the month grid keeps usable height in landscape.
+    function ({ addVariant }) {
+      addVariant("short", "@media (max-height: 500px)");
+    },
+  ],
 };
