@@ -1233,12 +1233,14 @@ export default function ChatPanel() {
               </button>
               {showEmoji && (
                 <div className="absolute bottom-full mb-2 right-0 p-2.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl z-50 max-w-[calc(100vw-2rem)]">
-                  <div className="grid grid-cols-6 gap-2">
+                  {/* Explicit min track width (2.75rem) so the columns can't collapse to
+                      zero inside this shrink-to-fit popover, which was overlapping the emojis. */}
+                  <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(6, 2.75rem)" }}>
                     {EMOJIS.map((emoji) => (
                       <button
                         key={emoji}
                         onClick={() => insertEmoji(emoji)}
-                        className="w-10 h-10 flex items-center justify-center text-2xl rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-90 transition-transform"
+                        className="w-11 h-11 flex items-center justify-center text-[26px] leading-none rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-90 transition-transform"
                       >
                         {emoji}
                       </button>
