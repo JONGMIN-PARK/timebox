@@ -1,15 +1,15 @@
 {
-  "version": "1.48.0",
+  "version": "1.49.0",
   "date": "2026-07-05",
   "highlights": [
-    "calendar: 하단 상세 패널 할 일 드래그 순서 변경 및 유지 (8e65ea7)"
+    "calendar: 월 뷰 상/하단 스플릿 비율 유지 (localStorage) (3325328)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 하단 상세 패널 할 일 드래그 순서 변경 및 유지 (8e65ea7)"
+        "calendar: 월 뷰 상/하단 스플릿 비율 유지 (localStorage) (3325328)"
       ]
     }
   ]
