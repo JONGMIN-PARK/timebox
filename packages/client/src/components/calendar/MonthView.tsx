@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check, Repeat, GripVertical } from "lucide-react";
@@ -177,6 +177,10 @@ interface MonthViewProps {
   onLongPressDate?: (date: Date, type: string) => void;
   /** Persist a manual reorder of the selected day's todos. */
   onReorderTodos?: (items: { id: number; sortOrder: number }[]) => void;
+  /** Remaining (upcoming) events + todos grouped by date, for the bottom overview. */
+  bottomAgenda?: { dateKey: string; day: Date; events: CalendarEvent[]; todos: Todo[] }[];
+  /** "month" = through end of month, "upcoming" = all future (label only). */
+  bottomScope?: "month" | "upcoming";
   /** projectId → display name for linked personal items */
   projectNameById?: Record<number, string>;
 }
@@ -203,6 +207,8 @@ export default function MonthView({
   onEditTodo,
   onLongPressDate,
   onReorderTodos,
+  bottomAgenda = [],
+  bottomScope = "month",
   projectNameById = {},
 }: MonthViewProps) {
   const { t } = useI18n();
@@ -222,6 +228,13 @@ export default function MonthView({
   const [longPressDate, setLongPressDate] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bottom panel: "agenda" = month/upcoming overview, "day" = one day's detail.
+  const [detailMode, setDetailMode] = useState<"agenda" | "day">("agenda");
+  const openDay = useCallback((d: Date) => { onSelectDate(d); setDetailMode("day"); }, [onSelectDate]);
+  const agendaCount = useMemo(
+    () => bottomAgenda.reduce((n, g) => n + g.events.length + g.todos.length, 0),
+    [bottomAgenda],
+  );
 
   // Resizable calendar / detail split (defaults to a 1:1 ratio).
   const containerRef = useRef<HTMLDivElement>(null);
@@ -284,7 +297,7 @@ export default function MonthView({
           return (
             <button
               key={dateKey}
-              onClick={() => onSelectDate(day)}
+              onClick={() => openDay(day)}
               onDoubleClick={() => onDoubleClickDate(day)}
               onTouchStart={(e) => {
                 const target = e.currentTarget;
@@ -402,67 +415,95 @@ export default function MonthView({
       )}
 
       {/* Drag handle to resize the calendar / detail split */}
-      {selectedDate && (
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          aria-label={t("calendar.resizePanel") || "Resize panel"}
-          onPointerDown={onResizeStart}
-          onDoubleClick={() => setSplitRatio(DEFAULT_SPLIT)}
-          title={t("calendar.resizePanelHint") || "Drag to resize · double-click to reset"}
-          className="group relative flex-shrink-0 h-2.5 cursor-row-resize flex items-center justify-center bg-slate-100 dark:bg-slate-700/40 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors touch-none"
-        >
-          <div className="h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-blue-400 dark:group-hover:bg-blue-500" />
-        </div>
-      )}
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label={t("calendar.resizePanel") || "Resize panel"}
+        onPointerDown={onResizeStart}
+        onDoubleClick={() => setSplitRatio(DEFAULT_SPLIT)}
+        title={t("calendar.resizePanelHint") || "Drag to resize · double-click to reset"}
+        className="group relative flex-shrink-0 h-2.5 cursor-row-resize flex items-center justify-center bg-slate-100 dark:bg-slate-700/40 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors touch-none"
+      >
+        <div className="h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-blue-400 dark:group-hover:bg-blue-500" />
+      </div>
 
-      {/* Selected date detail - events + todos */}
-      {selectedDate && (
-        <div
-          className="flex flex-col border-blue-500/30 dark:border-blue-400/20 bg-white dark:bg-slate-800"
-          style={{ flexGrow: 1 - splitRatio, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
-        >
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-750/50">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                {format(selectedDate, "MMM d (EEE)", { locale: enUS })}
-              </span>
-              {(selectedDateEvents.length + selectedDateTodos.length) > 0 && (
-                <span className="text-[10px] text-slate-400 bg-slate-200/60 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">
-                  {selectedDateEvents.length + selectedDateTodos.length}
-                </span>
+      {/* Bottom panel — upcoming overview (agenda) or one-day detail */}
+      <div
+        className="flex flex-col border-blue-500/30 dark:border-blue-400/20 bg-white dark:bg-slate-800"
+        style={{ flexGrow: 1 - splitRatio, flexShrink: 1, flexBasis: 0, minHeight: 0 }}
+      >
+        {/* Header: mode tabs + add */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-750/50">
+          <div className="flex items-center gap-1 min-w-0">
+            <button
+              onClick={() => setDetailMode("agenda")}
+              className={cn(
+                "flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium transition-colors whitespace-nowrap",
+                detailMode === "agenda"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60",
               )}
-            </div>
-            <button onClick={onShowAddModal} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white shadow-sm transition-colors">
-              <Plus className="w-4 h-4" />
+            >
+              {bottomScope === "upcoming" ? (t("calendar.upcoming") || "다가오는") : (t("calendar.thisMonth") || "이 달")}
+              {agendaCount > 0 && (
+                <span className={cn("text-[10px] px-1 rounded-full tabular-nums", detailMode === "agenda" ? "bg-white/25" : "bg-slate-200/70 dark:bg-slate-700")}>{agendaCount}</span>
+              )}
             </button>
+            {selectedDate && (
+              <button
+                onClick={() => setDetailMode("day")}
+                className={cn(
+                  "flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium transition-colors whitespace-nowrap",
+                  detailMode === "day"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60",
+                )}
+              >
+                {format(selectedDate, "M/d (EEE)", { locale: enUS })}
+                {(selectedDateEvents.length + selectedDateTodos.length) > 0 && (
+                  <span className={cn("text-[10px] px-1 rounded-full tabular-nums", detailMode === "day" ? "bg-white/25" : "bg-slate-200/70 dark:bg-slate-700")}>{selectedDateEvents.length + selectedDateTodos.length}</span>
+                )}
+              </button>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto overscroll-contain">
-            {selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
+          <button onClick={onShowAddModal} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white shadow-sm transition-colors shrink-0">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {detailMode === "agenda" ? (
+            /* ── Upcoming overview: remaining events + todos grouped by date ── */
+            bottomAgenda.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-slate-400">
                 <Calendar className="w-8 h-8 mb-2 text-slate-300 dark:text-slate-600" />
-                <p className="text-xs">{t("calendar.noEvents")}</p>
-                <button onClick={onShowAddModal} className="mt-2 text-xs text-blue-500 hover:text-blue-600 font-medium">
-                  + {t("calendar.addEvent")}
-                </button>
+                <p className="text-xs">{t("calendar.noUpcoming") || "다가오는 일정이 없습니다"}</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-700/30 pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px)+8px)] sm:pb-2">
-                {/* Events */}
-                {selectedDateEvents.map((ev) => (
-                  <MonthEventDetailItem
-                    key={`ev-${ev.id}`}
-                    ev={ev}
-                    onDeleteEvent={onDeleteEvent}
-                    onEditEvent={onEditEvent}
-                    projectLabel={ev.projectId ? projectNameById[ev.projectId] : undefined}
-                  />
-                ))}
-                {/* Todos — drag to reorder (order persists) */}
-                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTodoDragEnd}>
-                  <SortableContext items={selectedDateTodos.map((td) => td.id)} strategy={verticalListSortingStrategy}>
-                    {selectedDateTodos.map((td) => (
-                      <SortableTodoRow
+              <div className="pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px)+8px)] sm:pb-2">
+                {bottomAgenda.map((group) => (
+                  <div key={group.dateKey} className="border-b border-slate-100 dark:border-slate-700/30">
+                    <button
+                      onClick={() => openDay(group.day)}
+                      className="w-full flex items-center gap-2 px-4 py-1.5 bg-slate-50/70 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors sticky top-0 z-[1]"
+                    >
+                      <span className={cn("text-xs font-semibold", isToday(group.day) ? "text-blue-600 dark:text-blue-400" : "text-slate-600 dark:text-slate-300")}>
+                        {format(group.day, "M/d (EEE)", { locale: enUS })}
+                      </span>
+                      {isToday(group.day) && <span className="text-[9px] px-1 rounded bg-blue-600 text-white font-semibold">{t("calendar.today") || "오늘"}</span>}
+                      <span className="ml-auto text-[10px] text-slate-400 tabular-nums">{group.events.length + group.todos.length}</span>
+                    </button>
+                    {group.events.map((ev) => (
+                      <MonthEventDetailItem
+                        key={`ev-${ev.id}`}
+                        ev={ev}
+                        onDeleteEvent={onDeleteEvent}
+                        onEditEvent={onEditEvent}
+                        projectLabel={ev.projectId ? projectNameById[ev.projectId] : undefined}
+                      />
+                    ))}
+                    {group.todos.map((td) => (
+                      <MonthTodoDetailItem
                         key={`td-${td.id}`}
                         td={td}
                         projectLabel={td.projectId ? projectNameById[td.projectId] : undefined}
@@ -471,19 +512,53 @@ export default function MonthView({
                         onEditTodo={onEditTodo}
                       />
                     ))}
-                  </SortableContext>
-                </DndContext>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+            )
+          ) : /* ── One-day detail (시간별 by time) ── */
+          !selectedDate ? (
+            <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-600 py-8">
+              <p className="text-xs">{t("calendar.selectDateHint") || "Tap a date to see details"}</p>
+            </div>
+          ) : selectedDateEvents.length === 0 && selectedDateTodos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <Calendar className="w-8 h-8 mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-xs">{t("calendar.noEvents")}</p>
+              <button onClick={onShowAddModal} className="mt-2 text-xs text-blue-500 hover:text-blue-600 font-medium">
+                + {t("calendar.addEvent")}
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-700/30 pb-[calc(var(--mobile-nav-h,56px)+env(safe-area-inset-bottom,0px)+8px)] sm:pb-2">
+              {selectedDateEvents.map((ev) => (
+                <MonthEventDetailItem
+                  key={`ev-${ev.id}`}
+                  ev={ev}
+                  onDeleteEvent={onDeleteEvent}
+                  onEditEvent={onEditEvent}
+                  projectLabel={ev.projectId ? projectNameById[ev.projectId] : undefined}
+                />
+              ))}
+              {/* Todos — drag to reorder (order persists) */}
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTodoDragEnd}>
+                <SortableContext items={selectedDateTodos.map((td) => td.id)} strategy={verticalListSortingStrategy}>
+                  {selectedDateTodos.map((td) => (
+                    <SortableTodoRow
+                      key={`td-${td.id}`}
+                      td={td}
+                      projectLabel={td.projectId ? projectNameById[td.projectId] : undefined}
+                      onToggleTodo={onToggleTodo}
+                      onDeleteTodo={onDeleteTodo}
+                      onEditTodo={onEditTodo}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
         </div>
-      )}
-      {/* No date selected - show hint */}
-      {!selectedDate && (
-        <div className="flex-1 flex items-center justify-center text-slate-300 dark:text-slate-600">
-          <p className="text-xs">{t("calendar.selectDateHint") || "Tap a date to see details"}</p>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

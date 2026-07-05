@@ -8,6 +8,7 @@ import { Sun, Moon, Monitor, UserPlus, Trash2, Shield, User, Check, CheckCircle,
 import VersionModal from "@/components/VersionModal";
 import { APP_VERSION, APP_BUILD_DATE, VERSION_HISTORY } from "@/lib/version";
 import { getQuietHoursConfig, saveQuietHoursConfig, type QuietHoursConfig } from "@/lib/quietHours";
+import { getCalendarBottomScope, setCalendarBottomScope as persistBottomScope, type CalendarBottomScope } from "@/lib/calendarPrefs";
 import { useI18n } from "@/lib/useI18n";
 import TeamGroupManager from "@/components/admin/TeamGroupManager";
 import TelegramSection from "@/components/settings/TelegramSection";
@@ -66,6 +67,9 @@ export default function SettingsPage() {
   const [newUser, setNewUser] = useState({ username: "", password: "", displayName: "", role: "user" });
   const [message, setMessage] = useState("");
   const [showVersion, setShowVersion] = useState(false);
+  const [bottomScopeState, setBottomScopeState] = useState<CalendarBottomScope>(getCalendarBottomScope);
+  const bottomScope = bottomScopeState;
+  const setBottomScope = (s: CalendarBottomScope) => { persistBottomScope(s); setBottomScopeState(s); };
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
@@ -311,6 +315,33 @@ export default function SettingsPage() {
                 <option value="ko">한국어</option>
               </select>
             </div>
+          </div>
+        </section>
+
+        {/* Calendar bottom panel scope */}
+        <section>
+          <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5" />
+            {t("settings.calendarBottom")}
+          </h2>
+          <div className="card p-4 space-y-2">
+            <div className="flex gap-1">
+              {(["month", "upcoming"] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setBottomScope(s)}
+                  className={cn(
+                    "flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-colors",
+                    bottomScope === s
+                      ? "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/50"
+                      : "bg-slate-50 dark:bg-slate-700/40 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/60",
+                  )}
+                >
+                  {s === "month" ? t("settings.calendarBottomMonth") : t("settings.calendarBottomUpcoming")}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-400">{t("settings.calendarBottomHint")}</p>
           </div>
         </section>
 

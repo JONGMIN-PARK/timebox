@@ -8,6 +8,7 @@ import {
   format,
   startOfMonth,
   endOfMonth,
+  startOfDay,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
@@ -49,6 +50,7 @@ import CalendarSearchPanel from "./CalendarSearchPanel";
 import RecipientPickerModal from "@/components/common/RecipientPickerModal";
 import NLQuickAddModal, { type NLEventValues, type NLTodoValues } from "./NLQuickAddModal";
 import EventDetailPopover from "./EventDetailPopover";
+import { getCalendarBottomScope, CALENDAR_PREFS_EVENT, type CalendarBottomScope } from "@/lib/calendarPrefs";
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
@@ -91,6 +93,16 @@ export default function CalendarView() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpYear, setJumpYear] = useState(new Date().getFullYear());
+  const [bottomScope, setBottomScope] = useState<CalendarBottomScope>(getCalendarBottomScope);
+  useEffect(() => {
+    const sync = () => setBottomScope(getCalendarBottomScope());
+    window.addEventListener(CALENDAR_PREFS_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(CALENDAR_PREFS_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   const { t } = useI18n();
   const pageVisible = usePageVisible();
 
@@ -129,6 +141,17 @@ export default function CalendarView() {
     [rangeStart, rangeEnd],
   );
 
+  // Event fetch/expansion upper bound. In month view with the "upcoming" bottom
+  // scope we widen it a year out so the bottom agenda can list future items;
+  // the grid still renders only the current month (it reads current-month keys).
+  const dataEnd = useMemo(() => {
+    if (viewMode === "month" && bottomScope === "upcoming") {
+      const far = addMonths(startOfDay(new Date()), 12);
+      return far > rangeEnd ? far : rangeEnd;
+    }
+    return rangeEnd;
+  }, [viewMode, bottomScope, rangeEnd]);
+
   useEffect(() => {
     fetchCategories();
     fetchTodos();
@@ -138,9 +161,9 @@ export default function CalendarView() {
 
   useEffect(() => {
     const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
-    const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
+    const end = format(dataEnd, "yyyy-MM-dd'T'23:59:59");
     fetchEvents(start, end);
-  }, [currentDate, viewMode]);
+  }, [currentDate, viewMode, dataEnd]);
 
   useEffect(() => {
     if ((viewMode === "week" || viewMode === "day") && timelineRef.current) {
@@ -190,13 +213,13 @@ export default function CalendarView() {
         k = Math.max(0, k - 1);
       }
       let occ = advance(base, k);
-      for (let g = 0; occ <= rangeEnd && g < 500; g++) {
+      for (let g = 0; occ <= dataEnd && g < 500; g++) {
         if (addDays(occ, spanDays) >= rangeStart) placeSpan(ev, occ, spanDays);
         occ = advance(occ, 1);
       }
     });
     return map;
-  }, [events, projectFilter, rangeStart, rangeEnd]);
+  }, [events, projectFilter, rangeStart, dataEnd]);
 
   const todosByDate = useMemo(() => {
     const map = new Map<string, typeof todos>();
@@ -215,9 +238,31 @@ export default function CalendarView() {
     return map;
   }, [todos]);
 
-  const selectedDateEvents = selectedDate
-    ? eventsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []
-    : [];
+  // Day-detail events are shown by time ("시간별").
+  const selectedDateEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    const arr = eventsByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+    return [...arr].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [selectedDate, eventsByDate]);
+
+  // Bottom overview: remaining (from today) events + todos, grouped by date.
+  // Scope is user-configurable: "month" (through end of this month) or
+  // "upcoming" (up to a year out). Only meaningful in month view.
+  const bottomAgenda = useMemo(() => {
+    if (viewMode !== "month") return [];
+    const start = startOfDay(new Date());
+    const end = bottomScope === "upcoming" ? addMonths(start, 12) : endOfMonth(currentDate);
+    const out: { dateKey: string; day: Date; events: CalendarEvent[]; todos: Todo[] }[] = [];
+    let d = start;
+    for (let g = 0; d <= end && g < 400; g++) {
+      const key = format(d, "yyyy-MM-dd");
+      const evs = [...(eventsByDate.get(key) || [])].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const tds = todosByDate.get(key) || [];
+      if (evs.length + tds.length > 0) out.push({ dateKey: key, day: d, events: evs, todos: tds });
+      d = addDays(d, 1);
+    }
+    return out;
+  }, [viewMode, bottomScope, currentDate, eventsByDate, todosByDate]);
 
   // Detail-panel todos follow the user's manual order (sortOrder), so drag-to-
   // reorder sticks even when todos have different due times.
@@ -614,6 +659,8 @@ export default function CalendarView() {
           onDeleteTodo={deleteTodo}
           onEditTodo={handleEditTodo}
           onReorderTodos={reorderTodos}
+          bottomAgenda={bottomAgenda}
+          bottomScope={bottomScope}
           projectNameById={projectNameById}
           onLongPressDate={(date, type) => {
             const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
