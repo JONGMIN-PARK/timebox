@@ -230,6 +230,8 @@ export default function MonthView({
   const [longPressDate, setLongPressDate] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True once a long-press has fired, so the trailing click doesn't also open the day.
+  const longPressFired = useRef(false);
   // Bottom panel: "agenda" = month/upcoming overview, "day" = one day's detail.
   const [detailMode, setDetailMode] = useState<"agenda" | "day">("agenda");
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -300,12 +302,17 @@ export default function MonthView({
           return (
             <button
               key={dateKey}
-              onClick={() => openDay(day)}
+              onClick={() => {
+                // A long-press just fired its menu — swallow the trailing tap.
+                if (longPressFired.current) { longPressFired.current = false; return; }
+                openDay(day);
+              }}
               onDoubleClick={() => onDoubleClickDate(day)}
               onTouchStart={(e) => {
+                longPressFired.current = false;
                 const target = e.currentTarget;
                 touchTimer.current = setTimeout(() => {
-                  e.preventDefault();
+                  longPressFired.current = true;
                   const rect = target.getBoundingClientRect();
                   setLongPressDate(dateKey);
                   setMenuPos({ x: rect.left + rect.width / 2, y: rect.top });
