@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { chatRooms, chatMembers, chatMessages, users } from "../db/schema.js";
+import { chatRooms, chatMembers, chatMessages, chatMessageReactions, users } from "../db/schema.js";
 import { eq, and, desc, inArray, isNull, isNotNull, lt, sql } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getUserMap } from "../lib/userEnrichment.js";
@@ -15,6 +15,42 @@ async function verifyMembership(roomId: number, userId: number) {
   const [membership] = await db.select().from(chatMembers)
     .where(and(eq(chatMembers.roomId, roomId), eq(chatMembers.userId, userId)));
   return membership || null;
+}
+
+// ── Helper: aggregate reactions for a set of message ids ──
+// Returns a map: messageId -> [{ emoji, count, mine }]
+async function reactionsForMessages(messageIds: number[], viewerId: number) {
+  const map = new Map<number, { emoji: string; count: number; mine: boolean }[]>();
+  if (messageIds.length === 0) return map;
+  const rows = await db.select().from(chatMessageReactions)
+    .where(inArray(chatMessageReactions.messageId, messageIds));
+  // Group by messageId + emoji preserving first-seen order.
+  for (const r of rows) {
+    const list = map.get(r.messageId) || [];
+    let entry = list.find((e) => e.emoji === r.emoji);
+    if (!entry) { entry = { emoji: r.emoji, count: 0, mine: false }; list.push(entry); }
+    entry.count += 1;
+    if (r.userId === viewerId) entry.mine = true;
+    map.set(r.messageId, list);
+  }
+  return map;
+}
+
+// ── Helper: build reply previews for a set of replyTo ids ──
+async function replyPreviews(replyIds: number[]) {
+  const map = new Map<number, { id: number; senderName: string; content: string; type: string }>();
+  if (replyIds.length === 0) return map;
+  const rows = await db.select().from(chatMessages).where(inArray(chatMessages.id, replyIds));
+  const names = await getUserMap([...new Set(rows.map((m) => m.userId))]);
+  for (const m of rows) {
+    map.set(m.id, {
+      id: m.id,
+      senderName: m.deleted ? "" : (names.get(m.userId) || "Unknown"),
+      content: m.deleted ? "" : m.content,
+      type: m.type,
+    });
+  }
+  return map;
 }
 
 // GET / - List my chat rooms
@@ -330,6 +366,12 @@ router.get("/:roomId/messages", asyncHandler<AuthRequest>(async (req, res) => {
   const senderIds = [...new Set(result.map(m => m.userId))];
   const userMap = await getUserMap(senderIds);
 
+  // Reactions + reply previews for these messages.
+  const reactionMap = await reactionsForMessages(result.map((m) => m.id), userId);
+  const replyMap = await replyPreviews(
+    [...new Set(result.map((m) => m.replyTo).filter((v): v is number => !!v))],
+  );
+
   // Map deleted messages
   const data = result.map(m => ({
     ...m,
@@ -337,6 +379,8 @@ router.get("/:roomId/messages", asyncHandler<AuthRequest>(async (req, res) => {
     senderName: m.deleted ? "" : (userMap.get(m.userId) || "Unknown"),
     readBy: m.readBy || "[]",
     readCount: (JSON.parse(m.readBy || "[]") as number[]).length,
+    reactions: reactionMap.get(m.id) || [],
+    replyToMessage: m.replyTo ? (replyMap.get(m.replyTo) || null) : null,
   }));
 
   // Return in chronological order
@@ -387,11 +431,15 @@ router.post("/:roomId/messages", asyncHandler<AuthRequest>(async (req, res) => {
     }
   }
 
+  const replyMap = message.replyTo ? await replyPreviews([message.replyTo]) : null;
+
   res.json({
     success: true,
     data: {
       ...message,
       senderName: userMap.get(userId) || "Unknown",
+      reactions: [],
+      replyToMessage: message.replyTo ? (replyMap?.get(message.replyTo) || null) : null,
     },
   });
 }));
@@ -439,6 +487,46 @@ router.delete("/:roomId/messages/:messageId", asyncHandler<AuthRequest>(async (r
     .where(eq(chatMessages.id, messageId));
 
   res.json({ success: true, data: { deleted: true } });
+}));
+
+// POST /:roomId/messages/:messageId/reactions - Toggle an emoji reaction (KakaoTalk 공감)
+router.post("/:roomId/messages/:messageId/reactions", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  const messageId = safeParseId(req.params.messageId);
+  if (!roomId || !messageId) { throw new ValidationError("Invalid ID"); }
+
+  const membership = await verifyMembership(roomId, userId);
+  if (!membership) { throw new ForbiddenError("Not a member of this room"); }
+
+  const emoji = (req.body?.emoji || "").toString().trim();
+  if (!emoji || emoji.length > 8) { throw new ValidationError("Invalid emoji"); }
+
+  const [msg] = await db.select().from(chatMessages)
+    .where(and(eq(chatMessages.id, messageId), eq(chatMessages.roomId, roomId)));
+  if (!msg) { throw new NotFoundError("Message"); }
+
+  // Toggle: remove if this user already reacted with this emoji, else add.
+  const existing = await db.select().from(chatMessageReactions).where(and(
+    eq(chatMessageReactions.messageId, messageId),
+    eq(chatMessageReactions.userId, userId),
+    eq(chatMessageReactions.emoji, emoji),
+  ));
+  if (existing.length > 0) {
+    await db.delete(chatMessageReactions).where(eq(chatMessageReactions.id, existing[0].id));
+  } else {
+    await db.insert(chatMessageReactions).values({ messageId, userId, emoji });
+  }
+
+  // Broadcast the updated reaction set (viewer-agnostic) to room members.
+  const reactionMap = await reactionsForMessages([messageId], userId);
+  const reactions = reactionMap.get(messageId) || [];
+  const members = await db.select().from(chatMembers).where(eq(chatMembers.roomId, roomId));
+  for (const m of members) {
+    emitToUser(m.userId, "chat:reaction", { roomId, messageId, reactions });
+  }
+
+  res.json({ success: true, data: { messageId, reactions } });
 }));
 
 // POST /:roomId/members - Add member to room (admin/owner only)

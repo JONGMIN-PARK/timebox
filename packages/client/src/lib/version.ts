@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.55.0",
+    date: "2026-07-05",
+    highlights: ["답장·공감·날짜 구분", "카카오톡 스타일 메신저"],
+    changes: [
+      { category: "채팅 (카카오톡 스타일)", emoji: "💬", items: [
+        "메시지 답장(답장 인용) — 원본 미리보기와 함께 전송",
+        "메시지 공감(이모지 반응) — 👍❤️😂😮😢👏 실시간 반영",
+        "대화 날짜 구분선 (오늘/어제/날짜) 표시",
+      ] },
+    ],
+  },
+  {
     version: "1.54.0",
     date: "2026-07-05",
     highlights: ["전체 채팅방", "가입 회원 자동 참여"],

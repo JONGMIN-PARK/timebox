@@ -443,6 +443,15 @@ export const chatMessages = pgTable("chat_messages", {
   createdAt: text("created_at").notNull().default(sql`now()`),
 });
 
+// ── Chat Message Reactions (KakaoTalk-style 공감) ──
+export const chatMessageReactions = pgTable("chat_message_reactions", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").notNull(),
+  userId: integer("user_id").notNull(),
+  emoji: text("emoji").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
+});
+
 // ── Notes (memo / voice / handwriting) ──
 export const notes = pgTable("notes", {
   id: serial("id").primaryKey(),

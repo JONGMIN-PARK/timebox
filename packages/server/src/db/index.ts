@@ -444,6 +444,15 @@ export async function initDb() {
       );
       CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(room_id, created_at DESC);
 
+      CREATE TABLE IF NOT EXISTS chat_message_reactions (
+        id SERIAL PRIMARY KEY,
+        message_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_reaction_unique ON chat_message_reactions(message_id, user_id, emoji);
+
       CREATE TABLE IF NOT EXISTS user_activity_log (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Fragment } from "react";
 import { api } from "@/lib/api";
 import { useSocket, useSocketEvent } from "@/lib/SocketProvider";
 import { useAuthStore } from "@/stores/authStore";
@@ -13,6 +13,7 @@ import {
   Plus,
   Users,
   Globe,
+  Reply,
   Settings,
   X,
   Trash2,
@@ -43,6 +44,17 @@ interface ChatRoom {
   deletedAt?: string | null;
 }
 
+interface MessageReaction {
+  emoji: string;
+  count: number;
+  mine: boolean;
+}
+interface ReplyPreview {
+  id: number;
+  senderName: string;
+  content: string;
+  type: string;
+}
 interface ChatMessage {
   id: number;
   roomId: number;
@@ -53,7 +65,13 @@ interface ChatMessage {
   deleted?: boolean;
   readBy?: string;
   createdAt: string;
+  replyTo?: number | null;
+  replyToMessage?: ReplyPreview | null;
+  reactions?: MessageReaction[];
 }
+
+// KakaoTalk-style quick reactions (공감)
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "👏"];
 
 interface ChatUser {
   id: number;
@@ -85,6 +103,9 @@ export default function ChatPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [inputText, setInputText] = useState("");
+  // KakaoTalk-style: message being replied to, and which message's reaction picker is open.
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -201,6 +222,19 @@ export default function ChatPanel() {
     );
   }, [user?.id]));
 
+  // ── Realtime reactions: merge new counts, preserve MY own `mine` flags ──
+  useSocketEvent("chat:reaction", useCallback((data: { roomId: number; messageId: number; reactions: MessageReaction[] }) => {
+    if (!activeRoomRef.current || activeRoomRef.current.id !== data.roomId) return;
+    setMessages((prev) => prev.map((m) => {
+      if (m.id !== data.messageId) return m;
+      const merged = data.reactions.map((r) => ({
+        ...r,
+        mine: m.reactions?.find((e) => e.emoji === r.emoji)?.mine ?? false,
+      }));
+      return { ...m, reactions: merged };
+    }));
+  }, []));
+
   // ── Auto-scroll on new messages ──
 
   useEffect(() => {
@@ -241,6 +275,8 @@ export default function ChatPanel() {
     setMessages([]);
     setInputText("");
     setShowEmoji(false);
+    setReplyingTo(null);
+    setReactionPickerFor(null);
     setView("rooms");
     fetchRooms();
   };
@@ -252,7 +288,10 @@ export default function ChatPanel() {
     if (!text || !activeRoom) return;
 
     // Save message via REST API, then socket broadcasts it
-    const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, { content: text });
+    const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, {
+      content: text,
+      replyTo: replyingTo?.id ?? null,
+    });
     if (res.success && res.data) {
       setMessages(prev => [...prev, res.data!]);
       // Notify others via socket
@@ -263,6 +302,19 @@ export default function ChatPanel() {
     }
 
     setInputText("");
+    setReplyingTo(null);
+  };
+
+  // ── Toggle an emoji reaction (공감) ──
+  const toggleReaction = async (messageId: number, emoji: string) => {
+    if (!activeRoom) return;
+    setReactionPickerFor(null);
+    const res = await api.post<{ messageId: number; reactions: MessageReaction[] }>(
+      `/chat/${activeRoom.id}/messages/${messageId}/reactions`, { emoji },
+    );
+    if (res.success && res.data) {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: res.data!.reactions } : m));
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -377,6 +429,22 @@ export default function ChatPanel() {
   const getInitial = (name: string) => {
     return (name || "?").charAt(0).toUpperCase();
   };
+
+  // ── Date-divider helpers (KakaoTalk-style day separators) ──
+  const dayKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA");
+  const dayLabel = (iso: string) => {
+    const d = dayKey(iso);
+    const today = new Date().toLocaleDateString("en-CA");
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-CA");
+    if (d === today) return t("chat.today") || "오늘";
+    if (d === yesterday) return t("chat.yesterday") || "어제";
+    const dt = new Date(iso);
+    return `${dt.getFullYear()}. ${dt.getMonth() + 1}. ${dt.getDate()}`;
+  };
+
+  // Short preview text for a replied-to message.
+  const replyPreviewText = (r: ReplyPreview) =>
+    r.type === "image" ? "📷 사진" : (r.content || t("chat.deletedMessage"));
 
   const renderContent = (text: string) => {
     return text.split(/(@\w+)/g).map((part, i) =>
@@ -515,6 +583,85 @@ export default function ChatPanel() {
   //  CHAT ROOM VIEW
   // ══════════════════════════════════════════
 
+  // Hover/tap actions on a message: 답장(reply) + 공감(reaction picker) + delete(own).
+  const renderMsgActions = (msg: ChatMessage, isMe: boolean) => (
+    <div className={cn("flex items-center gap-0.5", isMe ? "flex-row-reverse" : "flex-row")}>
+      <div className="relative">
+        <button
+          onClick={() => setReactionPickerFor((cur) => (cur === msg.id ? null : msg.id))}
+          className="opacity-0 group-hover:opacity-100 max-md:opacity-100 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 transition-all"
+          title={t("chat.react") || "공감"}
+        >
+          <Smile className="w-3.5 h-3.5 text-slate-400" />
+        </button>
+        {reactionPickerFor === msg.id && (
+          <div className={cn(
+            "absolute z-20 bottom-full mb-1 flex items-center gap-0.5 px-1.5 py-1 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-600",
+            isMe ? "right-0" : "left-0",
+          )}>
+            {REACTION_EMOJIS.map((e) => (
+              <button key={e} onClick={() => toggleReaction(msg.id, e)} className="text-lg leading-none hover:scale-125 transition-transform p-0.5">
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        onClick={() => { setReplyingTo(msg); setReactionPickerFor(null); }}
+        className="opacity-0 group-hover:opacity-100 max-md:opacity-100 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-600 transition-all"
+        title={t("chat.reply") || "답장"}
+      >
+        <Reply className="w-3.5 h-3.5 text-slate-400" />
+      </button>
+      {isMe && (
+        <button
+          onClick={() => handleDeleteMessage(msg.id)}
+          className="opacity-0 group-hover:opacity-100 max-md:opacity-100 p-1 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+          title={t("common.delete")}
+        >
+          <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
+        </button>
+      )}
+    </div>
+  );
+
+  // Reaction chips shown under a message bubble.
+  const renderReactionChips = (msg: ChatMessage, isMe: boolean) => {
+    if (!msg.reactions || msg.reactions.length === 0) return null;
+    return (
+      <div className={cn("flex flex-wrap gap-1 mt-1", isMe ? "justify-end mr-1" : "ml-1")}>
+        {msg.reactions.map((r) => (
+          <button
+            key={r.emoji}
+            onClick={() => toggleReaction(msg.id, r.emoji)}
+            className={cn(
+              "flex items-center gap-0.5 text-[11px] leading-none px-1.5 py-0.5 rounded-full border transition-colors",
+              r.mine
+                ? "bg-blue-50 dark:bg-blue-900/40 border-blue-300 dark:border-blue-500/50 text-blue-700 dark:text-blue-300"
+                : "bg-slate-100 dark:bg-slate-700 border-transparent text-slate-500 dark:text-slate-400",
+            )}
+          >
+            <span className="text-xs">{r.emoji}</span>
+            <span className="tabular-nums font-medium">{r.count}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  // Quoted preview shown inside a bubble that is a reply.
+  const renderReplyQuote = (r: ReplyPreview, isMe: boolean) => (
+    <div className={cn(
+      "mb-1 pl-2 border-l-2 text-[11px] truncate max-w-full",
+      isMe ? "border-white/50 text-white/80" : "border-slate-300 dark:border-slate-500 text-slate-500 dark:text-slate-400",
+    )}>
+      <span className="font-medium">{r.senderName || "?"}</span>
+      <span className="mx-1 opacity-70">·</span>
+      <span className="opacity-80">{replyPreviewText(r)}</span>
+    </div>
+  );
+
   const renderChatRoom = () => {
     if (!activeRoom) return null;
 
@@ -562,8 +709,22 @@ export default function ChatPanel() {
               const isSystem = msg.type === "system";
               const showHeader = isNewGroup(msg, idx);
 
+              // Prepend a date divider when the calendar day changes.
+              const needDivider = idx === 0 || dayKey(messages[idx - 1].createdAt) !== dayKey(msg.createdAt);
+              const withDivider = (el: React.ReactNode) =>
+                needDivider ? (
+                  <Fragment key={`m-${msg.id}`}>
+                    <div className="flex justify-center my-3">
+                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-200/70 dark:bg-slate-700/60 px-2.5 py-0.5 rounded-full">
+                        {dayLabel(msg.createdAt)}
+                      </span>
+                    </div>
+                    {el}
+                  </Fragment>
+                ) : el;
+
               if (isSystem) {
-                return (
+                return withDivider(
                   <div
                     key={msg.id}
                     className="flex justify-center py-2"
@@ -577,7 +738,7 @@ export default function ChatPanel() {
 
               // Deleted message placeholder
               if (msg.deleted) {
-                return (
+                return withDivider(
                   <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start", "mt-1")}>
                     <span className="text-[11px] text-slate-400 italic px-3 py-1.5 bg-slate-100 dark:bg-slate-700/30 rounded-xl">
                       {t("chat.deletedMessage")}
@@ -588,7 +749,7 @@ export default function ChatPanel() {
 
               // Image message
               if (msg.type === "image") {
-                return (
+                return withDivider(
                   <div
                     key={msg.id}
                     className={cn(
@@ -617,15 +778,10 @@ export default function ChatPanel() {
                         className="max-w-[min(240px,70vw)] rounded-xl cursor-pointer"
                         onClick={() => window.open(msg.content, "_blank")}
                       />
-                      {isMe && (
-                        <button
-                          onClick={() => handleDeleteMessage(msg.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                        >
-                          <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
-                        </button>
-                      )}
+                      {renderMsgActions(msg, isMe)}
                     </div>
+
+                    {renderReactionChips(msg, isMe)}
 
                     <span
                       className={cn(
@@ -639,7 +795,7 @@ export default function ChatPanel() {
                 );
               }
 
-              return (
+              return withDivider(
                 <div
                   key={msg.id}
                   className={cn(
@@ -662,7 +818,7 @@ export default function ChatPanel() {
                     </div>
                   )}
 
-                  {/* Message bubble with delete button */}
+                  {/* Message bubble with actions */}
                   <div className={cn("flex items-center gap-1", isMe ? "flex-row-reverse" : "flex-row")}>
                     <div
                       className={cn(
@@ -672,19 +828,15 @@ export default function ChatPanel() {
                           : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md",
                       )}
                     >
+                      {msg.replyToMessage && renderReplyQuote(msg.replyToMessage, isMe)}
                       <p className="whitespace-pre-wrap break-words">
                         {renderContent(msg.content)}
                       </p>
                     </div>
-                    {isMe && !msg.deleted && (
-                      <button
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                      >
-                        <Trash2 className="w-3 h-3 text-slate-400 hover:text-red-500" />
-                      </button>
-                    )}
+                    {renderMsgActions(msg, isMe)}
                   </div>
+
+                  {renderReactionChips(msg, isMe)}
 
                   {/* Time + read receipt */}
                   <span
@@ -709,6 +861,23 @@ export default function ChatPanel() {
 
         {/* Input bar */}
         <div className="px-3 py-2 border-t border-slate-200/60 dark:border-slate-700/40">
+          {/* Reply-to preview chip (답장) */}
+          {replyingTo && (
+            <div className="flex items-center gap-2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700/50 border-l-2 border-blue-500">
+              <Reply className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400 truncate">
+                  {replyingTo.senderName}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {replyingTo.type === "image" ? "📷 사진" : replyingTo.content}
+                </p>
+              </div>
+              <button onClick={() => setReplyingTo(null)} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 flex-shrink-0" aria-label={t("common.cancel")}>
+                <X className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <textarea
               value={inputText}
