@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.58.0",
+    date: "2026-07-05",
+    highlights: ["이미지 파일 자동 미리보기", "이미지 라이트박스"],
+    changes: [
+      { category: "채팅", emoji: "🖼️", items: [
+        "공유한 파일이 이미지면 대화창에 자동 미리보기",
+        "이미지 탭 시 전체화면 라이트박스로 크게 보기",
+        "목록·답장 미리보기에 이미지 파일은 📷 사진으로 표시",
+      ] },
+    ],
+  },
+  {
     version: "1.57.0",
     date: "2026-07-05",
     highlights: ["파일 공유(최대 2GB)", "이모지 피커 개선"],

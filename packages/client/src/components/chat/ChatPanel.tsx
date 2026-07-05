@@ -39,6 +39,37 @@ function formatBytes(n: number): string {
   return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+// Inline preview for an image shared as a file. The shared download endpoint
+// needs the auth header, so we fetch the blob and render an object URL rather
+// than putting the URL directly on <img src> (which wouldn't send the token).
+function SharedImagePreview({ storedName, alt, onOpen, onError }: {
+  storedName: string; alt: string; onOpen: (url: string) => void; onError: () => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    let obj: string | null = null;
+    const token = localStorage.getItem("timebox_token");
+    fetch(`/api/files/shared/${storedName}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => { if (!r.ok) throw new Error("load failed"); return r.blob(); })
+      .then((b) => { if (!active) return; obj = URL.createObjectURL(b); setUrl(obj); })
+      .catch(() => { if (active) onError(); });
+    return () => { active = false; if (obj) URL.revokeObjectURL(obj); };
+  }, [storedName]);
+
+  if (!url) {
+    return <div className="w-40 h-40 rounded-xl bg-slate-100 dark:bg-slate-700 animate-pulse" />;
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      onClick={() => onOpen(url)}
+      className="max-w-[min(240px,70vw)] max-h-[320px] rounded-xl cursor-pointer object-cover"
+    />
+  );
+}
+
 // ── Types ──
 
 interface LastMessage {
@@ -141,6 +172,10 @@ export default function ChatPanel() {
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  // Image file messages that failed to load — fall back to a file card.
+  const [imgFailedIds, setImgFailedIds] = useState<Set<number>>(new Set());
+  // Fullscreen image lightbox (object URL of the opened image).
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -609,16 +644,23 @@ export default function ChatPanel() {
     return `${dt.getFullYear()}. ${dt.getMonth() + 1}. ${dt.getDate()}`;
   };
 
+  // Short preview text for a file/image message.
+  const filePreviewLabel = (content: string) => {
+    const f = parseFileContent(content);
+    if (f?.mime?.startsWith("image/")) return "📷 사진";
+    return `📎 ${f?.name || "파일"}`;
+  };
+
   // Short preview text for a replied-to message.
   const replyPreviewText = (r: ReplyPreview) =>
     r.type === "image" ? "📷 사진"
-    : r.type === "file" ? `📎 ${parseFileContent(r.content)?.name || "파일"}`
+    : r.type === "file" ? filePreviewLabel(r.content)
     : (r.content || t("chat.deletedMessage"));
 
   // Short preview for the room list's last-message line.
   const lastMessagePreview = (m: LastMessage) =>
     m.type === "image" ? "📷 사진"
-    : m.type === "file" ? `📎 ${parseFileContent(m.content)?.name || "파일"}`
+    : m.type === "file" ? filePreviewLabel(m.content)
     : m.content;
 
   const renderContent = (text: string) => {
@@ -1076,9 +1118,10 @@ export default function ChatPanel() {
                 );
               }
 
-              // File message (shared file, up to 2GB)
+              // File message (shared file, up to 2GB). Images auto-preview inline.
               if (msg.type === "file") {
                 const f = parseFileContent(msg.content);
+                const isImage = !!f && (f.mime?.startsWith("image/") ?? false) && !imgFailedIds.has(msg.id);
                 return withDivider(
                   <div
                     key={msg.id}
@@ -1093,25 +1136,43 @@ export default function ChatPanel() {
                       </div>
                     )}
                     <div className={cn("flex items-center gap-1", isMe ? "flex-row-reverse" : "flex-row")}>
-                      <button
-                        onClick={() => f && downloadSharedFile(f.storedName, f.name)}
-                        className={cn(
-                          "flex items-center gap-2.5 max-w-[80%] px-3 py-2.5 rounded-2xl text-left transition-colors",
-                          isMe ? "bg-blue-600 text-white rounded-br-md hover:bg-blue-500" : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md hover:bg-slate-200 dark:hover:bg-slate-600",
-                        )}
-                      >
-                        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", isMe ? "bg-white/20" : "bg-blue-100 dark:bg-blue-900/40")}>
-                          <FileText className={cn("w-4.5 h-4.5", isMe ? "text-white" : "text-blue-600 dark:text-blue-300")} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-medium truncate">{f?.name || "file"}</p>
-                          <p className={cn("text-[11px] flex items-center gap-1", isMe ? "text-white/70" : "text-slate-400")}>
-                            <Download className="w-3 h-3" />{f ? formatBytes(f.size) : ""}
-                          </p>
-                        </div>
-                      </button>
+                      {isImage && f ? (
+                        <SharedImagePreview
+                          storedName={f.storedName}
+                          alt={f.name}
+                          onOpen={(url) => setLightbox(url)}
+                          onError={() => setImgFailedIds((prev) => new Set(prev).add(msg.id))}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => f && downloadSharedFile(f.storedName, f.name)}
+                          className={cn(
+                            "flex items-center gap-2.5 max-w-[80%] px-3 py-2.5 rounded-2xl text-left transition-colors",
+                            isMe ? "bg-blue-600 text-white rounded-br-md hover:bg-blue-500" : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md hover:bg-slate-200 dark:hover:bg-slate-600",
+                          )}
+                        >
+                          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", isMe ? "bg-white/20" : "bg-blue-100 dark:bg-blue-900/40")}>
+                            <FileText className={cn("w-4.5 h-4.5", isMe ? "text-white" : "text-blue-600 dark:text-blue-300")} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium truncate">{f?.name || "file"}</p>
+                            <p className={cn("text-[11px] flex items-center gap-1", isMe ? "text-white/70" : "text-slate-400")}>
+                              <Download className="w-3 h-3" />{f ? formatBytes(f.size) : ""}
+                            </p>
+                          </div>
+                        </button>
+                      )}
                       {renderMsgActions(msg, isMe)}
                     </div>
+                    {/* For image previews, offer a download affordance under the image. */}
+                    {isImage && f && (
+                      <button
+                        onClick={() => downloadSharedFile(f.storedName, f.name)}
+                        className={cn("mt-1 flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300", isMe ? "mr-1 flex-row-reverse" : "ml-1")}
+                      >
+                        <Download className="w-3 h-3" />{formatBytes(f.size)}
+                      </button>
+                    )}
                     {renderReactionChips(msg, isMe)}
                     <span className={cn("text-[9px] text-slate-400 mt-0.5", isMe ? "mr-1" : "ml-1")}>{formatTime(msg.createdAt)}</span>
                   </div>
@@ -1560,6 +1621,20 @@ export default function ChatPanel() {
       {view === "browse" && renderBrowse()}
       {view === "trash" && renderTrash()}
       {invitingRoom && renderInviteModal()}
+
+      {/* Image lightbox */}
+      {lightbox && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/85 p-4" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-[calc(env(safe-area-inset-top)+1rem)] right-4 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center"
+            aria-label={t("common.close")}
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
+      )}
 
       {/* Permanent-delete confirmation */}
       {confirmPurgeId !== null && (
