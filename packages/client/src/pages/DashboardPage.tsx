@@ -25,6 +25,7 @@ import ToastContainer, { showToast } from "@/components/ui/Toast";
 import HelpModal from "@/components/HelpModal";
 import SearchModal from "@/components/SearchModal";
 import VersionModal from "@/components/VersionModal";
+import BriefingModal from "@/components/briefing/BriefingModal";
 import ChatRequestPopup from "@/components/chat/ChatRequestPopup";
 import FloatingChat from "@/components/chat/FloatingChat";
 
@@ -47,6 +48,7 @@ export default function DashboardPage() {
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showVersion, setShowVersion] = useState(false);
+  const [showBriefing, setShowBriefing] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
     if (splashShownRef.current) return false;
@@ -65,6 +67,13 @@ export default function DashboardPage() {
     // re-created on any browser/device missing the local "seeded" flag.
     if (!localStorage.getItem("timebox_onboarding_done")) {
       setShowOnboarding(true);
+    } else {
+      // Auto-open the daily briefing once per calendar day for returning users.
+      const today = new Date().toLocaleDateString("en-CA");
+      if (localStorage.getItem("timebox_briefing_date") !== today) {
+        localStorage.setItem("timebox_briefing_date", today);
+        setShowBriefing(true);
+      }
     }
   }, []);
 
@@ -234,7 +243,7 @@ export default function DashboardPage() {
         <Header onInboxClick={() => {
           useProjectStore.getState().setActiveProject(null);
           setActiveTab("inbox");
-        }} onVersionClick={() => setShowVersion(true)} />
+        }} onVersionClick={() => setShowVersion(true)} onBriefingClick={() => setShowBriefing(true)} />
 
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {activeProjectId && hasTeamAccess ? (
@@ -281,6 +290,7 @@ export default function DashboardPage() {
       <ChatRequestPopup onAccept={() => setActiveTab("chat")} />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <VersionModal open={showVersion} onClose={() => setShowVersion(false)} />
+      <BriefingModal open={showBriefing} onClose={() => setShowBriefing(false)} onNavigate={(tab) => { useProjectStore.getState().setActiveProject(null); setActiveTab(tab); }} />
       <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
       <FloatingChat />
       <ToastContainer />

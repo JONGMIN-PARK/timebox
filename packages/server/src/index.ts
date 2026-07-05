@@ -45,6 +45,7 @@ import sketchRoutes from "./routes/sketches.js";
 import dayPlanRoutes from "./routes/dayplan.js";
 import aiRoutes from "./routes/ai.js";
 import importRoutes from "./routes/import.js";
+import briefingRoutes from "./routes/briefing.js";
 import { activityTracker } from "./middleware/activityTracker.js";
 import { KST_TIMEZONE } from "./lib/kst.js";
 
@@ -215,6 +216,7 @@ app.use("/api/sketches", ...protectedMiddleware, sketchRoutes);
 app.use("/api/dayplan", ...protectedMiddleware, dayPlanRoutes);
 app.use("/api/ai", ...protectedMiddleware, aiRoutes);
 app.use("/api/import", ...protectedMiddleware, importRoutes);
+app.use("/api/briefing", ...protectedMiddleware, briefingRoutes);
 
 // Global error handler (must be after all routes)
 app.use(errorHandler);

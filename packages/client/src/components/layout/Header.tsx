@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Bell } from "lucide-react";
+import { Bell, Sunrise } from "lucide-react";
 import { api } from "@/lib/api";
 import { usePageVisible } from "@/lib/useVisibility";
 import { useSocketEvent } from "@/lib/SocketProvider";
@@ -13,9 +13,10 @@ import { APP_VERSION } from "@/lib/version";
 interface HeaderProps {
   onInboxClick?: () => void;
   onVersionClick?: () => void;
+  onBriefingClick?: () => void;
 }
 
-export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
+export default function Header({ onInboxClick, onVersionClick, onBriefingClick }: HeaderProps) {
   const { user } = useAuthStore();
   const [unreadCount, setUnreadCount] = useState(0);
   const unreadCountRef = useRef(0);
@@ -125,6 +126,17 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
         </span>
       )}
 
+      {/* Right actions */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+      {/* Daily briefing */}
+      <button
+        onClick={onBriefingClick}
+        className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-105 active:scale-95 transition-all duration-200"
+        aria-label="Daily briefing"
+      >
+        <Sunrise className="w-4.5 h-4.5 text-amber-500" />
+      </button>
+
       {/* Inbox bell */}
       <button
         onClick={onInboxClick}
@@ -138,6 +150,7 @@ export default function Header({ onInboxClick, onVersionClick }: HeaderProps) {
           </span>
         )}
       </button>
+      </div>
     </header>
   );
 }

@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.53.0",
+    date: "2026-07-05",
+    highlights: ["스마트 데일리 브리핑", "텔레그램 아침 알림"],
+    changes: [
+      { category: "스마트 비서", emoji: "🌅", items: [
+        "오늘의 일정·마감 할일·리마인더·다가오는 D-Day를 한 장의 브리핑 카드로 요약",
+        "헤더 🌅 버튼으로 언제든 열기 + 하루 한 번 자동 표시",
+        "텔레그램 아침 브리핑에 마감 할일·리마인더 추가 (/today 명령·자동 발송 통합)",
+      ] },
+    ],
+  },
+  {
     version: "1.52.0",
     date: "2026-07-05",
     highlights: ["채팅방 휴지통", "복원/영구삭제"],

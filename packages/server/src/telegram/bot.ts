@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
 import { kstToday, toKstDateStr, kstDateOffset, calcDaysLeft, formatDateLocal, KST_TIMEZONE } from "../lib/kst.js";
+import { buildBriefing, formatBriefingText } from "../lib/briefing.js";
 
 const __filename2 = fileURLToPath(import.meta.url);
 const __dirname2 = path.dirname(__filename2);
@@ -202,46 +203,8 @@ export async function initTelegramBot() {
     const userId = await isLinkedUser(msg);
     if (!userId) { bot!.sendMessage(msg.chat.id, "❌ 먼저 /link 코드로 계정을 연동해주세요."); return; }
 
-    const today = kstToday();
-
-    const todayEvents = await db.select().from(events)
-      .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
-    const allTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), isNull(todos.deletedAt)));
-    const active = allTodos.filter((t) => !t.completed);
-    const completed = allTodos.filter((t) => t.completed);
-    const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
-
-    let text = `📅 *Daily Briefing* — ${today}\n\n`;
-
-    if (todayEvents.length > 0) {
-      text += `📌 *Events* (${todayEvents.length})\n`;
-      todayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((e) => {
-        text += `  • ${e.startTime.slice(11, 16)} ${e.title}\n`;
-      });
-      text += "\n";
-    }
-
-    if (todayBlocks.length > 0) {
-      const totalMin = todayBlocks.reduce((s, b) => {
-        const [sh, sm] = b.startTime.split(":").map(Number);
-        const [eh, em] = b.endTime.split(":").map(Number);
-        return s + (eh * 60 + em) - (sh * 60 + sm);
-      }, 0);
-      text += `⏱ *Time Blocks* (${todayBlocks.length} / ${fmtDuration(totalMin)})\n`;
-      todayBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((b) => {
-        text += `  ${b.completed ? "✅" : "⬜"} ${b.startTime}-${b.endTime} ${b.title}\n`;
-      });
-      text += "\n";
-    }
-
-    text += `✅ *Todos* (${completed.length}/${allTodos.length} done)\n`;
-    active.slice(0, 10).forEach((t, i) => {
-      const p = t.priority === "high" ? "🔴" : t.priority === "medium" ? "🟡" : "⚪";
-      text += `  ${i + 1}. ${p} ${t.title}\n`;
-    });
-    if (active.length > 10) text += `  ...and ${active.length - 10} more\n`;
-
-    bot!.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
+    const briefing = await buildBriefing(userId);
+    bot!.sendMessage(msg.chat.id, formatBriefingText(briefing), { parse_mode: "Markdown" });
   });
 
   // ── /add or /a — Add event ──
@@ -865,65 +828,18 @@ async function setupDailyBriefing() {
 
 async function sendDailyBriefing() {
   if (!bot) return;
-  // Send daily briefing to all linked users
+  // Send the morning briefing to every linked + active user.
   const allConf = await db.select().from(telegramConfig);
   const activeConfs = allConf.filter((c) => c.chatId && c.active);
   if (activeConfs.length === 0) return;
 
-  const today = kstToday();
-
   for (const conf of activeConfs) {
     try {
       const userId = conf.userId!;
-
-      const todayEvents = await db.select().from(events)
-        .where(and(eq(events.userId, userId), gte(events.startTime, `${today}T00:00:00`), lte(events.endTime, `${today}T23:59:59`)));
-      const activeTodos = await db.select().from(todos).where(and(eq(todos.userId, userId), eq(todos.completed, false), isNull(todos.deletedAt)));
-      const todayBlocks = await db.select().from(timeBlocks).where(and(eq(timeBlocks.userId, userId), eq(timeBlocks.date, today)));
-      const allDdays2 = await db.select().from(ddays).where(eq(ddays.userId, userId));
-      const upcoming = allDdays2.filter((d) => {
-        const diff = calcDaysLeft(d.targetDate);
-        return diff >= 0 && diff <= 7;
-      });
-
-      let text = `🌅 *Good morning! Daily Briefing*\n📅 ${today}\n\n`;
-
-      if (todayEvents.length > 0) {
-        text += `📌 ${todayEvents.length} events\n`;
-        todayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((e) => {
-          text += `  • ${e.startTime.slice(11, 16)} ${e.title}\n`;
-        });
-        text += "\n";
-      }
-
-      if (todayBlocks.length > 0) {
-        text += `⏱ ${todayBlocks.length} time blocks\n`;
-        todayBlocks.sort((a, b) => a.startTime.localeCompare(b.startTime)).forEach((b) => {
-          text += `  • ${b.startTime}-${b.endTime} ${b.title}\n`;
-        });
-        text += "\n";
-      }
-
-      if (activeTodos.length > 0) {
-        text += `✅ ${activeTodos.length} active todos\n`;
-        activeTodos.slice(0, 5).forEach((t) => {
-          const p = t.priority === "high" ? "🔴" : t.priority === "medium" ? "🟡" : "⚪";
-          text += `  ${p} ${t.title}\n`;
-        });
-        if (activeTodos.length > 5) text += `  ...+${activeTodos.length - 5} more\n`;
-        text += "\n";
-      }
-
-      if (upcoming.length > 0) {
-        text += `🎯 Upcoming D-Days\n`;
-        upcoming.forEach((d) => {
-          const diff = calcDaysLeft(d.targetDate);
-          text += `  ${diff === 0 ? "🔥 D-Day!" : `D-${diff}`} ${d.title}\n`;
-        });
-      }
-
-      text += `\n_Type /h for commands_`;
-
+      const [u] = await db.select().from(users).where(eq(users.id, userId));
+      const name = u?.displayName || u?.username;
+      const briefing = await buildBriefing(userId);
+      const text = `${formatBriefingText(briefing, { greeting: true, name })}\n\n_/h 로 명령어 보기_`;
       bot.sendMessage(conf.chatId!, text, { parse_mode: "Markdown" });
     } catch (e) {
       console.error(`daily-briefing send to ${conf.chatId}:`, e);
