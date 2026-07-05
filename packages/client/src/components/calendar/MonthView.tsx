@@ -1,7 +1,17 @@
 import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { format, isSameMonth, isSameDay, isToday } from "date-fns";
 import { enUS } from "date-fns/locale";
-import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check, Repeat } from "lucide-react";
+import { Plus, X, CheckSquare, Calendar, Pencil, Trash2, Check, Repeat, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { getCategoryInfo } from "@/lib/categories";
 import { useI18n } from "@/lib/useI18n";
@@ -52,17 +62,31 @@ const MonthEventDetailItem = memo(function MonthEventDetailItem({
 
 // Memoized todo item in the selected-date detail panel
 const MonthTodoDetailItem = memo(function MonthTodoDetailItem({
-  td, onToggleTodo, onDeleteTodo, onEditTodo, projectLabel,
+  td, onToggleTodo, onDeleteTodo, onEditTodo, projectLabel, innerRef, style, dragHandleProps, dragging,
 }: {
   td: Todo;
   onToggleTodo?: (id: number) => void;
   onDeleteTodo?: (id: number) => void;
   onEditTodo?: (todo: Todo) => void;
   projectLabel?: string;
+  innerRef?: (el: HTMLElement | null) => void;
+  style?: React.CSSProperties;
+  dragHandleProps?: Record<string, unknown>;
+  dragging?: boolean;
 }) {
   const catIcon = getCategoryInfo(td.category).icon;
   return (
-    <div className="group flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50/30 dark:hover:bg-slate-700/40 transition-colors">
+    <div ref={innerRef} style={style} className={cn("group flex items-center gap-2 px-4 py-2.5 hover:bg-amber-50/30 dark:hover:bg-slate-700/40 transition-colors bg-white dark:bg-slate-800", dragging && "shadow-lg")}>
+      {dragHandleProps && (
+        <button
+          {...dragHandleProps}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 -ml-1 p-0.5 rounded text-slate-300 dark:text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing touch-none"
+          aria-label="reorder"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      )}
       {onToggleTodo ? (
         <button onClick={() => onToggleTodo(td.id)} className={cn("w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors", td.completed ? "bg-green-500 border-green-500" : "border-slate-300 dark:border-slate-600 hover:border-amber-400")}>
           {td.completed && <Check className="w-3 h-3 text-white" />}
@@ -97,6 +121,39 @@ const MonthTodoDetailItem = memo(function MonthTodoDetailItem({
   );
 });
 
+// Sortable wrapper for a todo row in the selected-date detail panel.
+const SortableTodoRow = memo(function SortableTodoRow({
+  td, onToggleTodo, onDeleteTodo, onEditTodo, projectLabel,
+}: {
+  td: Todo;
+  onToggleTodo?: (id: number) => void;
+  onDeleteTodo?: (id: number) => void;
+  onEditTodo?: (todo: Todo) => void;
+  projectLabel?: string;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: td.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 20 : undefined,
+    position: "relative",
+  };
+  return (
+    <MonthTodoDetailItem
+      td={td}
+      onToggleTodo={onToggleTodo}
+      onDeleteTodo={onDeleteTodo}
+      onEditTodo={onEditTodo}
+      projectLabel={projectLabel}
+      innerRef={setNodeRef}
+      style={style}
+      dragHandleProps={{ ...attributes, ...listeners }}
+      dragging={isDragging}
+    />
+  );
+});
+
 interface MonthViewProps {
   days: Date[];
   currentDate: Date;
@@ -118,6 +175,8 @@ interface MonthViewProps {
   onDeleteTodo?: (id: number) => void;
   onEditTodo?: (todo: Todo) => void;
   onLongPressDate?: (date: Date, type: string) => void;
+  /** Persist a manual reorder of the selected day's todos. */
+  onReorderTodos?: (items: { id: number; sortOrder: number }[]) => void;
   /** projectId → display name for linked personal items */
   projectNameById?: Record<number, string>;
 }
@@ -143,9 +202,23 @@ export default function MonthView({
   onDeleteTodo,
   onEditTodo,
   onLongPressDate,
+  onReorderTodos,
   projectNameById = {},
 }: MonthViewProps) {
   const { t } = useI18n();
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  // Drag-reorder the selected day's todos; persist via onReorderTodos.
+  const handleTodoDragEnd = useCallback((e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const ids = selectedDateTodos.map((t) => t.id);
+    const oldI = ids.indexOf(Number(active.id));
+    const newI = ids.indexOf(Number(over.id));
+    if (oldI < 0 || newI < 0) return;
+    const reordered = arrayMove(ids, oldI, newI);
+    onReorderTodos?.(reordered.map((id, index) => ({ id, sortOrder: index })));
+  }, [selectedDateTodos, onReorderTodos]);
   const [longPressDate, setLongPressDate] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -385,17 +458,21 @@ export default function MonthView({
                     projectLabel={ev.projectId ? projectNameById[ev.projectId] : undefined}
                   />
                 ))}
-                {/* Todos */}
-                {selectedDateTodos.map((td) => (
-                  <MonthTodoDetailItem
-                    key={`td-${td.id}`}
-                    td={td}
-                    projectLabel={td.projectId ? projectNameById[td.projectId] : undefined}
-                    onToggleTodo={onToggleTodo}
-                    onDeleteTodo={onDeleteTodo}
-                    onEditTodo={onEditTodo}
-                  />
-                ))}
+                {/* Todos — drag to reorder (order persists) */}
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTodoDragEnd}>
+                  <SortableContext items={selectedDateTodos.map((td) => td.id)} strategy={verticalListSortingStrategy}>
+                    {selectedDateTodos.map((td) => (
+                      <SortableTodoRow
+                        key={`td-${td.id}`}
+                        td={td}
+                        projectLabel={td.projectId ? projectNameById[td.projectId] : undefined}
+                        onToggleTodo={onToggleTodo}
+                        onDeleteTodo={onDeleteTodo}
+                        onEditTodo={onEditTodo}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
           </div>

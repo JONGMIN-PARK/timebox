@@ -53,7 +53,7 @@ import EventDetailPopover from "./EventDetailPopover";
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
   const { categories, fetchCategories } = useCategoryStore();
-  const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo } = useTodoStore();
+  const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, reorderTodos } = useTodoStore();
   const fetchBlocks = useTimeBlockStore((s) => s.fetchBlocks);
   const fetchDDays = useDDayStore((s) => s.fetchDDays);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -219,9 +219,13 @@ export default function CalendarView() {
     ? eventsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []
     : [];
 
-  const selectedDateTodos = selectedDate
-    ? todosByDate.get(format(selectedDate, "yyyy-MM-dd")) || []
-    : [];
+  // Detail-panel todos follow the user's manual order (sortOrder), so drag-to-
+  // reorder sticks even when todos have different due times.
+  const selectedDateTodos = useMemo(() => {
+    if (!selectedDate) return [];
+    const arr = todosByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+    return [...arr].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
+  }, [selectedDate, todosByDate]);
 
   const navigate = (direction: -1 | 1) => {
     if (viewMode === "month" || viewMode === "agenda") setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
@@ -609,6 +613,7 @@ export default function CalendarView() {
           onToggleTodo={toggleTodo}
           onDeleteTodo={deleteTodo}
           onEditTodo={handleEditTodo}
+          onReorderTodos={reorderTodos}
           projectNameById={projectNameById}
           onLongPressDate={(date, type) => {
             const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
