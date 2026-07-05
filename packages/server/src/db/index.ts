@@ -453,6 +453,17 @@ export async function initDb() {
       );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_reaction_unique ON chat_message_reactions(message_id, user_id, emoji);
 
+      ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS visibility TEXT NOT NULL DEFAULT 'private';
+
+      CREATE TABLE IF NOT EXISTS chat_invites (
+        id SERIAL PRIMARY KEY,
+        room_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        invited_by INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_invite_unique ON chat_invites(room_id, user_id);
+
       CREATE TABLE IF NOT EXISTS user_activity_log (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,

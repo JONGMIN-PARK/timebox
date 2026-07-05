@@ -13,6 +13,9 @@ import {
   Plus,
   Users,
   Globe,
+  Lock,
+  Compass,
+  UserPlus,
   Reply,
   Settings,
   X,
@@ -38,10 +41,27 @@ interface ChatRoom {
   displayName?: string;
   description: string | null;
   type: "direct" | "group" | "global";
+  visibility?: "public" | "private";
   lastMessage?: LastMessage | null;
   memberCount: number;
   createdBy?: number;
   deletedAt?: string | null;
+}
+
+interface PublicRoom {
+  id: number;
+  name: string;
+  description: string | null;
+  memberCount: number;
+}
+
+interface RoomInvite {
+  id: number;
+  roomId: number;
+  roomName: string;
+  invitedBy: number;
+  inviterName: string;
+  createdAt: string;
 }
 
 interface MessageReaction {
@@ -79,7 +99,7 @@ interface ChatUser {
   displayName: string | null;
 }
 
-type View = "rooms" | "chat" | "create" | "trash";
+type View = "rooms" | "chat" | "create" | "trash" | "browse";
 
 const EMOJIS = ["😀","😂","🥰","😎","👍","👏","🔥","❤️","🎉","💪","😢","😡","🤔","👀","✅","⭐"];
 
@@ -117,10 +137,17 @@ export default function ChatPanel() {
   const [allUsers, setAllUsers] = useState<ChatUser[]>([]);
   const [roomName, setRoomName] = useState("");
   const [roomDescription, setRoomDescription] = useState("");
+  const [roomVisibility, setRoomVisibility] = useState<"public" | "private">("private");
   const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(
     new Set(),
   );
   const [creating, setCreating] = useState(false);
+
+  // Public-room browsing + invitations (방문 / 초대)
+  const [publicRooms, setPublicRooms] = useState<PublicRoom[]>([]);
+  const [invites, setInvites] = useState<RoomInvite[]>([]);
+  const [invitingRoom, setInvitingRoom] = useState<ChatRoom | null>(null);
+  const [invitedIds, setInvitedIds] = useState<Set<number>>(new Set());
 
   // ── Close emoji picker on outside click ──
 
@@ -147,6 +174,60 @@ export default function ChatPanel() {
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
+
+  // ── Public rooms (방문) + invitations (초대) ──
+  const fetchPublicRooms = useCallback(async () => {
+    const res = await api.get<PublicRoom[]>("/chat/public");
+    if (res.success && res.data) setPublicRooms(res.data);
+  }, []);
+
+  const fetchInvites = useCallback(async () => {
+    const res = await api.get<RoomInvite[]>("/chat/invites");
+    if (res.success && res.data) setInvites(res.data);
+  }, []);
+
+  useEffect(() => {
+    fetchInvites();
+  }, [fetchInvites]);
+
+  const joinPublicRoom = useCallback(async (room: PublicRoom) => {
+    const res = await api.post(`/chat/${room.id}/join`, {});
+    if (res.success) {
+      setPublicRooms((prev) => prev.filter((r) => r.id !== room.id));
+      await fetchRooms();
+      showToast("success", t("chat.joined") || "참여했습니다");
+    }
+  }, [fetchRooms, t]);
+
+  const acceptInvite = useCallback(async (inv: RoomInvite) => {
+    const res = await api.post(`/chat/invites/${inv.roomId}/accept`, {});
+    if (res.success) {
+      setInvites((prev) => prev.filter((i) => i.roomId !== inv.roomId));
+      await fetchRooms();
+      showToast("success", t("chat.joined") || "참여했습니다");
+    }
+  }, [fetchRooms, t]);
+
+  const declineInvite = useCallback(async (inv: RoomInvite) => {
+    const res = await api.post(`/chat/invites/${inv.roomId}/decline`, {});
+    if (res.success) setInvites((prev) => prev.filter((i) => i.roomId !== inv.roomId));
+  }, []);
+
+  const inviteUser = useCallback(async (roomId: number, targetId: number) => {
+    const res = await api.post(`/chat/${roomId}/invite`, { userId: targetId });
+    if (res.success) {
+      setInvitedIds((prev) => new Set(prev).add(targetId));
+      showToast("success", t("chat.inviteSent") || "초대했습니다");
+    } else {
+      showToast("error", res.error || (t("chat.inviteFailed") || "초대 실패"));
+    }
+  }, [t]);
+
+  // Realtime: someone invited me to a room.
+  useSocketEvent("chat:invited", useCallback(() => {
+    fetchInvites();
+    showToast("info", t("chat.inviteReceived") || "새 채팅방 초대가 도착했습니다");
+  }, [fetchInvites, t]));
 
   // ── Trash (soft-deleted rooms) ──
   const [trashedRooms, setTrashedRooms] = useState<ChatRoom[]>([]);
@@ -375,6 +456,7 @@ export default function ChatPanel() {
     setView("create");
     setRoomName("");
     setRoomDescription("");
+    setRoomVisibility("private");
     setSelectedUserIds(new Set());
 
     const res = await api.get<ChatUser[]>("/inbox/users");
@@ -393,12 +475,13 @@ export default function ChatPanel() {
   };
 
   const handleCreateRoom = async () => {
-    if (!roomName.trim() || selectedUserIds.size === 0) return;
+    if (!roomName.trim()) return;
     setCreating(true);
 
     const res = await api.post<ChatRoom>("/chat", {
       name: roomName.trim(),
       description: roomDescription.trim() || null,
+      visibility: roomVisibility,
       memberIds: Array.from(selectedUserIds),
     });
 
@@ -483,6 +566,13 @@ export default function ChatPanel() {
         </div>
         <div className="flex items-center gap-1">
           <button
+            onClick={() => { setView("browse"); fetchPublicRooms(); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+            title={t("chat.browse") || "공개방 둘러보기"}
+          >
+            <Compass className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => { setView("trash"); fetchTrash(); }}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
             title={t("chat.trash") || "휴지통"}
@@ -500,6 +590,33 @@ export default function ChatPanel() {
 
       {/* Room list */}
       <div className="flex-1 overflow-y-auto">
+        {/* Received invitations (초대) */}
+        {invites.length > 0 && (
+          <div className="border-b border-slate-100 dark:border-slate-700/50 bg-blue-50/40 dark:bg-blue-900/10">
+            <p className="px-4 pt-2.5 pb-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+              {t("chat.invitations") || "받은 초대"} ({invites.length})
+            </p>
+            {invites.map((inv) => (
+              <div key={inv.roomId} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">{inv.roomName}</p>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {inv.inviterName}{t("chat.invitedYou") || "님이 초대했습니다"}
+                  </p>
+                </div>
+                <button onClick={() => acceptInvite(inv)} className="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500">
+                  {t("chat.accept") || "수락"}
+                </button>
+                <button onClick={() => declineInvite(inv)} className="shrink-0 px-2 py-1.5 rounded-lg text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700/50">
+                  {t("chat.decline") || "거절"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {roomsLoading ? (
           <div className="py-8 text-center text-slate-400 text-sm">
             {t("common.loading")}
@@ -549,6 +666,9 @@ export default function ChatPanel() {
                       <span className="shrink-0 text-[9px] font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded-full">
                         {t("chat.everyone") || "전체"}
                       </span>
+                    )}
+                    {room.type === "group" && room.visibility === "public" && (
+                      <Globe className="shrink-0 w-3 h-3 text-blue-400" aria-label={t("chat.public") || "공개"} />
                     )}
                   </span>
                   <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
@@ -662,6 +782,66 @@ export default function ChatPanel() {
     </div>
   );
 
+  const openInvite = async (room: ChatRoom) => {
+    setInvitingRoom(room);
+    setInvitedIds(new Set());
+    if (allUsers.length === 0) {
+      const res = await api.get<ChatUser[]>("/inbox/users");
+      if (res.success && res.data) setAllUsers(res.data);
+    }
+  };
+
+  // Invite-user modal: pick users to invite to the current room.
+  const renderInviteModal = () => {
+    if (!invitingRoom) return null;
+    return (
+      <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={() => setInvitingRoom(null)}>
+        <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-sm bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[70vh] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
+            <div className="flex items-center gap-2 min-w-0">
+              <UserPlus className="w-4 h-4 text-blue-500" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                {t("chat.inviteTo") || "초대"} · {invitingRoom.name}
+              </h3>
+            </div>
+            <button onClick={() => setInvitingRoom(null)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+              <X className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {allUsers.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">{t("common.loading")}</div>
+            ) : (
+              allUsers.map((u) => {
+                const invited = invitedIds.has(u.id);
+                return (
+                  <div key={u.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50">
+                    <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                      {getInitial(u.displayName || u.username)}
+                    </div>
+                    <span className="flex-1 min-w-0 text-sm text-slate-700 dark:text-slate-300 truncate">{u.displayName || u.username}</span>
+                    <button
+                      onClick={() => inviteUser(invitingRoom.id, u.id)}
+                      disabled={invited}
+                      className={cn(
+                        "shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium",
+                        invited
+                          ? "bg-slate-100 dark:bg-slate-700 text-slate-400"
+                          : "bg-blue-600 text-white hover:bg-blue-500",
+                      )}
+                    >
+                      {invited ? (t("chat.invited") || "초대됨") : (t("chat.invite") || "초대")}
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderChatRoom = () => {
     if (!activeRoom) return null;
 
@@ -683,6 +863,15 @@ export default function ChatPanel() {
               {activeRoom.memberCount} members
             </span>
           </div>
+          {activeRoom.type !== "direct" && (
+            <button
+              onClick={() => openInvite(activeRoom)}
+              className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
+              title={t("chat.invite") || "초대"}
+            >
+              <UserPlus className="w-4 h-4 text-slate-400" />
+            </button>
+          )}
           <button className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
             <Settings className="w-4 h-4 text-slate-400" />
           </button>
@@ -981,10 +1170,41 @@ export default function ChatPanel() {
           />
         </div>
 
+        {/* Visibility: public (browse & join) vs private (invite-only) */}
+        <div>
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+            {t("chat.visibility") || "공개 범위"}
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {(["private", "public"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setRoomVisibility(v)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors",
+                  roomVisibility === v
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-500/10"
+                    : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                )}
+              >
+                {v === "public" ? <Globe className="w-4 h-4 text-blue-500 shrink-0" /> : <Lock className="w-4 h-4 text-slate-400 shrink-0" />}
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
+                    {v === "public" ? (t("chat.public") || "공개") : (t("chat.private") || "비공개")}
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate">
+                    {v === "public" ? (t("chat.publicHint") || "누구나 참여") : (t("chat.privateHint") || "초대 전용")}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Member selection */}
         <div>
           <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
-            Members ({selectedUserIds.size} selected)
+            {t("chat.membersOptional") || "멤버"} ({selectedUserIds.size})
           </label>
           <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             {allUsers.length === 0 ? (
@@ -1081,12 +1301,56 @@ export default function ChatPanel() {
         {/* Create button */}
         <button
           onClick={handleCreateRoom}
-          disabled={!roomName.trim() || selectedUserIds.size === 0 || creating}
+          disabled={!roomName.trim() || creating}
           className="w-full py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
         >
           <MessageCircle className="w-4 h-4" />
           {creating ? t("common.loading") : "Create Room"}
         </button>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════
+  //  BROWSE PUBLIC ROOMS VIEW (방문)
+  // ══════════════════════════════════════════
+
+  const renderBrowse = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
+        <button onClick={() => setView("rooms")} className="p-1.5 -ml-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <Compass className="w-4 h-4 text-slate-500" />
+        <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white">{t("chat.browse") || "공개방 둘러보기"}</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {publicRooms.length === 0 ? (
+          <div className="py-12 text-center text-slate-400">
+            <Compass className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+            <p className="text-sm">{t("chat.noPublicRooms") || "참여할 수 있는 공개방이 없습니다"}</p>
+          </div>
+        ) : (
+          publicRooms.map((room) => (
+            <div key={room.id} className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-slate-700/50">
+              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                <Globe className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">{room.name}</p>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {room.description || `${room.memberCount} ${t("chat.membersOptional") || "멤버"}`}
+                </p>
+              </div>
+              <button
+                onClick={() => joinPublicRoom(room)}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-500"
+              >
+                {t("chat.join") || "참여"}
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -1146,7 +1410,9 @@ export default function ChatPanel() {
       {view === "rooms" && renderRoomList()}
       {view === "chat" && renderChatRoom()}
       {view === "create" && renderCreateRoom()}
+      {view === "browse" && renderBrowse()}
       {view === "trash" && renderTrash()}
+      {invitingRoom && renderInviteModal()}
 
       {/* Permanent-delete confirmation */}
       {confirmPurgeId !== null && (

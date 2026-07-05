@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
-import { chatRooms, chatMembers, chatMessages, chatMessageReactions, users } from "../db/schema.js";
+import { chatRooms, chatMembers, chatMessages, chatMessageReactions, chatInvites, users } from "../db/schema.js";
 import { eq, and, desc, inArray, isNull, isNotNull, lt, sql } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getUserMap } from "../lib/userEnrichment.js";
@@ -140,7 +140,7 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
 // POST / - Create a new chat room
 router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
-  const { name, type, description, memberIds } = req.body;
+  const { name, type, description, memberIds, visibility } = req.body;
 
   if (!name?.trim()) {
     throw new ValidationError("Room name is required");
@@ -149,6 +149,7 @@ router.post("/", asyncHandler<AuthRequest>(async (req, res) => {
   const [room] = await db.insert(chatRooms).values({
     name: name.trim(),
     type: type || "group",
+    visibility: visibility === "public" ? "public" : "private",
     description: description || null,
     createdBy: userId,
   }).returning();
@@ -244,6 +245,102 @@ router.get("/trash", asyncHandler<AuthRequest>(async (req, res) => {
     .where(and(inArray(chatRooms.id, roomIds), isNotNull(chatRooms.deletedAt)))
     .orderBy(desc(chatRooms.deletedAt));
   res.json({ success: true, data: rooms });
+}));
+
+// GET /public - Browse public rooms the user hasn't joined yet
+router.get("/public", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const myMemberships = await db.select().from(chatMembers).where(eq(chatMembers.userId, userId));
+  const myRoomIds = new Set(myMemberships.map((m) => m.roomId));
+
+  const publicRooms = await db.select().from(chatRooms)
+    .where(and(eq(chatRooms.visibility, "public"), eq(chatRooms.type, "group"), isNull(chatRooms.deletedAt)))
+    .orderBy(desc(chatRooms.updatedAt));
+  const notJoined = publicRooms.filter((r) => !myRoomIds.has(r.id));
+  if (notJoined.length === 0) { res.json({ success: true, data: [] }); return; }
+
+  const roomIds = notJoined.map((r) => r.id);
+  const members = await db.select().from(chatMembers).where(inArray(chatMembers.roomId, roomIds));
+  const countMap = new Map<number, number>();
+  for (const m of members) countMap.set(m.roomId, (countMap.get(m.roomId) || 0) + 1);
+
+  const data = notJoined.map((r) => ({ ...r, memberCount: countMap.get(r.id) || 0 }));
+  res.json({ success: true, data });
+}));
+
+// POST /:roomId/join - Join a public room directly
+router.post("/:roomId/join", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  if (!roomId) { throw new ValidationError("Invalid room ID"); }
+
+  const [room] = await db.select().from(chatRooms).where(eq(chatRooms.id, roomId));
+  if (!room || room.deletedAt) { throw new NotFoundError("Room"); }
+  if (room.visibility !== "public" || room.type !== "group") {
+    throw new ForbiddenError("This room is invite-only");
+  }
+
+  const existing = await verifyMembership(roomId, userId);
+  if (!existing) {
+    await db.insert(chatMembers).values({ roomId, userId, role: "member" });
+    // Any pending invite is now redundant.
+    await db.delete(chatInvites).where(and(eq(chatInvites.roomId, roomId), eq(chatInvites.userId, userId)));
+    emitToUser(userId, "chat:rooms-updated", { roomId });
+  }
+  res.json({ success: true, data: room });
+}));
+
+// GET /invites - My pending room invitations
+router.get("/invites", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const invites = await db.select().from(chatInvites).where(eq(chatInvites.userId, userId));
+  if (invites.length === 0) { res.json({ success: true, data: [] }); return; }
+
+  const roomIds = invites.map((i) => i.roomId);
+  const rooms = await db.select().from(chatRooms).where(inArray(chatRooms.id, roomIds));
+  const roomMap = new Map(rooms.map((r) => [r.id, r]));
+  const inviterMap = await getUserMap(invites.map((i) => i.invitedBy));
+
+  // Drop invites whose room was deleted; surface the rest with room + inviter names.
+  const data = invites
+    .filter((i) => roomMap.get(i.roomId) && !roomMap.get(i.roomId)!.deletedAt)
+    .map((i) => ({
+      id: i.id,
+      roomId: i.roomId,
+      roomName: roomMap.get(i.roomId)!.name,
+      invitedBy: i.invitedBy,
+      inviterName: inviterMap.get(i.invitedBy) || "Unknown",
+      createdAt: i.createdAt,
+    }));
+  res.json({ success: true, data });
+}));
+
+// POST /invites/:roomId/accept - Accept a pending invite (join the room)
+router.post("/invites/:roomId/accept", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  if (!roomId) { throw new ValidationError("Invalid room ID"); }
+
+  const [invite] = await db.select().from(chatInvites)
+    .where(and(eq(chatInvites.roomId, roomId), eq(chatInvites.userId, userId)));
+  if (!invite) { throw new NotFoundError("Invite"); }
+
+  const existing = await verifyMembership(roomId, userId);
+  if (!existing) {
+    await db.insert(chatMembers).values({ roomId, userId, role: "member" });
+  }
+  await db.delete(chatInvites).where(eq(chatInvites.id, invite.id));
+  emitToUser(userId, "chat:rooms-updated", { roomId });
+  res.json({ success: true, data: { joined: true, roomId } });
+}));
+
+// POST /invites/:roomId/decline - Decline a pending invite
+router.post("/invites/:roomId/decline", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  if (!roomId) { throw new ValidationError("Invalid room ID"); }
+  await db.delete(chatInvites).where(and(eq(chatInvites.roomId, roomId), eq(chatInvites.userId, userId)));
+  res.json({ success: true, data: { declined: true } });
 }));
 
 // GET /:roomId - Get room details with member list
@@ -527,6 +624,44 @@ router.post("/:roomId/messages/:messageId/reactions", asyncHandler<AuthRequest>(
   }
 
   res.json({ success: true, data: { messageId, reactions } });
+}));
+
+// POST /:roomId/invite - Invite a user to a room (any member can invite)
+router.post("/:roomId/invite", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  if (!roomId) { throw new ValidationError("Invalid room ID"); }
+  const inviteeId = Number(req.body?.userId);
+  if (!inviteeId || inviteeId === userId) { throw new ValidationError("Valid user is required"); }
+
+  const membership = await verifyMembership(roomId, userId);
+  if (!membership) { throw new ForbiddenError("Not a member of this room"); }
+
+  const [room] = await db.select().from(chatRooms).where(eq(chatRooms.id, roomId));
+  if (!room || room.deletedAt) { throw new NotFoundError("Room"); }
+  if (room.type !== "group") { throw new ForbiddenError("Cannot invite to this room"); }
+
+  const [invitee] = await db.select({ id: users.id }).from(users).where(eq(users.id, inviteeId));
+  if (!invitee) { throw new NotFoundError("User"); }
+
+  const alreadyMember = await verifyMembership(roomId, inviteeId);
+  if (alreadyMember) { throw new ConflictError("User is already a member"); }
+
+  // Create the pending invite (idempotent on the unique room+user index).
+  const existing = await db.select().from(chatInvites)
+    .where(and(eq(chatInvites.roomId, roomId), eq(chatInvites.userId, inviteeId)));
+  if (existing.length === 0) {
+    await db.insert(chatInvites).values({ roomId, userId: inviteeId, invitedBy: userId });
+  }
+
+  const inviterMap = await getUserMap([userId]);
+  emitToUser(inviteeId, "chat:invited", {
+    roomId,
+    roomName: room.name,
+    inviterName: inviterMap.get(userId) || "Unknown",
+  });
+
+  res.json({ success: true, data: { invited: true } });
 }));
 
 // POST /:roomId/members - Add member to room (admin/owner only)

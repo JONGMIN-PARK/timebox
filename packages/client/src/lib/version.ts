@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.56.0",
+    date: "2026-07-05",
+    highlights: ["공개/비공개 채팅방", "초대·수락·참여"],
+    changes: [
+      { category: "채팅", emoji: "🔒", items: [
+        "채팅방 생성 시 공개/비공개 선택 (공개=누구나 참여, 비공개=초대 전용)",
+        "공개방 둘러보기 & 바로 참여 (나침반 아이콘)",
+        "비공개방 초대 → 수락/거절 (받은 초대 목록, 실시간 알림)",
+      ] },
+    ],
+  },
+  {
     version: "1.55.0",
     date: "2026-07-05",
     highlights: ["답장·공감·날짜 구분", "카카오톡 스타일 메신저"],

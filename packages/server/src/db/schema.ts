@@ -412,13 +412,24 @@ export const taskReactions = pgTable("task_reactions", {
 export const chatRooms = pgTable("chat_rooms", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  type: text("type").notNull().default("group"), // "group" | "direct"
+  type: text("type").notNull().default("group"), // "group" | "direct" | "global"
+  /** "public" (anyone can browse & join) | "private" (invite-only). Ignored for direct/global. */
+  visibility: text("visibility").notNull().default("private"),
   description: text("description"),
   createdBy: integer("created_by").notNull(),
   /** ISO timestamp when the room was moved to trash (soft delete); null = active. */
   deletedAt: text("deleted_at"),
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
+});
+
+// ── Chat Invites (pending invitations to a private room) ──
+export const chatInvites = pgTable("chat_invites", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull(),
+  userId: integer("user_id").notNull(),      // invitee
+  invitedBy: integer("invited_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`now()`),
 });
 
 // ── Chat Members ──
