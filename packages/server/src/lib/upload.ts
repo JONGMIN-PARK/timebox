@@ -8,7 +8,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, "../../../uploads");
-export const MAX_STORAGE = 1024 * 1024 * 1024; // 1GB
+// Per-file cap for a single upload (chat file sharing supports up to 2GB).
+export const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE) || 2 * 1024 * 1024 * 1024; // 2GB
+// Total per-user storage cap (must comfortably hold at least one max-size file).
+export const MAX_STORAGE = Number(process.env.MAX_STORAGE) || 5 * 1024 * 1024 * 1024; // 5GB
 
 // Ensure upload dir
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -19,6 +22,8 @@ export const ALLOWED_EXTENSIONS = new Set([
   ".txt", ".csv", ".zip", ".mp3", ".mp4", ".mov",
   // Voice-memo audio formats (MediaRecorder output varies by browser)
   ".webm", ".m4a", ".wav", ".ogg", ".oga",
+  // Common shared-file formats
+  ".hwp", ".hwpx", ".7z", ".rar", ".tar", ".gz", ".mkv", ".avi", ".json", ".md",
 ]);
 
 // Fix Korean/CJK filename encoding (multer decodes as latin1)
@@ -54,7 +59,7 @@ function fileFilter(
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB per file
+  limits: { fileSize: MAX_FILE_SIZE }, // up to 2GB per file
   fileFilter,
 });
 

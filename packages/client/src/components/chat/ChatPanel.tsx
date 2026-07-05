@@ -23,7 +23,21 @@ import {
   Trash,
   RotateCcw,
   Smile,
+  Paperclip,
+  FileText,
+  Download,
+  Loader2,
 } from "lucide-react";
+
+// Max shareable file size (2GB), mirrors the server MAX_FILE_SIZE cap.
+const MAX_CHAT_FILE = 2 * 1024 * 1024 * 1024;
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB"];
+  let v = n / 1024, i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
 
 // ── Types ──
 
@@ -126,6 +140,8 @@ export default function ChatPanel() {
   // KakaoTalk-style: message being replied to, and which message's reaction picker is open.
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -443,6 +459,74 @@ export default function ChatPanel() {
     }
   };
 
+  // ── File sharing (up to 2GB) ──
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file || !activeRoom) return;
+    if (file.size > MAX_CHAT_FILE) {
+      showToast("error", t("chat.fileTooLarge") || "파일이 너무 큽니다 (최대 2GB)");
+      return;
+    }
+    setUploadingFile(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("tags", JSON.stringify(["chat"]));
+      const token = localStorage.getItem("timebox_token");
+      const resp = await fetch("/api/files/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err?.error || "upload failed");
+      }
+      const uploaded = (await resp.json()).data;
+      // Encode file metadata into the message content (type "file").
+      const payload = JSON.stringify({
+        fileId: uploaded.id,
+        storedName: uploaded.storedName,
+        name: uploaded.originalName,
+        size: uploaded.size,
+        mime: uploaded.mimeType,
+      });
+      const res = await api.post<ChatMessage>(`/chat/${activeRoom.id}/messages`, { content: payload, type: "file" });
+      if (res.success && res.data) {
+        setMessages(prev => [...prev, res.data!]);
+        socket?.emit("chat:message", { roomId: String(activeRoom.id), message: res.data });
+      }
+    } catch (err) {
+      showToast("error", (err as Error).message?.includes("not allowed")
+        ? (t("chat.fileTypeBlocked") || "지원하지 않는 파일 형식입니다")
+        : (t("chat.uploadFailed") || "업로드 실패"));
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const downloadSharedFile = (storedName: string, name: string) => {
+    const token = localStorage.getItem("timebox_token");
+    fetch(`/api/files/shared/${storedName}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      })
+      .catch(() => showToast("error", t("chat.downloadFailed") || "다운로드 실패"));
+  };
+
+  // Parse a "file"-type message's JSON content.
+  const parseFileContent = (content: string): { fileId: number; storedName: string; name: string; size: number; mime: string } | null => {
+    try { return JSON.parse(content); } catch { return null; }
+  };
+
   // ── Emoji insert ──
 
   const insertEmoji = (emoji: string) => {
@@ -527,7 +611,15 @@ export default function ChatPanel() {
 
   // Short preview text for a replied-to message.
   const replyPreviewText = (r: ReplyPreview) =>
-    r.type === "image" ? "📷 사진" : (r.content || t("chat.deletedMessage"));
+    r.type === "image" ? "📷 사진"
+    : r.type === "file" ? `📎 ${parseFileContent(r.content)?.name || "파일"}`
+    : (r.content || t("chat.deletedMessage"));
+
+  // Short preview for the room list's last-message line.
+  const lastMessagePreview = (m: LastMessage) =>
+    m.type === "image" ? "📷 사진"
+    : m.type === "file" ? `📎 ${parseFileContent(m.content)?.name || "파일"}`
+    : m.content;
 
   const renderContent = (text: string) => {
     return text.split(/(@\w+)/g).map((part, i) =>
@@ -677,7 +769,7 @@ export default function ChatPanel() {
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                   <span className="text-[11px] text-slate-400 truncate">
-                    {room.lastMessage?.content || "No messages yet"}
+                    {room.lastMessage ? lastMessagePreview(room.lastMessage) : "No messages yet"}
                   </span>
                 </div>
               </div>
@@ -716,11 +808,11 @@ export default function ChatPanel() {
         </button>
         {reactionPickerFor === msg.id && (
           <div className={cn(
-            "absolute z-20 bottom-full mb-1 flex items-center gap-0.5 px-1.5 py-1 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-600",
+            "absolute z-20 bottom-full mb-1 flex items-center gap-1 px-2 py-1.5 rounded-full bg-white dark:bg-slate-800 shadow-lg border border-slate-200 dark:border-slate-600",
             isMe ? "right-0" : "left-0",
           )}>
             {REACTION_EMOJIS.map((e) => (
-              <button key={e} onClick={() => toggleReaction(msg.id, e)} className="text-lg leading-none hover:scale-125 transition-transform p-0.5">
+              <button key={e} onClick={() => toggleReaction(msg.id, e)} className="w-8 h-8 flex items-center justify-center text-xl leading-none hover:scale-125 transition-transform">
                 {e}
               </button>
             ))}
@@ -984,6 +1076,48 @@ export default function ChatPanel() {
                 );
               }
 
+              // File message (shared file, up to 2GB)
+              if (msg.type === "file") {
+                const f = parseFileContent(msg.content);
+                return withDivider(
+                  <div
+                    key={msg.id}
+                    className={cn("flex flex-col group", isMe ? "items-end" : "items-start", showHeader ? "mt-3" : "mt-0.5")}
+                  >
+                    {showHeader && !isMe && (
+                      <div className="flex items-center gap-1.5 mb-1 ml-1">
+                        <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                          <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300">{getInitial(msg.senderName)}</span>
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{msg.senderName}</span>
+                      </div>
+                    )}
+                    <div className={cn("flex items-center gap-1", isMe ? "flex-row-reverse" : "flex-row")}>
+                      <button
+                        onClick={() => f && downloadSharedFile(f.storedName, f.name)}
+                        className={cn(
+                          "flex items-center gap-2.5 max-w-[80%] px-3 py-2.5 rounded-2xl text-left transition-colors",
+                          isMe ? "bg-blue-600 text-white rounded-br-md hover:bg-blue-500" : "bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-bl-md hover:bg-slate-200 dark:hover:bg-slate-600",
+                        )}
+                      >
+                        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", isMe ? "bg-white/20" : "bg-blue-100 dark:bg-blue-900/40")}>
+                          <FileText className={cn("w-4.5 h-4.5", isMe ? "text-white" : "text-blue-600 dark:text-blue-300")} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium truncate">{f?.name || "file"}</p>
+                          <p className={cn("text-[11px] flex items-center gap-1", isMe ? "text-white/70" : "text-slate-400")}>
+                            <Download className="w-3 h-3" />{f ? formatBytes(f.size) : ""}
+                          </p>
+                        </div>
+                      </button>
+                      {renderMsgActions(msg, isMe)}
+                    </div>
+                    {renderReactionChips(msg, isMe)}
+                    <span className={cn("text-[9px] text-slate-400 mt-0.5", isMe ? "mr-1" : "ml-1")}>{formatTime(msg.createdAt)}</span>
+                  </div>
+                );
+              }
+
               return withDivider(
                 <div
                   key={msg.id}
@@ -1078,6 +1212,17 @@ export default function ChatPanel() {
               className="flex-1 text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-slate-900 dark:text-white placeholder-slate-400 resize-none max-h-24 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             />
 
+            {/* File attach (up to 2GB) */}
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile}
+              className="p-2 rounded-xl transition-colors bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 flex-shrink-0 disabled:opacity-60"
+              title={t("chat.attachFile") || "파일 첨부"}
+            >
+              {uploadingFile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+            </button>
+
             {/* Emoji picker */}
             <div className="relative" ref={emojiRef}>
               <button
@@ -1087,13 +1232,13 @@ export default function ChatPanel() {
                 <Smile className="w-4 h-4" />
               </button>
               {showEmoji && (
-                <div className="absolute bottom-full mb-2 right-0 p-2 grid grid-cols-8 sm:grid-cols-4 gap-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl z-50 max-w-[calc(100vw-2rem)]">
-                  <div className="grid grid-cols-8 sm:grid-cols-4 gap-1">
+                <div className="absolute bottom-full mb-2 right-0 p-2.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl z-50 max-w-[calc(100vw-2rem)]">
+                  <div className="grid grid-cols-6 gap-2">
                     {EMOJIS.map((emoji) => (
                       <button
                         key={emoji}
                         onClick={() => insertEmoji(emoji)}
-                        className="w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        className="w-10 h-10 flex items-center justify-center text-2xl rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-90 transition-transform"
                       >
                         {emoji}
                       </button>

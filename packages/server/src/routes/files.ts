@@ -49,7 +49,8 @@ router.post("/upload", upload.single("file"), asyncHandler<AuthRequest>(async (r
   const currentUsage = currentFiles.reduce((s, f) => s + f.size, 0);
   if (currentUsage + file.size > MAX_STORAGE) {
     await safeUnlink(file.path);
-    throw new AppError("Storage limit exceeded (1GB)", 413);
+    const gb = Math.round(MAX_STORAGE / (1024 * 1024 * 1024));
+    throw new AppError(`Storage limit exceeded (${gb}GB)`, 413);
   }
 
   const tags = safeJsonParse<string[]>(req.body.tags || "[]", []);
@@ -80,6 +81,27 @@ router.get("/:id/download", asyncHandler<AuthRequest>(async (req, res) => {
   if (!id) { throw new ValidationError("Invalid ID"); }
 
   const rows = await db.select().from(files).where(and(eq(files.id, id), eq(files.userId, userId)));
+  const file = rows[0];
+  if (!file) { throw new NotFoundError("File"); }
+
+  const filePath = path.join(UPLOAD_DIR, file.storedName);
+  if (!fs.existsSync(filePath)) { throw new NotFoundError("File missing from storage"); }
+
+  const encoded = encodeURIComponent(file.originalName);
+  res.setHeader("Content-Disposition", `attachment; filename="${encoded}"; filename*=UTF-8''${encoded}`);
+  res.setHeader("Content-Type", file.mimeType);
+  res.sendFile(filePath);
+}));
+
+// GET /api/files/shared/:storedName — download a file shared in chat.
+// The stored name is an unguessable UUID, so any authenticated member who
+// received the message (which carries the URL) can fetch it, not just the owner.
+router.get("/shared/:storedName", asyncHandler<AuthRequest>(async (req, res) => {
+  const storedName = String(req.params.storedName || "");
+  if (!storedName || storedName.includes("/") || storedName.includes("..")) {
+    throw new ValidationError("Invalid file");
+  }
+  const rows = await db.select().from(files).where(eq(files.storedName, storedName));
   const file = rows[0];
   if (!file) { throw new NotFoundError("File"); }
 

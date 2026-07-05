@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.57.0",
+    date: "2026-07-05",
+    highlights: ["파일 공유(최대 2GB)", "이모지 피커 개선"],
+    changes: [
+      { category: "채팅", emoji: "📎", items: [
+        "채팅에서 파일 공유 추가 (클립 버튼, 최대 2GB, 방 참여자 다운로드)",
+        "이모지 피커 간격/버튼 크기 확대로 선택 편의성 개선",
+        "파일 메시지 미리보기(목록·답장)에 📎 표시",
+      ] },
+    ],
+  },
+  {
     version: "1.56.0",
     date: "2026-07-05",
     highlights: ["공개/비공개 채팅방", "초대·수락·참여"],
