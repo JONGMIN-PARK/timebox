@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.52.0",
+    date: "2026-07-05",
+    highlights: ["채팅방 휴지통", "복원/영구삭제"],
+    changes: [
+      { category: "채팅", emoji: "🗑️", items: [
+        "채팅방 삭제 시 바로 지우지 않고 휴지통으로 이동 (소프트 삭제, 방장만 가능)",
+        "휴지통에서 방 복원 또는 영구 삭제 (영구 삭제 시 메시지까지 완전 제거)",
+        "방 삭제/복원 시 참여자 목록 실시간 갱신 (Socket.io)",
+      ] },
+    ],
+  },
+  {
     version: "1.44.0",
     date: "2026-07-04",
     highlights: ["노트 리마인더", "노트 실시간 공유"],

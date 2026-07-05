@@ -5,6 +5,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "@/lib/useI18n";
 import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
 import { cn } from "@/lib/utils";
+import { showToast } from "@/components/ui/Toast";
 import {
   MessageCircle,
   ArrowLeft,
@@ -14,6 +15,8 @@ import {
   Settings,
   X,
   Trash2,
+  Trash,
+  RotateCcw,
   Smile,
 } from "lucide-react";
 
@@ -35,6 +38,8 @@ interface ChatRoom {
   type: "direct" | "group";
   lastMessage?: LastMessage | null;
   memberCount: number;
+  createdBy?: number;
+  deletedAt?: string | null;
 }
 
 interface ChatMessage {
@@ -55,7 +60,7 @@ interface ChatUser {
   displayName: string | null;
 }
 
-type View = "rooms" | "chat" | "create";
+type View = "rooms" | "chat" | "create" | "trash";
 
 const EMOJIS = ["😀","😂","🥰","😎","👍","👏","🔥","❤️","🎉","💪","😢","😡","🤔","👀","✅","⭐"];
 
@@ -120,6 +125,50 @@ export default function ChatPanel() {
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
+
+  // ── Trash (soft-deleted rooms) ──
+  const [trashedRooms, setTrashedRooms] = useState<ChatRoom[]>([]);
+  const [confirmPurgeId, setConfirmPurgeId] = useState<number | null>(null);
+
+  const fetchTrash = useCallback(async () => {
+    const res = await api.get<ChatRoom[]>("/chat/trash");
+    if (res.success && res.data) setTrashedRooms(res.data);
+  }, []);
+
+  // Move a room to trash (soft delete). Recoverable from the trash view.
+  const trashRoom = useCallback(async (room: ChatRoom) => {
+    const res = await api.delete(`/chat/${room.id}`);
+    if (res.success) {
+      setRooms((prev) => prev.filter((r) => r.id !== room.id));
+      showToast("success", t("chat.movedToTrash") || "휴지통으로 이동했습니다");
+    } else {
+      showToast("error", res.error || (t("chat.deleteFailed") || "삭제 실패"));
+    }
+  }, [t]);
+
+  const restoreRoom = useCallback(async (room: ChatRoom) => {
+    const res = await api.post(`/chat/${room.id}/restore`, {});
+    if (res.success) {
+      setTrashedRooms((prev) => prev.filter((r) => r.id !== room.id));
+      fetchRooms();
+      showToast("success", t("chat.restored") || "복원했습니다");
+    }
+  }, [fetchRooms, t]);
+
+  const purgeRoom = useCallback(async (roomId: number) => {
+    const res = await api.delete(`/chat/${roomId}/permanent`);
+    if (res.success) {
+      setTrashedRooms((prev) => prev.filter((r) => r.id !== roomId));
+      showToast("success", t("chat.deletedPermanent") || "영구 삭제했습니다");
+    }
+    setConfirmPurgeId(null);
+  }, [t]);
+
+  // Keep room lists in sync when a room is trashed/restored elsewhere.
+  useSocketEvent("chat:rooms-updated", useCallback(() => {
+    fetchRooms();
+    fetchTrash();
+  }, [fetchRooms, fetchTrash]));
 
   // ── Socket: real-time messages ──
 
@@ -363,12 +412,21 @@ export default function ChatPanel() {
             Chat
           </h2>
         </div>
-        <button
-          onClick={openCreateRoom}
-          className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => { setView("trash"); fetchTrash(); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+            title={t("chat.trash") || "휴지통"}
+          >
+            <Trash className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={openCreateRoom}
+            className="p-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Room list */}
@@ -387,46 +445,55 @@ export default function ChatPanel() {
           </div>
         ) : (
           rooms.map((room) => (
-            <button
+            <div
               key={room.id}
               onClick={() => openRoom(room)}
-              className="w-full text-left px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              className="group w-full text-left px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer flex items-center gap-3"
             >
-              <div className="flex items-center gap-3">
-                {/* Avatar */}
-                <div
-                  className={cn(
-                    "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
-                    room.type === "direct"
-                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                  )}
-                >
-                  {room.type === "direct" ? (
-                    getInitial(getRoomDisplayName(room))
-                  ) : (
-                    <Users className="w-4 h-4" />
-                  )}
-                </div>
+              {/* Avatar */}
+              <div
+                className={cn(
+                  "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
+                  room.type === "direct"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                )}
+              >
+                {room.type === "direct" ? (
+                  getInitial(getRoomDisplayName(room))
+                ) : (
+                  <Users className="w-4 h-4" />
+                )}
+              </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">
-                      {getRoomDisplayName(room)}
-                    </span>
-                    <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
-                      {formatRoomTime(room.lastMessage?.createdAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <span className="text-[11px] text-slate-400 truncate">
-                      {room.lastMessage?.content || "No messages yet"}
-                    </span>
-                  </div>
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">
+                    {getRoomDisplayName(room)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
+                    {formatRoomTime(room.lastMessage?.createdAt)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <span className="text-[11px] text-slate-400 truncate">
+                    {room.lastMessage?.content || "No messages yet"}
+                  </span>
                 </div>
               </div>
-            </button>
+
+              {/* Owner-only: move room to trash */}
+              {room.createdBy === user?.id && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); trashRoom(room); }}
+                  className="shrink-0 p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity"
+                  title={t("chat.deleteRoom") || "방 삭제"}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           ))
         )}
       </div>
@@ -845,6 +912,52 @@ export default function ChatPanel() {
   );
 
   // ══════════════════════════════════════════
+  //  TRASH VIEW
+  // ══════════════════════════════════════════
+
+  const renderTrash = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200/60 dark:border-slate-700/40">
+        <button onClick={() => setView("rooms")} className="p-1.5 -ml-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-500">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <Trash className="w-4 h-4 text-slate-500" />
+        <h2 className="font-semibold text-[15px] text-slate-900 dark:text-white">{t("chat.trash") || "휴지통"}</h2>
+        <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-full tabular-nums">{trashedRooms.length}</span>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {trashedRooms.length === 0 ? (
+          <div className="py-12 text-center text-slate-400">
+            <Trash className="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+            <p className="text-sm">{t("chat.trashEmpty") || "휴지통이 비어 있습니다"}</p>
+          </div>
+        ) : (
+          trashedRooms.map((room) => (
+            <div key={room.id} className="px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 flex items-center gap-3">
+              <div className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
+                room.type === "direct" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+              )}>
+                {room.type === "direct" ? getInitial(getRoomDisplayName(room)) : <Users className="w-4 h-4" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">{getRoomDisplayName(room)}</p>
+                <p className="text-[10px] text-slate-400 truncate">{room.deletedAt ? formatRoomTime(room.deletedAt) : ""}</p>
+              </div>
+              <button onClick={() => restoreRoom(room)} className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                <RotateCcw className="w-3.5 h-3.5" /> {t("chat.restore") || "복원"}
+              </button>
+              <button onClick={() => setConfirmPurgeId(room.id)} className="shrink-0 p-1.5 rounded-lg border border-red-200 dark:border-red-900/50 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" title={t("chat.deleteForever") || "영구 삭제"}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════
 
@@ -853,6 +966,26 @@ export default function ChatPanel() {
       {view === "rooms" && renderRoomList()}
       {view === "chat" && renderChatRoom()}
       {view === "create" && renderCreateRoom()}
+      {view === "trash" && renderTrash()}
+
+      {/* Permanent-delete confirmation */}
+      {confirmPurgeId !== null && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/50" role="dialog" aria-modal="true" onClick={() => setConfirmPurgeId(null)}>
+          <div className="w-full max-w-xs bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="w-11 h-11 rounded-full flex items-center justify-center bg-red-100 dark:bg-red-900/30 text-red-500">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{t("chat.confirmPurgeTitle") || "영구 삭제하시겠어요?"}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("chat.confirmPurgeMsg") || "방과 모든 메시지가 영구 삭제되며 복구할 수 없습니다."}</p>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setConfirmPurgeId(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-300">{t("common.cancel") || "취소"}</button>
+              <button onClick={() => purgeRoom(confirmPurgeId)} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-medium">{t("chat.deleteForever") || "영구 삭제"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

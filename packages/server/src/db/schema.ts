@@ -415,6 +415,8 @@ export const chatRooms = pgTable("chat_rooms", {
   type: text("type").notNull().default("group"), // "group" | "direct"
   description: text("description"),
   createdBy: integer("created_by").notNull(),
+  /** ISO timestamp when the room was moved to trash (soft delete); null = active. */
+  deletedAt: text("deleted_at"),
   createdAt: text("created_at").notNull().default(sql`now()`),
   updatedAt: text("updated_at").notNull().default(sql`now()`),
 });

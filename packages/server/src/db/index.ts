@@ -399,6 +399,7 @@ export async function initDb() {
       ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS from_user_trashed_at TEXT;
       ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS to_user_purged_at TEXT;
       ALTER TABLE inbox_messages ADD COLUMN IF NOT EXISTS from_user_purged_at TEXT;
+      ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS deleted_at TEXT;
       CREATE INDEX IF NOT EXISTS idx_telegram_config_user ON telegram_config(user_id);
       CREATE INDEX IF NOT EXISTS idx_telegram_config_chat ON telegram_config(chat_id);
       CREATE INDEX IF NOT EXISTS idx_activity_log_created ON activity_log(project_id, created_at DESC);

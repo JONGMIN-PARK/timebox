@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db/index.js";
 import { chatRooms, chatMembers, chatMessages, users } from "../db/schema.js";
-import { eq, and, desc, inArray, lt, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull, isNotNull, lt, sql } from "drizzle-orm";
 import { type AuthRequest, safeParseId } from "../middleware/auth.js";
 import { getUserMap } from "../lib/userEnrichment.js";
 import { emitToUser } from "../socket/index.js";
@@ -31,7 +31,7 @@ router.get("/", asyncHandler<AuthRequest>(async (req, res) => {
   }
 
   const rooms = await db.select().from(chatRooms)
-    .where(inArray(chatRooms.id, roomIds));
+    .where(and(inArray(chatRooms.id, roomIds), isNull(chatRooms.deletedAt)));
 
   // Get member counts per room
   const allMembers = await db.select().from(chatMembers)
@@ -197,6 +197,19 @@ router.post("/direct", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true, data: room });
 }));
 
+// GET /trash - List my trashed rooms (rooms I own that were soft-deleted)
+router.get("/trash", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const owned = await db.select().from(chatMembers)
+    .where(and(eq(chatMembers.userId, userId), eq(chatMembers.role, "owner")));
+  const roomIds = owned.map((m) => m.roomId);
+  if (roomIds.length === 0) { res.json({ success: true, data: [] }); return; }
+  const rooms = await db.select().from(chatRooms)
+    .where(and(inArray(chatRooms.id, roomIds), isNotNull(chatRooms.deletedAt)))
+    .orderBy(desc(chatRooms.deletedAt));
+  res.json({ success: true, data: rooms });
+}));
+
 // GET /:roomId - Get room details with member list
 router.get("/:roomId", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
@@ -222,7 +235,7 @@ router.get("/:roomId", asyncHandler<AuthRequest>(async (req, res) => {
   res.json({ success: true, data: { ...room, members: membersWithNames } });
 }));
 
-// DELETE /:roomId - Delete room (owner only)
+// DELETE /:roomId - Move room to trash (soft delete; owner only)
 router.delete("/:roomId", asyncHandler<AuthRequest>(async (req, res) => {
   const userId = req.userId!;
   const roomId = safeParseId(req.params.roomId);
@@ -233,7 +246,47 @@ router.delete("/:roomId", asyncHandler<AuthRequest>(async (req, res) => {
     throw new ForbiddenError("Only the room owner can delete the room");
   }
 
-  // Delete messages, members, then room
+  // Soft delete: keep messages/members so it can be restored from the trash.
+  await db.update(chatRooms)
+    .set({ deletedAt: new Date().toISOString() })
+    .where(eq(chatRooms.id, roomId));
+
+  // Notify members so their room lists update.
+  const members = await db.select().from(chatMembers).where(eq(chatMembers.roomId, roomId));
+  for (const m of members) emitToUser(m.userId, "chat:rooms-updated", { roomId });
+
+  res.json({ success: true, data: { trashed: true } });
+}));
+
+// POST /:roomId/restore - Restore a trashed room (owner only)
+router.post("/:roomId/restore", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  if (!roomId) { throw new ValidationError("Invalid room ID"); }
+
+  const membership = await verifyMembership(roomId, userId);
+  if (!membership || membership.role !== "owner") {
+    throw new ForbiddenError("Only the room owner can restore the room");
+  }
+
+  await db.update(chatRooms).set({ deletedAt: null }).where(eq(chatRooms.id, roomId));
+  const members = await db.select().from(chatMembers).where(eq(chatMembers.roomId, roomId));
+  for (const m of members) emitToUser(m.userId, "chat:rooms-updated", { roomId });
+
+  res.json({ success: true, data: { restored: true } });
+}));
+
+// DELETE /:roomId/permanent - Permanently delete a trashed room (owner only)
+router.delete("/:roomId/permanent", asyncHandler<AuthRequest>(async (req, res) => {
+  const userId = req.userId!;
+  const roomId = safeParseId(req.params.roomId);
+  if (!roomId) { throw new ValidationError("Invalid room ID"); }
+
+  const membership = await verifyMembership(roomId, userId);
+  if (!membership || membership.role !== "owner") {
+    throw new ForbiddenError("Only the room owner can delete the room");
+  }
+
   await db.delete(chatMessages).where(eq(chatMessages.roomId, roomId));
   await db.delete(chatMembers).where(eq(chatMembers.roomId, roomId));
   await db.delete(chatRooms).where(eq(chatRooms.id, roomId));
