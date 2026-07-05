@@ -1,15 +1,15 @@
 {
-  "version": "1.49.0",
+  "version": "1.50.0",
   "date": "2026-07-05",
   "highlights": [
-    "calendar: 월 뷰 상/하단 스플릿 비율 유지 (localStorage) (3325328)"
+    "calendar: 하단에 다가오는 일정/할일 개요 + 날짜 탭 시간별 상세 + 범위 설정 (79fed62)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 월 뷰 상/하단 스플릿 비율 유지 (localStorage) (3325328)"
+        "calendar: 하단에 다가오는 일정/할일 개요 + 날짜 탭 시간별 상세 + 범위 설정 (79fed62)"
       ]
     }
   ]
