@@ -248,7 +248,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
                       className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
                     >
                       <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-300 shrink-0">
-                        {(user.displayName || user.username).charAt(0)}
+                        {(user.displayName || user.username || "?").charAt(0)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">
@@ -268,7 +268,7 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
             {selectedUser && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[10px] font-bold text-blue-600 dark:text-blue-300">
-                  {(selectedUser.displayName || selectedUser.username).charAt(0)}
+                  {(selectedUser.displayName || selectedUser.username || "?").charAt(0)}
                 </div>
                 <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">
                   {selectedUser.displayName || selectedUser.username}
@@ -329,11 +329,11 @@ export default function MemberManager({ projectId, myRole }: { projectId: number
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300 shrink-0">
-                    {m.username.charAt(0)}
+                    {(m.username || "?").charAt(0)}
                   </div>
                   <div className="min-w-0">
                     <p className="text-[13px] font-medium text-slate-900 dark:text-white truncate">
-                      {m.username}
+                      {m.username || "(삭제됨)"}
                     </p>
                   </div>
                 </div>

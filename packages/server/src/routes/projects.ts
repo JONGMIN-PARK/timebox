@@ -411,14 +411,16 @@ router.get("/:projectId/members", projectMemberMiddleware, asyncHandler<ProjectR
     : [];
   const userMap = new Map(memberUsers.map(u => [u.id, u]));
 
-  const result = members.map(m => {
-    const user = userMap.get(m.userId);
-    return {
-      ...m,
-      username: user?.username,
-      displayName: user?.displayName,
-    };
-  });
+  const result = members
+    .filter((m) => userMap.has(m.userId)) // drop memberships whose user was deleted
+    .map((m) => {
+      const user = userMap.get(m.userId)!;
+      return {
+        ...m,
+        username: user.username,
+        displayName: user.displayName,
+      };
+    });
 
   res.json({ success: true, data: result });
 }));

@@ -325,7 +325,7 @@ export default function ChatPanel() {
   };
 
   const getInitial = (name: string) => {
-    return name.charAt(0).toUpperCase();
+    return (name || "?").charAt(0).toUpperCase();
   };
 
   const renderContent = (text: string) => {

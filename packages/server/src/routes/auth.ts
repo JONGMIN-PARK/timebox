@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers, userActivityLog } from "../db/schema.js";
+import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers, projectTasks, projects, userActivityLog } from "../db/schema.js";
 import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";
 import { eq, and, desc } from "drizzle-orm";
 import { asyncHandler } from "../lib/asyncHandler.js";
@@ -366,6 +366,15 @@ router.delete("/users/:id", authMiddleware, adminMiddleware, asyncHandler<AuthRe
   if (id === req.userId) {
     throw new ValidationError("Cannot delete yourself");
   }
+
+  // Clean up references so deleting a user can't leave orphaned rows that
+  // crash the UI (e.g. a project member with no user).
+  await db.delete(projectMembers).where(eq(projectMembers.userId, id));
+  await db.delete(teamGroupMembers).where(eq(teamGroupMembers.userId, id));
+  await db.update(projectTasks).set({ assigneeId: null }).where(eq(projectTasks.assigneeId, id));
+  // Hand any projects the user owned to the admin doing the deletion so they
+  // stay accessible rather than becoming ownerless.
+  await db.update(projects).set({ ownerId: req.userId! }).where(eq(projects.ownerId, id));
 
   await db.delete(users).where(eq(users.id, id));
   logger.info("User deleted by admin", { deletedUserId: id, adminUserId: req.userId });

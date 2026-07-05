@@ -268,10 +268,10 @@ export default function ProjectDashboard({ projectId }: { projectId: number }) {
             {members.map((m) => (
               <div key={m.userId} className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
-                  {m.username.charAt(0)}
+                  {(m.username || "?").charAt(0)}
                 </div>
                 <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200 w-16 truncate shrink-0">
-                  {m.username}
+                  {m.username || "(삭제됨)"}
                 </span>
                 <div className="flex-1 flex items-center gap-2">
                   <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">

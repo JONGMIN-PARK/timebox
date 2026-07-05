@@ -589,7 +589,7 @@ export default function FloatingChat() {
     return d.slice(0, 10);
   };
 
-  const getInitial = (name: string) => name.charAt(0).toUpperCase();
+  const getInitial = (name: string) => (name || "?").charAt(0).toUpperCase();
 
   const isNewGroup = (msg: ChatMessage, idx: number) => {
     if (idx === 0) return true;
