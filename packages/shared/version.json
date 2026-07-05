@@ -1,15 +1,15 @@
 {
-  "version": "1.47.0",
-  "date": "2026-07-04",
+  "version": "1.48.0",
+  "date": "2026-07-05",
   "highlights": [
-    "header: 모바일 상단 TimeBox 타이틀 옆에 버전 배지 추가 (929665a)"
+    "calendar: 하단 상세 패널 할 일 드래그 순서 변경 및 유지 (8e65ea7)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "header: 모바일 상단 TimeBox 타이틀 옆에 버전 배지 추가 (929665a)"
+        "calendar: 하단 상세 패널 할 일 드래그 순서 변경 및 유지 (8e65ea7)"
       ]
     }
   ]
