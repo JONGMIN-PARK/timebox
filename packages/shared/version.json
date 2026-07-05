@@ -1,15 +1,15 @@
 {
-  "version": "1.50.0",
+  "version": "1.51.0",
   "date": "2026-07-05",
   "highlights": [
-    "calendar: 하단에 다가오는 일정/할일 개요 + 날짜 탭 시간별 상세 + 범위 설정 (79fed62)"
+    "calendar: 하단 + 버튼에서 일정·할일 둘 다 추가 (a601d5c)"
   ],
   "changes": [
     {
       "category": "신규 기능",
       "emoji": "✨",
       "items": [
-        "calendar: 하단에 다가오는 일정/할일 개요 + 날짜 탭 시간별 상세 + 범위 설정 (79fed62)"
+        "calendar: 하단 + 버튼에서 일정·할일 둘 다 추가 (a601d5c)"
       ]
     }
   ]
