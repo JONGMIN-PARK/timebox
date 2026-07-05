@@ -2,10 +2,11 @@ import { randomBytes } from "crypto";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../db/index.js";
-import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers, projectTasks, projects, userActivityLog } from "../db/schema.js";
+import { users, registrationRequests, teamGroups, teamGroupMembers, projectMembers, projectTasks, projects, userActivityLog, chatMembers } from "../db/schema.js";
 import { signToken, authMiddleware, adminMiddleware, safeParseId, type AuthRequest } from "../middleware/auth.js";
 import { eq, and, desc } from "drizzle-orm";
 import { asyncHandler } from "../lib/asyncHandler.js";
+import { addUserToGlobalRoom } from "../lib/globalRoom.js";
 import { logger } from "../lib/logger.js";
 import { ValidationError, AuthError, NotFoundError, ConflictError } from "../lib/errors.js";
 
@@ -176,12 +177,13 @@ router.put("/requests/:id", authMiddleware, adminMiddleware, asyncHandler<AuthRe
       throw new ConflictError("Username already taken");
     }
 
-    await db.insert(users).values({
+    const [approved] = await db.insert(users).values({
       username: request.username,
       passwordHash: request.passwordHash,
       displayName: request.displayName || request.username,
       role: "user",
-    });
+    }).returning();
+    await addUserToGlobalRoom(approved.id);
 
     await db.update(registrationRequests).set({
       status: "approved",
@@ -224,6 +226,8 @@ router.post("/register", authMiddleware, adminMiddleware, asyncHandler<AuthReque
     displayName: displayName || username,
     role: role || "user",
   }).returning();
+
+  await addUserToGlobalRoom(result[0].id);
 
   logger.info("User registered by admin", { userId: result[0].id, username: result[0].username });
 
@@ -371,6 +375,7 @@ router.delete("/users/:id", authMiddleware, adminMiddleware, asyncHandler<AuthRe
   // crash the UI (e.g. a project member with no user).
   await db.delete(projectMembers).where(eq(projectMembers.userId, id));
   await db.delete(teamGroupMembers).where(eq(teamGroupMembers.userId, id));
+  await db.delete(chatMembers).where(eq(chatMembers.userId, id));
   await db.update(projectTasks).set({ assigneeId: null }).where(eq(projectTasks.assigneeId, id));
   // Hand any projects the user owned to the admin doing the deletion so they
   // stay accessible rather than becoming ownerless.

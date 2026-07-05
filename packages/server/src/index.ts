@@ -107,6 +107,15 @@ try {
   logger.info("Auto-migration complete: project bridge columns");
 }
 
+// Ensure the global (all-members) chat room exists and everyone is a member.
+try {
+  const { ensureGlobalRoom } = await import("./lib/globalRoom.js");
+  await ensureGlobalRoom();
+  logger.info("Global chat room ready");
+} catch (err) {
+  logger.error("Failed to ensure global chat room", { error: (err as Error).message });
+}
+
 // Middleware
 app.use(compression());
 const allowedOrigins = process.env.CORS_ORIGIN

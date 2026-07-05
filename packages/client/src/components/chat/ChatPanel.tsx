@@ -12,6 +12,7 @@ import {
   Send,
   Plus,
   Users,
+  Globe,
   Settings,
   X,
   Trash2,
@@ -35,7 +36,7 @@ interface ChatRoom {
   name: string;
   displayName?: string;
   description: string | null;
-  type: "direct" | "group";
+  type: "direct" | "group" | "global";
   lastMessage?: LastMessage | null;
   memberCount: number;
   createdBy?: number;
@@ -444,7 +445,8 @@ export default function ChatPanel() {
             </p>
           </div>
         ) : (
-          rooms.map((room) => (
+          // Pin the all-members room to the top; keep other rooms' order.
+          [...rooms].sort((a, b) => (b.type === "global" ? 1 : 0) - (a.type === "global" ? 1 : 0)).map((room) => (
             <div
               key={room.id}
               onClick={() => openRoom(room)}
@@ -456,11 +458,15 @@ export default function ChatPanel() {
                   "w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0",
                   room.type === "direct"
                     ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : room.type === "global"
+                    ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white"
                     : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
                 )}
               >
                 {room.type === "direct" ? (
                   getInitial(getRoomDisplayName(room))
+                ) : room.type === "global" ? (
+                  <Globe className="w-4 h-4" />
                 ) : (
                   <Users className="w-4 h-4" />
                 )}
@@ -469,8 +475,13 @@ export default function ChatPanel() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate">
-                    {getRoomDisplayName(room)}
+                  <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300 truncate flex items-center gap-1.5 min-w-0">
+                    <span className="truncate">{getRoomDisplayName(room)}</span>
+                    {room.type === "global" && (
+                      <span className="shrink-0 text-[9px] font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded-full">
+                        {t("chat.everyone") || "전체"}
+                      </span>
+                    )}
                   </span>
                   <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
                     {formatRoomTime(room.lastMessage?.createdAt)}
@@ -483,8 +494,8 @@ export default function ChatPanel() {
                 </div>
               </div>
 
-              {/* Owner-only: move room to trash */}
-              {room.createdBy === user?.id && (
+              {/* Owner-only: move room to trash (never the all-members room) */}
+              {room.type !== "global" && room.createdBy === user?.id && (
                 <button
                   onClick={(e) => { e.stopPropagation(); trashRoom(room); }}
                   className="shrink-0 p-1.5 rounded-lg text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 max-md:opacity-100 transition-opacity"

@@ -511,6 +511,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // Chat
     "chat.title": "Chat",
     "chat.trash": "Trash",
+    "chat.everyone": "Everyone",
     "chat.trashEmpty": "Trash is empty",
     "chat.deleteRoom": "Delete room",
     "chat.movedToTrash": "Moved to trash",
@@ -1289,6 +1290,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // Chat
     "chat.title": "\ucc44\ud305",
     "chat.trash": "\ud734\uc9c0\ud1b5",
+    "chat.everyone": "\uc804\uccb4",
     "chat.trashEmpty": "\ud734\uc9c0\ud1b5\uc774 \ube44\uc5b4 \uc788\uc2b5\ub2c8\ub2e4",
     "chat.deleteRoom": "\ubc29 \uc0ad\uc81c",
     "chat.movedToTrash": "\ud734\uc9c0\ud1b5\uc73c\ub85c \uc774\ub3d9\ud588\uc2b5\ub2c8\ub2e4",

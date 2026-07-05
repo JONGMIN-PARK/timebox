@@ -18,6 +18,18 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.54.0",
+    date: "2026-07-05",
+    highlights: ["전체 채팅방", "가입 회원 자동 참여"],
+    changes: [
+      { category: "채팅", emoji: "🌐", items: [
+        "모든 가입 회원이 참여하는 공용 '전체 채팅방' 추가 (목록 상단 고정)",
+        "신규 가입/승인 시 자동 참여, 회원 삭제 시 자동 정리",
+        "전체 채팅방은 삭제·휴지통 이동 불가 (실수 방지)",
+      ] },
+    ],
+  },
+  {
     version: "1.53.0",
     date: "2026-07-05",
     highlights: ["스마트 데일리 브리핑", "텔레그램 아침 알림"],

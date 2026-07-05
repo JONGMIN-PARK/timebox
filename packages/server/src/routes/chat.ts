@@ -246,6 +246,11 @@ router.delete("/:roomId", asyncHandler<AuthRequest>(async (req, res) => {
     throw new ForbiddenError("Only the room owner can delete the room");
   }
 
+  const [target] = await db.select().from(chatRooms).where(eq(chatRooms.id, roomId));
+  if (target?.type === "global") {
+    throw new ForbiddenError("The all-members room cannot be deleted");
+  }
+
   // Soft delete: keep messages/members so it can be restored from the trash.
   await db.update(chatRooms)
     .set({ deletedAt: new Date().toISOString() })
@@ -285,6 +290,11 @@ router.delete("/:roomId/permanent", asyncHandler<AuthRequest>(async (req, res) =
   const membership = await verifyMembership(roomId, userId);
   if (!membership || membership.role !== "owner") {
     throw new ForbiddenError("Only the room owner can delete the room");
+  }
+
+  const [target] = await db.select().from(chatRooms).where(eq(chatRooms.id, roomId));
+  if (target?.type === "global") {
+    throw new ForbiddenError("The all-members room cannot be deleted");
   }
 
   await db.delete(chatMessages).where(eq(chatMessages.roomId, roomId));
