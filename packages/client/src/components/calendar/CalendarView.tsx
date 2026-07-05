@@ -653,6 +653,11 @@ export default function CalendarView() {
             setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
             setShowAddModal(true);
           }}
+          onAddTodo={() => {
+            const d = selectedDate ?? currentDate;
+            setTodoAddModalDate(format(d, "yyyy-MM-dd"));
+            setTodoAddModalOpen(true);
+          }}
           onDeleteEvent={handleDeleteEvent}
           onEditEvent={handleEditEvent}
           onToggleTodo={toggleTodo}

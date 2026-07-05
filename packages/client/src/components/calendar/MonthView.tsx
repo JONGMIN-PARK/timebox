@@ -169,6 +169,7 @@ interface MonthViewProps {
   onDayHover: (e: React.MouseEvent, dateKey: string) => void;
   onDayLeave: () => void;
   onShowAddModal: () => void;
+  onAddTodo?: () => void;
   onDeleteEvent: (id: number) => void;
   onEditEvent?: (event: CalendarEvent) => void;
   onToggleTodo?: (id: number) => void;
@@ -200,6 +201,7 @@ export default function MonthView({
   onDayHover,
   onDayLeave,
   onShowAddModal,
+  onAddTodo,
   onDeleteEvent,
   onEditEvent,
   onToggleTodo,
@@ -230,6 +232,7 @@ export default function MonthView({
   const touchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Bottom panel: "agenda" = month/upcoming overview, "day" = one day's detail.
   const [detailMode, setDetailMode] = useState<"agenda" | "day">("agenda");
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const openDay = useCallback((d: Date) => { onSelectDate(d); setDetailMode("day"); }, [onSelectDate]);
   const agendaCount = useMemo(
     () => bottomAgenda.reduce((n, g) => n + g.events.length + g.todos.length, 0),
@@ -466,9 +469,31 @@ export default function MonthView({
               </button>
             )}
           </div>
-          <button onClick={onShowAddModal} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white shadow-sm transition-colors shrink-0">
-            <Plus className="w-4 h-4" />
-          </button>
+          {/* Add menu: event or todo */}
+          <div className="relative shrink-0">
+            <button onClick={() => setAddMenuOpen((v) => !v)} className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white shadow-sm transition-colors" aria-label="Add">
+              <Plus className="w-4 h-4" />
+            </button>
+            {addMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)} />
+                <div className="absolute right-0 top-9 z-50 w-32 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 animate-in">
+                  <button
+                    onClick={() => { setAddMenuOpen(false); onShowAddModal(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  >
+                    <Calendar className="w-4 h-4 text-blue-500" /> {t("calendar.addEvent")}
+                  </button>
+                  <button
+                    onClick={() => { setAddMenuOpen(false); onAddTodo?.(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                  >
+                    <CheckSquare className="w-4 h-4 text-amber-500" /> {t("calendar.addTodo")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto overscroll-contain">
