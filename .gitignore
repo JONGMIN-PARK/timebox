@@ -13,3 +13,7 @@ Thumbs.db
 coverage/
 .turbo/
 .claude/
+
+playwright-report/
+test-results/
+*.tsbuildinfo

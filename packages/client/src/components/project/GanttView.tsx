@@ -1,19 +1,18 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { useProjectTaskStore, type ProjectTask, type TaskStatus } from "@/stores/projectTaskStore";
-import { useProjectStore } from "@/stores/projectStore";
-import type { ProjectMember } from "@/stores/projectStore";
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { cn } from '@/lib/utils';
+import { useProjectTaskStore, type ProjectTask, type TaskStatus } from '@/stores/projectTaskStore';
+import { useProjectStore, type ProjectMember } from '@/stores/projectStore';
 
 interface GanttViewProps {
   projectId: number;
 }
 
 const STATUS_COLORS: Record<TaskStatus, string> = {
-  backlog: "#94a3b8",
-  todo: "#3b82f6",
-  in_progress: "#f59e0b",
-  review: "#8b5cf6",
-  done: "#22c55e",
+  backlog: '#94a3b8',
+  todo: '#3b82f6',
+  in_progress: '#f59e0b',
+  review: '#8b5cf6',
+  done: '#22c55e',
 };
 
 const daysBetween = (a: Date, b: Date) =>
@@ -36,7 +35,20 @@ function formatDate(d: Date) {
 }
 
 function formatMonthLabel(d: Date) {
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return `${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
@@ -78,8 +90,8 @@ export default function GanttView({ projectId }: GanttViewProps) {
       const detail = (e as CustomEvent).detail;
       if (detail?.projectId === projectId) fetchTasks(projectId);
     };
-    window.addEventListener("project-tasks-updated", handler);
-    return () => window.removeEventListener("project-tasks-updated", handler);
+    window.addEventListener('project-tasks-updated', handler);
+    return () => window.removeEventListener('project-tasks-updated', handler);
   }, [projectId, fetchTasks]);
 
   // Scroll to today on mount
@@ -92,7 +104,13 @@ export default function GanttView({ projectId }: GanttViewProps) {
 
   // Generate date columns
   const dateColumns = useMemo(() => {
-    const cols: { date: Date; label: string; isToday: boolean; monthStart: boolean; monthLabel: string }[] = [];
+    const cols: {
+      date: Date;
+      label: string;
+      isToday: boolean;
+      monthStart: boolean;
+      monthLabel: string;
+    }[] = [];
     for (let i = 0; i <= totalDays; i++) {
       const d = new Date(rangeStart);
       d.setDate(d.getDate() + i);
@@ -137,7 +155,7 @@ export default function GanttView({ projectId }: GanttViewProps) {
     if (!userId) return null;
     const member = memberMap.get(userId);
     if (!member) return null;
-    const name = member.displayName || member.username || "?";
+    const name = member.displayName || member.username || '?';
     return name.charAt(0).toUpperCase();
   };
 
@@ -145,12 +163,14 @@ export default function GanttView({ projectId }: GanttViewProps) {
     <div className="h-full flex flex-col">
       {/* Legend */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-200/60 dark:border-slate-700/40 flex-shrink-0">
-        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Status:</span>
+        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
+          Status:
+        </span>
         {(Object.entries(STATUS_COLORS) as [TaskStatus, string][]).map(([status, color]) => (
           <span key={status} className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
             <span className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">
-              {status.replace("_", " ")}
+              {status.replace('_', ' ')}
             </span>
           </span>
         ))}
@@ -202,7 +222,7 @@ export default function GanttView({ projectId }: GanttViewProps) {
 
         {/* Timeline area (scrollable) */}
         <div ref={scrollRef} className="flex-1 overflow-auto">
-          <div style={{ width: (totalDays + 1) * dayWidth, minHeight: "100%" }}>
+          <div style={{ width: (totalDays + 1) * dayWidth, minHeight: '100%' }}>
             {/* Date header */}
             <div
               className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-700/40 flex"
@@ -212,10 +232,10 @@ export default function GanttView({ projectId }: GanttViewProps) {
                 <div
                   key={i}
                   className={cn(
-                    "flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-100 dark:border-slate-800/40",
-                    col.isToday && "bg-red-50 dark:bg-red-500/5",
-                    col.date.getDay() === 0 && "bg-slate-50/50 dark:bg-slate-800/20",
-                    col.date.getDay() === 6 && "bg-slate-50/50 dark:bg-slate-800/20"
+                    'flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-100 dark:border-slate-800/40',
+                    col.isToday && 'bg-red-50 dark:bg-red-500/5',
+                    col.date.getDay() === 0 && 'bg-slate-50/50 dark:bg-slate-800/20',
+                    col.date.getDay() === 6 && 'bg-slate-50/50 dark:bg-slate-800/20',
                   )}
                   style={{ width: dayWidth }}
                 >
@@ -226,10 +246,8 @@ export default function GanttView({ projectId }: GanttViewProps) {
                   )}
                   <span
                     className={cn(
-                      "text-[9px]",
-                      col.isToday
-                        ? "font-bold text-red-500"
-                        : "text-slate-400 dark:text-slate-500"
+                      'text-[9px]',
+                      col.isToday ? 'font-bold text-red-500' : 'text-slate-400 dark:text-slate-500',
                     )}
                   >
                     {col.label}
@@ -245,9 +263,9 @@ export default function GanttView({ projectId }: GanttViewProps) {
                 <div
                   key={i}
                   className={cn(
-                    "absolute top-0 bottom-0 border-r border-slate-100 dark:border-slate-800/30",
-                    col.date.getDay() === 0 && "bg-slate-50/30 dark:bg-slate-800/10",
-                    col.date.getDay() === 6 && "bg-slate-50/30 dark:bg-slate-800/10"
+                    'absolute top-0 bottom-0 border-r border-slate-100 dark:border-slate-800/30',
+                    col.date.getDay() === 0 && 'bg-slate-50/30 dark:bg-slate-800/10',
+                    col.date.getDay() === 6 && 'bg-slate-50/30 dark:bg-slate-800/10',
                   )}
                   style={{
                     left: i * dayWidth,
@@ -268,7 +286,7 @@ export default function GanttView({ projectId }: GanttViewProps) {
                         left: todayOffset * dayWidth + dayWidth / 2,
                         height: tasks.length * rowHeight,
                         width: 2,
-                        backgroundColor: "#ef4444",
+                        backgroundColor: '#ef4444',
                       }}
                     />
                   );
@@ -315,7 +333,7 @@ export default function GanttView({ projectId }: GanttViewProps) {
                           top: (rowHeight - 20) / 2,
                           opacity: 0.85,
                         }}
-                        title={`${task.title}\n${task.startDate || "?"} ~ ${task.dueDate || "?"}`}
+                        title={`${task.title}\n${task.startDate || '?'} ~ ${task.dueDate || '?'}`}
                       >
                         {bar.width > 60 && (
                           <span className="text-[9px] text-white font-medium truncate">

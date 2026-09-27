@@ -1,6 +1,6 @@
 {
   "name": "timebox",
-  "version": "1.58.0",
+  "version": "1.59.0",
   "private": true,
   "description": "TimeBox - Personal Schedule Manager",
   "scripts": {
@@ -11,7 +11,8 @@
     "start": "pnpm --filter @timebox/server start",
     "lint": "pnpm -r lint",
     "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,css}\"",
-    "test": "pnpm -r test"
+    "test": "vitest run",
+    "test:ui": "playwright test"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -24,9 +25,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.56.1",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
-    "typescript-eslint": "^8.57.2"
-  }
+    "typescript-eslint": "^8.57.2",
+    "vitest": "2.1.9"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "type": "module"
 }

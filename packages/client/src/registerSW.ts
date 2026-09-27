@@ -1,7 +1,7 @@
 export function registerServiceWorker() {
-  if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
+  if ('serviceWorker' in navigator && (import.meta as any).env?.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
         // SW registration failed, app works without it
       });
     });
@@ -17,10 +17,12 @@ export async function syncTokenToSW() {
 export async function registerPeriodicSync() {
   try {
     const registration = await navigator.serviceWorker.ready;
-    if ("periodicSync" in registration) {
-      await (registration as any).periodicSync.register("check-reminders", {
+    if ('periodicSync' in registration) {
+      await (registration as any).periodicSync.register('check-reminders', {
         minInterval: 60000, // 1 minute minimum
       });
     }
-  } catch {}
+  } catch {
+    /* Periodic sync is optional. */
+  }
 }

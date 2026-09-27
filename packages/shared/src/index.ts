@@ -1,4 +1,5 @@
 // Shared types and utilities for TimeBox
+export { dateInTimezone, calendarDaysBetween } from './dates.js';
 
 // ── Auth ──
 export interface LoginRequest {
@@ -52,14 +53,14 @@ export interface CreateEventInput {
 
 // ── TimeBlock ──
 export type TimeBlockCategory =
-  | "deep_work"
-  | "meeting"
-  | "email"
-  | "exercise"
-  | "break"
-  | "personal"
-  | "admin"
-  | "other";
+  | 'deep_work'
+  | 'meeting'
+  | 'email'
+  | 'exercise'
+  | 'break'
+  | 'personal'
+  | 'admin'
+  | 'other';
 
 export interface TimeBlock {
   id: number;
@@ -91,7 +92,7 @@ export interface CreateTimeBlockInput {
 }
 
 // ── Todo ──
-export type Priority = "high" | "medium" | "low";
+export type Priority = 'high' | 'medium' | 'low';
 
 export type TodoStatus = 'waiting' | 'active' | 'completed';
 
@@ -150,8 +151,8 @@ export interface CreateDDayInput {
 }
 
 // ── Reminder ──
-export type ReminderChannel = "telegram" | "web_push" | "both";
-export type ReminderSourceType = "event" | "todo" | "dday" | "custom";
+export type ReminderChannel = 'telegram' | 'web_push' | 'both';
+export type ReminderSourceType = 'event' | 'todo' | 'dday' | 'custom';
 
 export interface Reminder {
   id: number;
@@ -180,7 +181,7 @@ export interface CreateReminderInput {
 }
 
 // ── File ──
-export type UploadedVia = "web" | "telegram";
+export type UploadedVia = 'web' | 'telegram';
 
 export interface FileItem {
   id: number;
@@ -230,8 +231,8 @@ export interface Project {
   updatedAt: string;
 }
 
-export type ProjectRole = "owner" | "admin" | "member" | "viewer";
-export type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+export type ProjectRole = 'owner' | 'admin' | 'member' | 'viewer';
+export type TaskStatus = 'backlog' | 'todo' | 'in_progress' | 'review' | 'done';
 
 export interface ProjectTask {
   id: number;
@@ -278,7 +279,7 @@ export interface TaskTransfer {
   fromUserId: number;
   toUserId: number;
   message: string | null;
-  status: "pending" | "accepted" | "rejected";
+  status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
   respondedAt: string | null;
   task?: ProjectTask;

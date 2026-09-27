@@ -1,14 +1,16 @@
-import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { db } from "../db/index.js";
-import { users } from "../db/schema.js";
-import { eq } from "drizzle-orm";
-import { logger } from "../lib/logger.js";
+import { asyncHandler } from '../lib/asyncHandler.js';
+import type { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { db } from '../db/index.js';
+import { users } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+import { logger } from '../lib/logger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === "production" ? "" : "dev-secret-change-me");
+const JWT_SECRET =
+  process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-secret-change-me');
 
-if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  logger.error("FATAL: JWT_SECRET environment variable is required in production");
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  logger.error('FATAL: JWT_SECRET environment variable is required in production');
   process.exit(1);
 }
 
@@ -19,14 +21,15 @@ export interface AuthRequest extends Request {
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const headerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const headerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   // Allow a query-param token for GET requests only — needed for media elements
   // (<audio>/<img> src) that cannot send an Authorization header. GET-only keeps
   // it out of mutating requests.
-  const queryToken = req.method === "GET" && typeof req.query.token === "string" ? req.query.token : null;
+  const queryToken =
+    req.method === 'GET' && typeof req.query.token === 'string' ? req.query.token : null;
   const token = headerToken || queryToken;
   if (!token) {
-    res.status(401).json({ success: false, error: "No token provided" });
+    res.status(401).json({ success: false, error: 'No token provided' });
     return;
   }
 
@@ -36,26 +39,30 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     req.userRole = payload.role;
     next();
   } catch {
-    res.status(401).json({ success: false, error: "Invalid token" });
+    res.status(401).json({ success: false, error: 'Invalid token' });
   }
 }
 
-export async function adminMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
-  if (req.userRole === "admin") { next(); return; }
+export const adminMiddleware = asyncHandler<AuthRequest>(async (req, res, next) => {
+  if (req.userRole === 'admin') {
+    next();
+    return;
+  }
   // Fallback for old tokens without role
   const rows = await db.select().from(users).where(eq(users.id, req.userId!));
-  if (!rows[0] || rows[0].role !== "admin") {
-    res.status(403).json({ success: false, error: "Admin access required" });
+  if (!rows[0] || rows[0].role !== 'admin') {
+    res.status(403).json({ success: false, error: 'Admin access required' });
     return;
   }
   next();
-}
+});
 
 export function signToken(userId: number, role?: string): string {
-  return jwt.sign({ userId, role: role || "user" }, JWT_SECRET, { expiresIn: "30d" });
+  return jwt.sign({ userId, role: role || 'user' }, JWT_SECRET, { expiresIn: '30d' });
 }
 
 export function safeParseId(id: string | string[]): number | null {
-  const parsed = parseInt(id as string);
-  return isNaN(parsed) ? null : parsed;
+  if (typeof id !== 'string' || !/^\d+$/.test(id)) return null;
+  const parsed = Number(id);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }

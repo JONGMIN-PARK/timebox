@@ -1,4 +1,4 @@
-import type { TimeBlockCategory } from "@/stores/timeblockStore";
+import type { TimeBlockCategory } from '@/stores/timeblockStore';
 
 /** Pin / milestone text anchored at a time (same day). */
 export type TimelineAnnotation = {
@@ -12,7 +12,7 @@ export type TimeBlockMeta = {
   brainId?: string;
   prioritySlot?: 1 | 2 | 3;
   showArrow?: boolean;
-  variant?: "solid" | "stripes" | "outline";
+  variant?: 'solid' | 'stripes' | 'outline';
   /** Short on-canvas label (e.g. "→ 딥워크"). */
   caption?: string;
   /** Draw a faint gutter line to another block on the same day. */
@@ -27,7 +27,7 @@ export type TimeBlockMeta = {
 export function compactMeta(m: Partial<TimeBlockMeta>): TimeBlockMeta {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(m)) {
-    if (v === undefined || v === null || v === "") continue;
+    if (v === undefined || v === null || v === '') continue;
     if (Array.isArray(v) && v.length === 0) continue;
     out[k] = v;
   }
@@ -37,7 +37,10 @@ export function compactMeta(m: Partial<TimeBlockMeta>): TimeBlockMeta {
 export function parseBlockMeta(raw: string | null | undefined): TimeBlockMeta {
   if (!raw?.trim()) return {};
   try {
-    return JSON.parse(raw) as TimeBlockMeta;
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as TimeBlockMeta)
+      : {};
   } catch {
     return {};
   }
@@ -80,7 +83,7 @@ function safeSave(key: string, value: string) {
 /** Auth token used by the shared api client (see lib/api.ts). */
 function authToken(): string | null {
   try {
-    return localStorage.getItem("timebox_token");
+    return localStorage.getItem('timebox_token');
   } catch {
     return null;
   }
@@ -101,15 +104,29 @@ export interface DayPlan {
 }
 
 /** Fire-and-forget partial sync of the day plan to the server. */
-function syncDayPlan(date: string, patch: Partial<{ brain: BrainItem[]; top3: Top3Tuple; memo: string }>) {
+const dayPlanWrites = new Map<string, Promise<void>>();
+function syncDayPlan(
+  date: string,
+  patch: Partial<{ brain: BrainItem[]; top3: Top3Tuple; memo: string }>,
+) {
   const token = authToken();
   if (!token) return;
-  fetch(`/api/dayplan/${date}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(patch),
-  }).catch(() => {
-    /* offline — localStorage cache still holds the change */
+  const write = (dayPlanWrites.get(date) ?? Promise.resolve()).then(async () => {
+    try {
+      const response = await fetch(`/api/dayplan/${date}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(patch),
+      });
+      if (!response.ok) throw new Error('Day plan sync failed');
+    } catch {
+      // Local cache is retained; expose the failure to the current UI.
+      window.dispatchEvent(new CustomEvent('dayplan-sync-error', { detail: { date } }));
+    }
+  });
+  dayPlanWrites.set(date, write);
+  void write.then(() => {
+    if (dayPlanWrites.get(date) === write) dayPlanWrites.delete(date);
   });
 }
 
@@ -118,15 +135,17 @@ export async function fetchDayPlan(date: string): Promise<DayPlan | null> {
   const token = authToken();
   if (!token) return null;
   try {
-    const r = await fetch(`/api/dayplan/${date}`, { headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetch(`/api/dayplan/${date}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const j = await r.json();
     if (!j?.success || !j.data) return null;
     const d = j.data;
     return {
       exists: !!d.exists,
       brain: Array.isArray(d.brain) ? (d.brain as BrainItem[]) : [],
-      top3: [d.top3?.[0] ?? "", d.top3?.[1] ?? "", d.top3?.[2] ?? ""],
-      memo: typeof d.memo === "string" ? d.memo : "",
+      top3: [d.top3?.[0] ?? '', d.top3?.[1] ?? '', d.top3?.[2] ?? ''],
+      memo: typeof d.memo === 'string' ? d.memo : '',
     };
   } catch {
     return null;
@@ -134,12 +153,18 @@ export async function fetchDayPlan(date: string): Promise<DayPlan | null> {
 }
 
 /** Push the full local day plan to the server (used for first-time migration). */
-export function pushDayPlan(date: string, plan: { brain: BrainItem[]; top3: Top3Tuple; memo: string }) {
+export function pushDayPlan(
+  date: string,
+  plan: { brain: BrainItem[]; top3: Top3Tuple; memo: string },
+) {
   syncDayPlan(date, plan);
 }
 
 /** Refresh the localStorage cache from server data WITHOUT syncing back. */
-export function cacheDayPlanLocal(date: string, plan: { brain: BrainItem[]; top3: Top3Tuple; memo: string }) {
+export function cacheDayPlanLocal(
+  date: string,
+  plan: { brain: BrainItem[]; top3: Top3Tuple; memo: string },
+) {
   safeSave(brainKey(date), JSON.stringify(plan.brain));
   safeSave(top3Key(date), JSON.stringify(plan.top3));
   safeSave(memoKey(date), plan.memo);
@@ -154,13 +179,13 @@ export function loadBrainItems(date: string): BrainItem[] {
     const raw = localStorage.getItem(brainKey(date));
     if (raw) {
       const parsed = JSON.parse(raw) as BrainItem[];
-      if (Array.isArray(parsed) && parsed.length && "text" in parsed[0]) {
+      if (Array.isArray(parsed) && parsed.length && 'text' in parsed[0]) {
         return parsed.map((b) => ({
           id: b.id || uid(),
-          text: b.text || "",
-          notes: typeof b.notes === "string" ? b.notes : "",
-          category: b.category || "deep_work",
-          duration: typeof b.duration === "number" ? b.duration : 30,
+          text: b.text || '',
+          notes: typeof b.notes === 'string' ? b.notes : '',
+          category: b.category || 'deep_work',
+          duration: typeof b.duration === 'number' ? b.duration : 30,
           done: !!b.done,
         }));
       }
@@ -171,10 +196,10 @@ export function loadBrainItems(date: string): BrainItem[] {
       if (Array.isArray(legacy)) {
         const migrated: BrainItem[] = legacy.map((p) => ({
           id: p.id || uid(),
-          text: p.text || "",
-          notes: "",
-          category: p.category || "deep_work",
-          duration: typeof p.duration === "number" ? p.duration : 30,
+          text: p.text || '',
+          notes: '',
+          category: p.category || 'deep_work',
+          duration: typeof p.duration === 'number' ? p.duration : 30,
         }));
         saveBrainItems(date, migrated);
         return migrated;
@@ -199,13 +224,13 @@ export function loadTop3(date: string): Top3Tuple {
     if (raw) {
       const a = JSON.parse(raw) as string[];
       if (Array.isArray(a)) {
-        return [a[0] ?? "", a[1] ?? "", a[2] ?? ""];
+        return [a[0] ?? '', a[1] ?? '', a[2] ?? ''];
       }
     }
   } catch {
     /* ignore */
   }
-  return ["", "", ""];
+  return ['', '', ''];
 }
 
 export function saveTop3(date: string, slots: Top3Tuple) {
@@ -215,9 +240,9 @@ export function saveTop3(date: string, slots: Top3Tuple) {
 
 export function loadMemo(date: string): string {
   try {
-    return localStorage.getItem(memoKey(date)) || "";
+    return localStorage.getItem(memoKey(date)) || '';
   } catch {
-    return "";
+    return '';
   }
 }
 
@@ -226,7 +251,7 @@ export function saveMemo(date: string, memo: string) {
   syncDayPlan(date, { memo });
 }
 
-export const DAY_START_MIN = 5 * 60;
+export const DAY_START_MIN = 0;
 export const DAY_END_MIN = 24 * 60;
 /** Default snap when caller does not pass a step. */
 export const SNAP_MINUTES_DEFAULT = 10;
@@ -236,7 +261,7 @@ export const PX_PER_MINUTE_BASE = 1.12;
 export const PX_PER_MINUTE = PX_PER_MINUTE_BASE;
 
 /** Persisted timeline UI (client only). */
-export const ELON_VIEW_PREFS_KEY = "tb_elon_timeline_view";
+export const ELON_VIEW_PREFS_KEY = 'tb_elon_timeline_view';
 
 export type ElonViewPrefs = {
   zoomIdx: number;
@@ -269,13 +294,15 @@ export function loadDaySketch(date: string): FreehandSketchStroke[] {
         return p.filter(
           (s) =>
             s &&
-            typeof s.id === "string" &&
-            typeof s.color === "string" &&
-            typeof s.width === "number" &&
+            typeof s.id === 'string' &&
+            typeof s.color === 'string' &&
+            typeof s.width === 'number' &&
             Array.isArray(s.points),
         );
       }
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   // If no local data, try loading from server in background
   const token = authToken();
@@ -283,8 +310,8 @@ export function loadDaySketch(date: string): FreehandSketchStroke[] {
     fetch(`/api/sketches/${date}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data) => {
         if (data.success && data.data?.strokes) {
           localStorage.setItem(sketchKey(date), JSON.stringify(data.data.strokes));
         }
@@ -301,8 +328,8 @@ export function saveDaySketch(date: string, strokes: FreehandSketchStroke[]): vo
   const token = authToken();
   if (token) {
     fetch(`/api/sketches/${date}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ strokes }),
     }).catch(() => {});
   }
@@ -318,7 +345,7 @@ export function snapMinutes(m: number): number {
 }
 
 export function parseTimeToMinutes(t: string): number {
-  const [h, m] = t.split(":").map(Number);
+  const [h, m] = t.split(':').map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return DAY_START_MIN;
   return Math.min(DAY_END_MIN, Math.max(0, h * 60 + m));
 }
@@ -327,5 +354,5 @@ export function minutesToTime(total: number): string {
   const capped = Math.min(Math.max(0, total), DAY_END_MIN);
   const h = Math.floor(capped / 60);
   const m = capped % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }

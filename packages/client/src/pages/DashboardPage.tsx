@@ -1,77 +1,80 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import OnboardingGuide from "@/components/OnboardingGuide";
-import Sidebar from "@/components/layout/Sidebar";
-import MobileNav from "@/components/layout/MobileNav";
-import Header from "@/components/layout/Header";
-import DDayWidget from "@/components/dday/DDayWidget";
-import ReminderPanel from "@/components/reminders/ReminderPanel";
-import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import SplashScreen from "@/components/SplashScreen";
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import OnboardingGuide from '@/components/OnboardingGuide';
+import Sidebar from '@/components/layout/Sidebar';
+import MobileNav from '@/components/layout/MobileNav';
+import Header from '@/components/layout/Header';
+import DDayWidget from '@/components/dday/DDayWidget';
+import ReminderPanel from '@/components/reminders/ReminderPanel';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import SplashScreen from '@/components/SplashScreen';
 
-const TodoList = lazy(() => import("@/components/todo/TodoList"));
-const CalendarView = lazy(() => import("@/components/calendar/CalendarView"));
-const TimeBoxView = lazy(() => import("@/components/timebox/TimeBoxView"));
-const ElonScheduler = lazy(() => import("@/components/scheduler/ElonScheduler"));
-const FileVault = lazy(() => import("@/components/files/FileVault"));
-const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
-const InboxPanel = lazy(() => import("@/components/inbox/InboxPanel"));
-const ChatPanel = lazy(() => import("@/components/chat/ChatPanel"));
-const NotesView = lazy(() => import("@/components/notes/NotesView"));
-const AnalyticsDashboard = lazy(() => import("@/components/admin/AnalyticsDashboard"));
-import { useAuthStore } from "@/stores/authStore";
-import { useProjectStore } from "@/stores/projectStore";
-import { useSocketEvent } from "@/lib/SocketProvider";
-import ToastContainer, { showToast } from "@/components/ui/Toast";
-import HelpModal from "@/components/HelpModal";
-import SearchModal from "@/components/SearchModal";
-import VersionModal from "@/components/VersionModal";
-import BriefingModal from "@/components/briefing/BriefingModal";
-import ChatRequestPopup from "@/components/chat/ChatRequestPopup";
-import FloatingChat from "@/components/chat/FloatingChat";
+const TodoList = lazy(() => import('@/components/todo/TodoList'));
+const CalendarView = lazy(() => import('@/components/calendar/CalendarView'));
+const TimeBoxView = lazy(() => import('@/components/timebox/TimeBoxView'));
+const ElonScheduler = lazy(() => import('@/components/scheduler/ElonScheduler'));
+const FileVault = lazy(() => import('@/components/files/FileVault'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const InboxPanel = lazy(() => import('@/components/inbox/InboxPanel'));
+const ChatPanel = lazy(() => import('@/components/chat/ChatPanel'));
+const NotesView = lazy(() => import('@/components/notes/NotesView'));
+const AnalyticsDashboard = lazy(() => import('@/components/admin/AnalyticsDashboard'));
+import { useAuthStore } from '@/stores/authStore';
+import { useProjectStore } from '@/stores/projectStore';
+import { useSocketEvent } from '@/lib/SocketProvider';
+import ToastContainer, { showToast } from '@/components/ui/Toast';
+import HelpModal from '@/components/HelpModal';
+import SearchModal from '@/components/SearchModal';
+import VersionModal from '@/components/VersionModal';
+import BriefingModal from '@/components/briefing/BriefingModal';
+import ChatRequestPopup from '@/components/chat/ChatRequestPopup';
+import FloatingChat from '@/components/chat/FloatingChat';
 
-const ProjectView = lazy(() => import("@/components/project/ProjectView"));
-const ProjectSummary = lazy(() => import("@/components/project/ProjectSummary"));
-import NewProjectForm from "@/components/project/NewProjectForm";
-import { cn } from "@/lib/utils";
-import { useI18n } from "@/lib/useI18n";
-import { isQuietHoursActive } from "@/lib/quietHours";
+const ProjectView = lazy(() => import('@/components/project/ProjectView'));
+const ProjectSummary = lazy(() => import('@/components/project/ProjectSummary'));
+import NewProjectForm from '@/components/project/NewProjectForm';
+import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/useI18n';
+import { todayDate } from '@/lib/dateUtils';
+import { isQuietHoursActive } from '@/lib/quietHours';
 
 // Only show splash on the very first mount of the app session
 const splashShownRef = { current: false };
 
-type TodoSubTab = "tasks" | "reminders";
+type TodoSubTab = 'tasks' | 'reminders';
 
 export default function DashboardPage() {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState("calendar");
-  const [todoSubTab, setTodoSubTab] = useState<TodoSubTab>("tasks");
+  const [activeTab, setActiveTab] = useState('scheduler');
+  const [todoSubTab, setTodoSubTab] = useState<TodoSubTab>('tasks');
   const [showHelp, setShowHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showVersion, setShowVersion] = useState(false);
   const [showBriefing, setShowBriefing] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showSplash, setShowSplash] = useState(() => {
-    if (splashShownRef.current) return false;
+    if (splashShownRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+      return false;
     splashShownRef.current = true;
     return true;
   });
   const { fetchMe } = useAuthStore();
   const { activeProjectId } = useProjectStore();
-  const user = useAuthStore(s => s.user);
-  const hasTeamAccess = user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
+  const user = useAuthStore((s) => s.user);
+  const hasTeamAccess =
+    user?.role === 'admin' || user?.hasProjectAccess || (user?.teamGroups?.length ?? 0) > 0;
 
   useEffect(() => {
     fetchMe();
     // Show the onboarding guide for first-time users.
     // Note: we intentionally do NOT seed sample/dummy data — it was being
     // re-created on any browser/device missing the local "seeded" flag.
-    if (!localStorage.getItem("timebox_onboarding_done")) {
+    if (!localStorage.getItem('timebox_onboarding_done')) {
       setShowOnboarding(true);
     } else {
       // Auto-open the daily briefing once per calendar day for returning users.
-      const today = new Date().toLocaleDateString("en-CA");
-      if (localStorage.getItem("timebox_briefing_date") !== today) {
-        localStorage.setItem("timebox_briefing_date", today);
+      const today = todayDate();
+      if (localStorage.getItem('timebox_briefing_date') !== today) {
+        localStorage.setItem('timebox_briefing_date', today);
         setShowBriefing(true);
       }
     }
@@ -79,104 +82,153 @@ export default function DashboardPage() {
 
   // Browser notifications for background events
   const showNotif = useCallback((title: string, body: string) => {
-    if (document.hidden && Notification.permission === "granted" && !isQuietHoursActive()) {
-      new Notification(title, { body, icon: "/icon-192.png" });
+    if (document.hidden && Notification.permission === 'granted' && !isQuietHoursActive()) {
+      new Notification(title, { body, icon: '/icon-192.png' });
     }
   }, []);
 
-  useSocketEvent("inbox:new-message", useCallback((data: any) => {
-    const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-    if (prefs.inbox !== false) showNotif("새 메시지", data.fromName ? `${data.fromName}님의 메시지` : "새 메시지가 도착했습니다");
-  }, [showNotif]));
+  useSocketEvent(
+    'inbox:new-message',
+    useCallback(
+      (data: any) => {
+        const prefs = JSON.parse(localStorage.getItem('timebox_notification_prefs') || '{}');
+        if (prefs.inbox !== false)
+          showNotif(
+            '새 메시지',
+            data.fromName ? `${data.fromName}님의 메시지` : '새 메시지가 도착했습니다',
+          );
+      },
+      [showNotif],
+    ),
+  );
 
-  useSocketEvent("chat:message", useCallback((data: any) => {
-    const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-    if (prefs.chat !== false) showNotif("채팅", data.message?.senderName ? `${data.message.senderName}: ${(data.message.content || "").slice(0, 50)}` : "새 채팅 메시지");
-  }, [showNotif]));
+  useSocketEvent(
+    'chat:message',
+    useCallback(
+      (data: any) => {
+        const prefs = JSON.parse(localStorage.getItem('timebox_notification_prefs') || '{}');
+        if (prefs.chat !== false)
+          showNotif(
+            '채팅',
+            data.message?.senderName
+              ? `${data.message.senderName}: ${(data.message.content || '').slice(0, 50)}`
+              : '새 채팅 메시지',
+          );
+      },
+      [showNotif],
+    ),
+  );
 
-  useSocketEvent("task:assigned", useCallback((_data: any) => {
-    const prefs = JSON.parse(localStorage.getItem("timebox_notification_prefs") || "{}");
-    if (prefs.tasks !== false) showNotif("태스크 할당", "새로운 태스크가 할당되었습니다");
-  }, [showNotif]));
+  useSocketEvent(
+    'task:assigned',
+    useCallback(
+      (_data: any) => {
+        const prefs = JSON.parse(localStorage.getItem('timebox_notification_prefs') || '{}');
+        if (prefs.tasks !== false) showNotif('태스크 할당', '새로운 태스크가 할당되었습니다');
+      },
+      [showNotif],
+    ),
+  );
 
   // Handle missed messages on reconnect
-  useSocketEvent("sync:messages", useCallback((data: { count: number }) => {
-    if (data.count > 0) {
-      window.dispatchEvent(new Event("inbox-updated"));
-      showToast("info", `${data.count}개의 새 메시지가 있습니다`);
-    }
-  }, []));
+  useSocketEvent(
+    'sync:messages',
+    useCallback((data: { count: number }) => {
+      if (data.count > 0) {
+        window.dispatchEvent(new Event('inbox-updated'));
+        showToast('info', `${data.count}개의 새 메시지가 있습니다`);
+      }
+    }, []),
+  );
 
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       // Skip if typing in input/textarea
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
       switch (e.key) {
-        case "1": setActiveTab("calendar"); break;
-        case "2": setActiveTab("timebox"); break;
-        case "3": setActiveTab("todo"); break;
-        case "4": setActiveTab("files"); break;
-        case "5": setActiveTab("scheduler"); break;
-        case "?": setShowHelp(true); break;
-        case "/": e.preventDefault(); setShowSearch(true); break;
-        case "Escape": setShowHelp(false); setShowSearch(false); break;
+        case '1':
+          setActiveTab('calendar');
+          break;
+        case '2':
+          setActiveTab('timebox');
+          break;
+        case '3':
+          setActiveTab('todo');
+          break;
+        case '4':
+          setActiveTab('files');
+          break;
+        case '5':
+          setActiveTab('scheduler');
+          break;
+        case '?':
+          setShowHelp(true);
+          break;
+        case '/':
+          e.preventDefault();
+          setShowSearch(true);
+          break;
+        case 'Escape':
+          setShowHelp(false);
+          setShowSearch(false);
+          break;
       }
     };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   const renderMainContent = () => {
     switch (activeTab) {
-      case "calendar":
+      case 'calendar':
         return <CalendarView />;
-      case "timebox":
+      case 'timebox':
         return <TimeBoxView />;
-      case "todo":
+      case 'todo':
         return (
           <div className="flex flex-col h-full min-h-0 overflow-hidden">
             <div
               className="flex-shrink-0 flex gap-1 p-2 px-3 border-b border-slate-200/60 dark:border-slate-700/40 bg-slate-100/70 dark:bg-slate-800/50"
               role="tablist"
-              aria-label={t("nav.todos")}
+              aria-label={t('nav.todos')}
             >
               <button
                 type="button"
                 role="tab"
-                aria-selected={todoSubTab === "tasks"}
+                aria-selected={todoSubTab === 'tasks'}
                 id="todo-subtab-tasks"
                 aria-controls="todo-subtab-panel-tasks"
-                onClick={() => setTodoSubTab("tasks")}
+                onClick={() => setTodoSubTab('tasks')}
                 className={cn(
-                  "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  todoSubTab === "tasks"
-                    ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200/80 dark:ring-slate-600"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/60",
+                  'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  todoSubTab === 'tasks'
+                    ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200/80 dark:ring-slate-600'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/60',
                 )}
               >
-                {t("todo.subTab.tasks")}
+                {t('todo.subTab.tasks')}
               </button>
               <button
                 type="button"
                 role="tab"
-                aria-selected={todoSubTab === "reminders"}
+                aria-selected={todoSubTab === 'reminders'}
                 id="todo-subtab-reminders"
                 aria-controls="todo-subtab-panel-reminders"
-                onClick={() => setTodoSubTab("reminders")}
+                onClick={() => setTodoSubTab('reminders')}
                 className={cn(
-                  "flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  todoSubTab === "reminders"
-                    ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200/80 dark:ring-slate-600"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/60",
+                  'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  todoSubTab === 'reminders'
+                    ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 ring-1 ring-slate-200/80 dark:ring-slate-600'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700/60',
                 )}
               >
-                {t("todo.subTab.remindersDday")}
+                {t('todo.subTab.remindersDday')}
               </button>
             </div>
-            {todoSubTab === "tasks" ? (
+            {todoSubTab === 'tasks' ? (
               <div
                 id="todo-subtab-panel-tasks"
                 role="tabpanel"
@@ -198,30 +250,30 @@ export default function DashboardPage() {
             )}
           </div>
         );
-      case "scheduler":
+      case 'scheduler':
         return <ElonScheduler />;
-      case "settings":
+      case 'settings':
         return <SettingsPage />;
-      case "files":
+      case 'files':
         return <FileVault />;
-      case "notes":
+      case 'notes':
         return <NotesView />;
-      case "inbox":
+      case 'inbox':
         return <InboxPanel />;
-      case "chat":
+      case 'chat':
         return <ChatPanel />;
-      case "analytics":
+      case 'analytics':
         return <AnalyticsDashboard />;
-      case "projects":
+      case 'projects':
         return <ProjectSummary />;
-      case "project-new":
+      case 'project-new':
         return (
           <NewProjectForm
             onCreated={(projectId) => {
               useProjectStore.getState().setActiveProject(projectId);
-              setActiveTab("project-dashboard");
+              setActiveTab('project-dashboard');
             }}
-            onCancel={() => setActiveTab("calendar")}
+            onCancel={() => setActiveTab('calendar')}
           />
         );
       default:
@@ -229,7 +281,15 @@ export default function DashboardPage() {
     }
   };
 
-  const showRightPanel = !["settings", "scheduler", "chat", "analytics", "todo", "timebox", "notes"].includes(activeTab);
+  const showRightPanel = ![
+    'settings',
+    'scheduler',
+    'chat',
+    'analytics',
+    'todo',
+    'timebox',
+    'notes',
+  ].includes(activeTab);
 
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
@@ -240,65 +300,109 @@ export default function DashboardPage() {
       <div className="flex-1 flex min-h-0">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
         <div className="flex-1 flex flex-col min-w-0">
-        <Header onInboxClick={() => {
-          useProjectStore.getState().setActiveProject(null);
-          setActiveTab("inbox");
-        }} onVersionClick={() => setShowVersion(true)} onBriefingClick={() => setShowBriefing(true)} />
+          <Header
+            onInboxClick={() => {
+              useProjectStore.getState().setActiveProject(null);
+              setActiveTab('inbox');
+            }}
+            onVersionClick={() => setShowVersion(true)}
+            onBriefingClick={() => setShowBriefing(true)}
+          />
 
-        <div className="flex-1 flex min-h-0 overflow-hidden">
-          {activeProjectId && hasTeamAccess ? (
-            <main className="min-h-0 flex-1 overflow-hidden animate-in">
-              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-400">Loading...</div>}>
-                <ProjectView projectId={activeProjectId} initialTab={activeTab.startsWith("project-") ? activeTab.replace("project-", "") as any : "dashboard"} />
-              </Suspense>
-            </main>
-          ) : (
-            <>
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            {activeProjectId && hasTeamAccess ? (
               <main className="min-h-0 flex-1 overflow-hidden animate-in">
-                <Suspense fallback={<div className="flex-1 flex items-center justify-center"><LoadingSpinner /></div>}>
-                  {renderMainContent()}
+                <Suspense
+                  fallback={
+                    <div className="flex-1 flex items-center justify-center text-slate-400">
+                      Loading...
+                    </div>
+                  }
+                >
+                  <ProjectView
+                    projectId={activeProjectId}
+                    initialTab={
+                      activeTab.startsWith('project-')
+                        ? (activeTab.replace('project-', '') as any)
+                        : 'dashboard'
+                    }
+                  />
                 </Suspense>
               </main>
-
-              {showRightPanel && (
-                <aside className="hidden lg:flex flex-col w-1/2 max-w-3xl min-w-[20rem] shrink-0 min-h-0 h-full border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-hidden">
-                  {activeTab !== "todo" && (
-                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden border-b border-slate-200/60 dark:border-slate-700/40">
-                      <Suspense fallback={<div className="p-4"><LoadingSpinner size="sm" /></div>}>
-                        <TodoList />
-                      </Suspense>
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "p-4 space-y-4 overflow-y-auto border-t border-slate-200/40 dark:border-slate-700/30",
-                      activeTab === "todo" ? "flex-1 min-h-0" : "flex-shrink-0 max-h-[min(32vh,22rem)]",
-                    )}
+            ) : (
+              <>
+                <main className="min-h-0 flex-1 overflow-hidden animate-in">
+                  <Suspense
+                    fallback={
+                      <div className="flex-1 flex items-center justify-center">
+                        <LoadingSpinner />
+                      </div>
+                    }
                   >
-                    <ReminderPanel />
-                    <DDayWidget />
-                  </div>
-                </aside>
-              )}
-            </>
-          )}
-        </div>
+                    {renderMainContent()}
+                  </Suspense>
+                </main>
+
+                {showRightPanel && (
+                  <aside className="hidden lg:flex flex-col w-[340px] xl:w-[380px] min-w-[18rem] shrink-0 min-h-0 h-full border-l border-slate-200/60 dark:border-slate-700/40 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm overflow-hidden">
+                    {activeTab !== 'todo' && (
+                      <div className="flex-1 min-h-0 flex flex-col overflow-hidden border-b border-slate-200/60 dark:border-slate-700/40">
+                        <Suspense
+                          fallback={
+                            <div className="p-4">
+                              <LoadingSpinner size="sm" />
+                            </div>
+                          }
+                        >
+                          <TodoList />
+                        </Suspense>
+                      </div>
+                    )}
+                    <div
+                      className={cn(
+                        'p-4 space-y-4 overflow-y-auto border-t border-slate-200/40 dark:border-slate-700/30',
+                        activeTab === 'todo'
+                          ? 'flex-1 min-h-0'
+                          : 'flex-shrink-0 max-h-[min(32vh,22rem)]',
+                      )}
+                    >
+                      <ReminderPanel />
+                      <DDayWidget />
+                    </div>
+                  </aside>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
-      <ChatRequestPopup onAccept={() => setActiveTab("chat")} />
+      <ChatRequestPopup onAccept={() => setActiveTab('chat')} />
       <HelpModal open={showHelp} onClose={() => setShowHelp(false)} />
       <VersionModal open={showVersion} onClose={() => setShowVersion(false)} />
-      <BriefingModal open={showBriefing} onClose={() => setShowBriefing(false)} onNavigate={(tab) => { useProjectStore.getState().setActiveProject(null); setActiveTab(tab); }} />
-      <SearchModal open={showSearch} onClose={() => setShowSearch(false)} onNavigate={setActiveTab} />
+      <BriefingModal
+        open={showBriefing}
+        onClose={() => setShowBriefing(false)}
+        onNavigate={(tab) => {
+          useProjectStore.getState().setActiveProject(null);
+          setActiveTab(tab);
+        }}
+      />
+      <SearchModal
+        open={showSearch}
+        onClose={() => setShowSearch(false)}
+        onNavigate={setActiveTab}
+      />
       <FloatingChat />
       <ToastContainer />
       {showOnboarding && (
-        <OnboardingGuide onComplete={() => {
-          setShowOnboarding(false);
-          localStorage.setItem("timebox_onboarding_done", "true");
-        }} />
+        <OnboardingGuide
+          onComplete={() => {
+            setShowOnboarding(false);
+            localStorage.setItem('timebox_onboarding_done', 'true');
+          }}
+        />
       )}
     </div>
   );

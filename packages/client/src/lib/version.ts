@@ -18,6 +18,15 @@ export interface VersionEntry {
 // the deployed version numbers (CI bumps the minor per deploy).
 const HISTORY: VersionEntry[] = [
   {
+    version: "1.59.0",
+    date: "2026-09-27",
+    highlights: ["하루 계획 화면 개편", "빠른 시간 배치와 집중 타이머", "저장·백업·알림 안정성 개선"],
+    changes: [
+      { category: "하루 계획", emoji: "✨", items: ["하루 계획 기본 화면과 중요 과제 3개, 시간 예산·완료율 표시", "15·30·45·60분 단위 빈 시간 배치와 현재 시각·겹침 표시", "새로고침에도 유지되는 집중 타이머와 일시정지·재개", "모바일·태블릿·다크 모드 시인성과 편집 접근성 개선"] },
+      { category: "안정성 및 구조", emoji: "🛠️", items: ["저장 실패 시 입력 유지 및 항목별 롤백, 날짜·프로젝트 조회 경합 방지", "백업 복원 트랜잭션과 부모 할 일·블록 연결 ID 복원", "알림 전송 기록과 중복 억제, 시간대별 날짜 계산 통합", "서버 앱·작업·마이그레이션 분리 및 자동 테스트 추가"] },
+    ],
+  },
+  {
     version: "1.58.0",
     date: "2026-07-05",
     highlights: ["이미지 파일 자동 미리보기", "이미지 라이트박스"],

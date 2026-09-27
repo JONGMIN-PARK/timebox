@@ -1,8 +1,10 @@
-import { useRef, useMemo, useCallback, useState, useEffect } from "react";
-import { Shield } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useI18n } from "@/lib/useI18n";
-import { CATEGORY_CONFIG, type TimeBlock } from "@/stores/timeblockStore";
+import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import { Shield, Check, LocateFixed, Clock3 as ClockEmpty } from 'lucide-react';
+import { localNow, todayDate } from '@/lib/dateUtils';
+import { overlapLanes } from './planning';
+import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/useI18n';
+import { CATEGORY_CONFIG, type TimeBlock } from '@/stores/timeblockStore';
 import {
   DAY_START_MIN,
   DAY_END_MIN,
@@ -13,13 +15,15 @@ import {
   uid,
   type FreehandSketchPoint,
   type FreehandSketchStroke,
-} from "./elonStorage";
+} from './elonStorage';
 
 const MIN_BLOCK_MIN = 10;
 const TAP_MOVE_PX = 10;
 
 type Props = {
   blocks: TimeBlock[];
+  selectedDate?: string;
+  onToggleComplete?: (id: number) => void;
   pxPerMinute: number;
   snapStep: number;
   /** Dim blocks that are not Top-3 slots. */
@@ -38,7 +42,7 @@ type Props = {
   sketchColor?: string;
 };
 
-type DragKind = "move" | "resize-start" | "resize-end";
+type DragKind = 'move' | 'resize-start' | 'resize-end';
 
 type DragRef = {
   pointerId: number;
@@ -54,16 +58,16 @@ type DragRef = {
 };
 
 function sketchPointsToPathD(points: FreehandSketchPoint[], bandW: number, ppm: number): string {
-  if (points.length === 0) return "";
+  if (points.length === 0) return '';
   const w = Math.max(bandW, 1);
   const parts: string[] = [];
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
     const x = p.nx * w;
     const y = (p.m - DAY_START_MIN) * ppm;
-    parts.push(`${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    parts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
   }
-  return parts.join(" ");
+  return parts.join(' ');
 }
 
 function clientToSketchPoint(
@@ -83,6 +87,8 @@ function clientToSketchPoint(
 
 export default function ElonTimeCanvas({
   blocks,
+  selectedDate,
+  onToggleComplete,
   pxPerMinute,
   snapStep,
   focusPriorityOnly = false,
@@ -94,11 +100,34 @@ export default function ElonTimeCanvas({
   sketchStrokes = [],
   onSketchStrokesChange,
   sketchMode = false,
-  sketchColor = "#6366f1",
+  sketchColor = '#6366f1',
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const ko = locale === 'ko';
+  const [now, setNow] = useState(localNow);
+  const lanes = useMemo(() => overlapLanes(blocks), [blocks]);
+  const nowMinute = now.getHours() * 60 + now.getMinutes();
+  const isCurrentDay = selectedDate === todayDate();
+  const autoScrolledDate = useRef<string>();
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const scrollToMinute = (minute: number) =>
+    scrollRef.current?.scrollTo({
+      top: Math.max(0, (minute - DAY_START_MIN) * pxPerMinute - 60),
+      behavior: 'smooth',
+    });
+  useEffect(() => {
+    const interval = setInterval(() => setNow(localNow()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    if (autoScrolledDate.current === selectedDate) return;
+    autoScrolledDate.current = selectedDate;
+    scrollRef.current?.scrollTo({
+      top: Math.max(0, ((isCurrentDay ? nowMinute : 8 * 60) - DAY_START_MIN) * pxPerMinute - 60),
+      behavior: 'instant',
+    });
+  }, [selectedDate]);
   const sketchBandRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragRef | null>(null);
   const suppressClickRef = useRef(false);
@@ -185,10 +214,10 @@ export default function ElonTimeCanvas({
 
       const m = minuteFromClientY(ev.clientY);
 
-      if (d.kind === "resize-end") {
+      if (d.kind === 'resize-end') {
         const ne = snap(Math.max(d.startMin0 + MIN_BLOCK_MIN, Math.min(DAY_END_MIN, m)));
         applyPreview(d.blockId, d.startMin0, ne);
-      } else if (d.kind === "resize-start") {
+      } else if (d.kind === 'resize-start') {
         const ns = snap(Math.min(d.endMin0 - MIN_BLOCK_MIN, Math.max(DAY_START_MIN, m)));
         applyPreview(d.blockId, ns, d.endMin0);
       } else {
@@ -226,20 +255,20 @@ export default function ElonTimeCanvas({
           suppressClickRef.current = false;
         }, 320);
         onBlockTimeChange(captured.blockId, minutesToTime(prev.s), minutesToTime(prev.e));
-      } else if (!captured.moved && captured.kind === "move" && block) {
+      } else if (!captured.moved && captured.kind === 'move' && block) {
         onTapBlock(block);
       }
 
       clearPreview();
     };
 
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
   }, [minuteFromClientY, applyPreview, clearPreview, onBlockTimeChange, onTapBlock, snap]);
 
@@ -264,7 +293,7 @@ export default function ElonTimeCanvas({
       if (!g1 || !g2) continue;
       const y1 = g1.top + g1.height / 2;
       const y2 = g2.top + g2.height / 2;
-      const color = b.color || CATEGORY_CONFIG[b.category]?.color || "#94a3b8";
+      const color = b.color || CATEGORY_CONFIG[b.category]?.color || '#94a3b8';
       out.push({ key: `${b.id}-${tid}`, y1, y2, color });
     }
     return out;
@@ -276,7 +305,7 @@ export default function ElonTimeCanvas({
     for (const b of blocks) {
       if (b.id < 0) continue;
       const meta = parseBlockMeta(b.meta ?? null);
-      const color = b.color || CATEGORY_CONFIG[b.category]?.color || "#64748b";
+      const color = b.color || CATEGORY_CONFIG[b.category]?.color || '#64748b';
       for (const a of meta.annotations ?? []) {
         const text = a.text?.trim();
         if (!text) continue;
@@ -298,8 +327,8 @@ export default function ElonTimeCanvas({
     (e: React.MouseEvent) => {
       if (sketchMode) return;
       if (suppressClickRef.current) return;
-      if ((e.target as HTMLElement).closest("[data-block-chip]")) return;
-      if ((e.target as HTMLElement).closest("[data-annotation-pin]")) return;
+      if ((e.target as HTMLElement).closest('[data-block-chip]')) return;
+      if ((e.target as HTMLElement).closest('[data-annotation-pin]')) return;
       const el = scrollRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -412,24 +441,46 @@ export default function ElonTimeCanvas({
   };
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden min-h-[220px]">
-      <div className="px-2 py-1.5 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 flex flex-col gap-0.5">
+    <div className="planner-canvas">
+      <div className="planner-canvas-header">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t("elon.timeTable")}</span>
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            {ko
+              ? '빈 곳을 눌러 추가 · 블록을 눌러 편집'
+              : 'Tap a free slot to add · Tap a block to edit'}
+          </span>
+          {isCurrentDay && (
+            <button
+              type="button"
+              className="planner-now-button"
+              onClick={() => {
+                setNow(localNow());
+                const current = localNow();
+                scrollToMinute(current.getHours() * 60 + current.getMinutes());
+              }}
+            >
+              <LocateFixed size={14} />
+              {ko ? '지금' : 'Now'}
+            </button>
+          )}
         </div>
-        <span className="text-[9px] text-slate-400 leading-snug">
-          {sketchMode ? t("elon.sketchHint") : editMode ? t("elon.timeTableHintDrag") : t("elon.timeTableHintTap")}
+        <span className="text-[11px] text-slate-500 leading-snug">
+          {sketchMode
+            ? t('elon.sketchHint')
+            : editMode
+              ? t('elon.timeTableHintDrag')
+              : t('elon.timeTableHintTap')}
         </span>
       </div>
       <div
         ref={scrollRef}
-        className="relative overflow-y-auto max-h-[min(55vh,420px)] touch-pan-y overscroll-contain"
-        style={{ scrollBehavior: "smooth" }}
+        className="planner-canvas-scroll relative overflow-y-auto touch-pan-y overscroll-contain"
+        style={{ scrollBehavior: 'smooth' }}
       >
         <div
           ref={trackRef}
           className="relative select-none"
-          style={{ height: heightPx, minHeight: heightPx, touchAction: "pan-y" }}
+          style={{ height: heightPx, minHeight: heightPx, touchAction: 'pan-y' }}
           onClick={handleTrackClick}
         >
           <svg
@@ -459,19 +510,22 @@ export default function ElonTimeCanvas({
             return (
               <div
                 key={h}
-                className="absolute left-0 right-0 border-t border-slate-100 dark:border-slate-700/80 pointer-events-none"
+                className="absolute left-0 right-0 border-t border-slate-200 dark:border-slate-700 pointer-events-none"
                 style={{ top }}
               >
-                <span className="absolute left-1 -top-2.5 text-[9px] text-slate-400 tabular-nums bg-white/90 dark:bg-slate-900/90 px-0.5">
-                  {h}
+                <span className="absolute left-2 -top-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums bg-white dark:bg-slate-900 px-1">
+                  {String(h).padStart(2, '0')}:00
                 </span>
               </div>
             );
           })}
-          {Array.from({ length: Math.ceil(totalMin / minorGridStep) }, (_, i) => i * minorGridStep).map((m) => (
+          {Array.from(
+            { length: Math.ceil(totalMin / minorGridStep) },
+            (_, i) => i * minorGridStep,
+          ).map((m) => (
             <div
               key={m}
-              className="absolute left-8 right-1 border-t border-slate-50 dark:border-slate-800 pointer-events-none"
+              className="absolute left-16 right-3 border-t border-slate-100 dark:border-slate-800 pointer-events-none"
               style={{ top: m * pxPerMinute }}
             />
           ))}
@@ -481,14 +535,14 @@ export default function ElonTimeCanvas({
               key={pin.key}
               data-annotation-pin
               className="absolute left-8 right-1 z-[15] flex items-start pointer-events-none"
-              style={{ top: pin.top, transform: "translateY(-50%)" }}
+              style={{ top: pin.top, transform: 'translateY(-50%)' }}
             >
               <div
                 className="max-w-[min(140px,45%)] rounded-md px-1.5 py-0.5 text-[8px] font-medium leading-tight shadow-sm border"
                 style={{
                   borderColor: `${pin.color}88`,
                   backgroundColor: `${pin.color}22`,
-                  color: "var(--tw-prose-body, inherit)",
+                  color: 'var(--tw-prose-body, inherit)',
                 }}
               >
                 <span className="text-slate-700 dark:text-slate-200">{pin.text}</span>
@@ -502,6 +556,34 @@ export default function ElonTimeCanvas({
             </div>
           )}
 
+          {isCurrentDay && nowMinute >= DAY_START_MIN && nowMinute <= DAY_END_MIN && (
+            <div
+              className="planner-now-line"
+              style={{ top: (nowMinute - DAY_START_MIN) * pxPerMinute }}
+            >
+              <span>
+                {String(now.getHours()).padStart(2, '0')}:
+                {String(now.getMinutes()).padStart(2, '0')}
+              </span>
+              <i />
+            </div>
+          )}
+          {blocks.length === 0 && (
+            <div
+              className="planner-timeline-empty"
+              style={{ top: (8 * 60 - DAY_START_MIN) * pxPerMinute }}
+            >
+              <ClockEmpty />
+              <strong>
+                {ko ? '첫 타임박스를 만들어 보세요' : 'Make room for your first task'}
+              </strong>
+              <span>
+                {ko
+                  ? '할 일의 시간 버튼을 누르거나 빈 시간표를 클릭하세요.'
+                  : 'Tap a task duration or any free slot on the timeline.'}
+              </span>
+            </div>
+          )}
           {blocks.map((block) => {
             const pv = livePreview[block.id] ?? null;
             const geo = layoutBlock(block, pv);
@@ -509,17 +591,20 @@ export default function ElonTimeCanvas({
             const cat = CATEGORY_CONFIG[block.category] || CATEGORY_CONFIG.other;
             const color = block.color || cat.color;
             const meta = parseBlockMeta(block.meta ?? null);
-            const variant = meta.variant || "solid";
+            const variant = meta.variant || 'solid';
             const bg =
-              variant === "stripes"
+              variant === 'stripes'
                 ? `repeating-linear-gradient(-45deg, ${color}33, ${color}33 4px, ${color}18 4px, ${color}18 8px)`
-                : variant === "outline"
-                  ? "transparent"
+                : variant === 'outline'
+                  ? 'transparent'
                   : `${color}28`;
-            const border = variant === "outline" ? `2px solid ${color}` : `1px solid ${color}55`;
+            const border = variant === 'outline' ? `2px solid ${color}` : `1px solid ${color}55`;
             const z = pv ? 30 : 10;
+            const lane = lanes.get(block.id) ?? { column: 0, columns: 1 };
             const dim =
-              focusPriorityOnly && meta.prioritySlot == null && block.id > 0 ? "opacity-[0.36]" : "opacity-100";
+              focusPriorityOnly && meta.prioritySlot == null && block.id > 0
+                ? 'opacity-[0.36]'
+                : 'opacity-100';
             const incoming = incomingLinkCount?.get(block.id) ?? 0;
 
             return (
@@ -527,8 +612,9 @@ export default function ElonTimeCanvas({
                 key={block.id}
                 data-block-chip
                 className={cn(
-                  "absolute left-7 right-1 rounded-lg shadow-sm z-10 overflow-hidden transition-opacity duration-200",
-                  pv && "ring-2 ring-blue-400/70",
+                  'planner-block absolute rounded-xl z-10 overflow-hidden transition-opacity duration-200',
+                  block.completed && 'is-complete',
+                  pv && 'ring-2 ring-blue-400/70',
                   dim,
                 )}
                 style={{
@@ -537,32 +623,47 @@ export default function ElonTimeCanvas({
                   background: bg,
                   border,
                   zIndex: z,
+                  left: `calc(64px + (100% - 76px) * ${lane.column / lane.columns})`,
+                  width: `calc((100% - 76px) / ${lane.columns} - 4px)`,
+                  borderLeft: `4px solid ${color}`,
+                  opacity: block.completed ? 0.65 : undefined,
                 }}
               >
                 {editMode && block.id > 0 && (
                   <div
                     data-resize-handle
                     role="slider"
-                    aria-label={t("elon.resizeStart")}
+                    aria-label={t('elon.resizeStart')}
                     className="absolute top-0 left-0 right-0 h-3.5 cursor-ns-resize z-20 touch-none bg-gradient-to-b from-black/10 to-transparent dark:from-white/10"
-                    onPointerDown={(e) => startDrag(e, "resize-start", block, geo.startMin, geo.endMin)}
+                    onPointerDown={(e) =>
+                      startDrag(e, 'resize-start', block, geo.startMin, geo.endMin)
+                    }
                   />
                 )}
                 <div
+                  role="button"
+                  tabIndex={block.id > 0 ? 0 : -1}
+                  aria-label={`${block.title}, ${block.startTime}–${block.endTime}`}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onTapBlock(block);
+                    }
+                  }}
                   className={cn(
-                    "px-1.5 py-0.5 min-h-[28px]",
+                    'px-2.5 py-1.5 min-h-[24px] pr-9',
                     block.id < 0
-                      ? "cursor-default"
+                      ? 'cursor-default'
                       : editMode
-                        ? "cursor-grab active:cursor-grabbing touch-none"
-                        : "cursor-pointer",
+                        ? 'cursor-grab active:cursor-grabbing touch-none'
+                        : 'cursor-pointer',
                   )}
                   onPointerDown={
                     editMode
                       ? (e) => {
                           if (block.id < 0) return;
-                          if ((e.target as HTMLElement).closest("[data-resize-handle]")) return;
-                          startDrag(e, "move", block, geo.startMin, geo.endMin);
+                          if ((e.target as HTMLElement).closest('[data-resize-handle]')) return;
+                          startDrag(e, 'move', block, geo.startMin, geo.endMin);
                         }
                       : undefined
                   }
@@ -577,41 +678,72 @@ export default function ElonTimeCanvas({
                 >
                   <div className="flex items-start gap-0.5 min-h-0 pointer-events-none">
                     {meta.prioritySlot != null && (
-                      <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0">{meta.prioritySlot}</span>
+                      <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                        {meta.prioritySlot}
+                      </span>
                     )}
                     {incoming > 0 && (
                       <span
                         className="text-[8px] font-semibold text-violet-600 dark:text-violet-300 shrink-0"
-                        title={t("elon.incomingLinks")}
+                        title={t('elon.incomingLinks')}
                       >
                         ←{incoming}
                       </span>
                     )}
                     {meta.protected && (
-                      <Shield className="w-2.5 h-2.5 text-emerald-500 shrink-0 mt-0.5" aria-label={t("elon.protectedBlock")} />
+                      <Shield
+                        className="w-2.5 h-2.5 text-emerald-500 shrink-0 mt-0.5"
+                        aria-label={t('elon.protectedBlock')}
+                      />
                     )}
-                    <span className="text-[10px] font-medium text-slate-900 dark:text-white leading-tight line-clamp-3">
-                      {cat.icon} {block.title}
+                    <span className="text-[13px] font-semibold text-slate-900 dark:text-white leading-tight line-clamp-2">
+                      {block.title}
                     </span>
-                    {meta.showArrow && <span className="text-[9px] text-slate-500 shrink-0 ml-auto">↔</span>}
+                    {meta.showArrow && (
+                      <span className="text-[9px] text-slate-500 shrink-0 ml-auto">↔</span>
+                    )}
                   </div>
-                  {meta.caption && (
-                    <p className="text-[8px] text-blue-600 dark:text-blue-300 font-medium mt-0.5 line-clamp-1 pointer-events-none">{meta.caption}</p>
+                  {meta.caption && geo.height > 60 && (
+                    <p className="text-[8px] text-blue-600 dark:text-blue-300 font-medium mt-0.5 line-clamp-1 pointer-events-none">
+                      {meta.caption}
+                    </p>
                   )}
-                  {block.notes && geo.height > 36 && (
-                    <p className="text-[8px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 pl-0.5 pointer-events-none">{block.notes}</p>
+                  {block.notes && geo.height > 76 && (
+                    <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1 mt-0.5 pl-0.5 pointer-events-none">
+                      {block.notes}
+                    </p>
                   )}
-                  <p className="text-[8px] text-slate-400 tabular-nums mt-0.5 pointer-events-none">
-                    {minutesToTime(geo.startMin)}–{minutesToTime(geo.endMin)}
-                  </p>
+                  {geo.height > 42 && (
+                    <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 tabular-nums mt-1 pointer-events-none">
+                      {minutesToTime(geo.startMin)}–{minutesToTime(geo.endMin)} ·{' '}
+                      {geo.endMin - geo.startMin}
+                      {ko ? '분' : 'm'}
+                    </p>
+                  )}
                 </div>
+                {onToggleComplete && block.id > 0 && (
+                  <button
+                    type="button"
+                    className="planner-block-check"
+                    aria-label={ko ? `${block.title} 완료 표시` : `Mark ${block.title} complete`}
+                    aria-pressed={block.completed}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleComplete(block.id);
+                    }}
+                  >
+                    <Check size={13} />
+                  </button>
+                )}
                 {editMode && block.id > 0 && (
                   <div
                     data-resize-handle
                     role="slider"
-                    aria-label={t("elon.resizeEnd")}
+                    aria-label={t('elon.resizeEnd')}
                     className="absolute bottom-0 left-0 right-0 h-3.5 cursor-ns-resize z-20 touch-none bg-gradient-to-t from-black/10 to-transparent dark:from-white/10"
-                    onPointerDown={(e) => startDrag(e, "resize-end", block, geo.startMin, geo.endMin)}
+                    onPointerDown={(e) =>
+                      startDrag(e, 'resize-end', block, geo.startMin, geo.endMin)
+                    }
                   />
                 )}
               </div>
@@ -622,10 +754,10 @@ export default function ElonTimeCanvas({
             <div
               ref={sketchBandRef}
               data-elon-sketch-band
-              className={cn("absolute left-7 right-1 z-[40] top-0", sketchMode && "touch-none")}
+              className={cn('absolute left-7 right-1 z-[40] top-0', sketchMode && 'touch-none')}
               style={{
                 height: heightPx,
-                pointerEvents: sketchMode ? "auto" : "none",
+                pointerEvents: sketchMode ? 'auto' : 'none',
               }}
               onClick={(ev) => ev.stopPropagation()}
               onPointerDown={handleSketchPointerDown}

@@ -1,9 +1,9 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useEventStore } from "@/stores/eventStore";
-import { useCategoryStore } from "@/stores/categoryStore";
-import { useTodoStore } from "@/stores/todoStore";
-import { useTimeBlockStore } from "@/stores/timeblockStore";
-import { useDDayStore } from "@/stores/ddayStore";
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEventStore } from '@/stores/eventStore';
+import { useCategoryStore } from '@/stores/categoryStore';
+import { useTodoStore } from '@/stores/todoStore';
+import { useTimeBlockStore } from '@/stores/timeblockStore';
+import { useDDayStore } from '@/stores/ddayStore';
 import {
   format,
   startOfMonth,
@@ -23,52 +23,76 @@ import {
   isValid,
   differenceInCalendarDays,
   differenceInCalendarMonths,
-} from "date-fns";
-import { enUS } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X, Repeat, Search, Send, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { eventTimeLabel } from "@/lib/eventFormat";
-import { api } from "@/lib/api";
-import { useI18n } from "@/lib/useI18n";
-import { useSocketEvent } from "@/lib/SocketProvider";
-import { usePageVisible } from "@/lib/useVisibility";
-import type { ViewMode, HoverTooltipItem, CalendarEvent, Todo } from "./calendarTypes";
-import { HOUR_HEIGHT, START_HOUR } from "./calendarTypes";
-import { showToast } from "@/components/ui/Toast";
-import CalendarTodoAddModal from "./CalendarTodoAddModal";
-import CalendarTodoEditModal from "./CalendarTodoEditModal";
-import type { Todo as AppTodo } from "@timebox/shared";
-import { ProjectPicker } from "@/components/project/ProjectPicker";
-import { useProjectStore } from "@/stores/projectStore";
-import { sortTodosForDisplay } from "@/lib/todoSort";
-import { getCategoryInfo } from "@/lib/categories";
-import MonthView from "./MonthView";
-import WeekView from "./WeekView";
-import DayView from "./DayView";
-import AgendaView from "./AgendaView";
-import CalendarSearchPanel from "./CalendarSearchPanel";
-import RecipientPickerModal from "@/components/common/RecipientPickerModal";
-import NLQuickAddModal, { type NLEventValues, type NLTodoValues } from "./NLQuickAddModal";
-import EventDetailPopover from "./EventDetailPopover";
-import { getCalendarBottomScope, CALENDAR_PREFS_EVENT, type CalendarBottomScope } from "@/lib/calendarPrefs";
+} from 'date-fns';
+import { enUS } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight, X, Repeat, Search, Send, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { eventTimeLabel } from '@/lib/eventFormat';
+import { api } from '@/lib/api';
+import { useI18n } from '@/lib/useI18n';
+import { useSocketEvent } from '@/lib/SocketProvider';
+import { usePageVisible } from '@/lib/useVisibility';
+import {
+  HOUR_HEIGHT,
+  START_HOUR,
+  type ViewMode,
+  type HoverTooltipItem,
+  type CalendarEvent,
+  type Todo,
+} from './calendarTypes';
+import { showToast } from '@/components/ui/Toast';
+import CalendarTodoAddModal from './CalendarTodoAddModal';
+import CalendarTodoEditModal from './CalendarTodoEditModal';
+import type { Todo as AppTodo } from '@timebox/shared';
+import { ProjectPicker } from '@/components/project/ProjectPicker';
+import { useProjectStore } from '@/stores/projectStore';
+import { sortTodosForDisplay } from '@/lib/todoSort';
+import { getCategoryInfo } from '@/lib/categories';
+import MonthView from './MonthView';
+import WeekView from './WeekView';
+import DayView from './DayView';
+import AgendaView from './AgendaView';
+import CalendarSearchPanel from './CalendarSearchPanel';
+import RecipientPickerModal from '@/components/common/RecipientPickerModal';
+import NLQuickAddModal, { type NLEventValues, type NLTodoValues } from './NLQuickAddModal';
+import EventDetailPopover from './EventDetailPopover';
+import {
+  getCalendarBottomScope,
+  CALENDAR_PREFS_EVENT,
+  type CalendarBottomScope,
+} from '@/lib/calendarPrefs';
 
 export default function CalendarView() {
   const { events, fetchEvents, addEvent, deleteEvent, updateEvent } = useEventStore();
   const { categories, fetchCategories } = useCategoryStore();
-  const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, reorderTodos } = useTodoStore();
+  const { todos, fetchTodos, addTodo, toggleTodo, deleteTodo, updateTodo, reorderTodos } =
+    useTodoStore();
   const fetchBlocks = useTimeBlockStore((s) => s.fetchBlocks);
   const fetchDDays = useDDayStore((s) => s.fetchDDays);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [newEvent, setNewEvent] = useState({
-    title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null as number | null, recurrenceRule: "",
+    title: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    startTime: '09:00',
+    endTime: '10:00',
+    allDay: false,
+    categoryId: 0,
+    projectId: null as number | null,
+    recurrenceRule: '',
   });
   const { projects, fetchProjects } = useProjectStore();
   const projectNameById = useMemo(
-    () => Object.fromEntries(projects.filter((p) => !p.archived).map((p) => [p.id, p.name])) as Record<number, string>,
+    () =>
+      Object.fromEntries(projects.filter((p) => !p.archived).map((p) => [p.id, p.name])) as Record<
+        number,
+        string
+      >,
     [projects],
   );
   const categoryNameById = useMemo(
@@ -80,11 +104,11 @@ export default function CalendarView() {
     fetchProjects();
   }, [fetchProjects]);
   const [projectFilter, setProjectFilter] = useState<number | null>(null);
-  const [recurrence, setRecurrence] = useState("");
+  const [recurrence, setRecurrence] = useState('');
   const timelineRef = useRef<HTMLDivElement>(null);
   const [hoverDateKey, setHoverDateKey] = useState<string | null>(null);
   const [todoAddModalOpen, setTodoAddModalOpen] = useState(false);
-  const [todoAddModalDate, setTodoAddModalDate] = useState("");
+  const [todoAddModalDate, setTodoAddModalDate] = useState('');
   const [todoEditModalOpen, setTodoEditModalOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<AppTodo | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -97,10 +121,10 @@ export default function CalendarView() {
   useEffect(() => {
     const sync = () => setBottomScope(getCalendarBottomScope());
     window.addEventListener(CALENDAR_PREFS_EVENT, sync);
-    window.addEventListener("storage", sync);
+    window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(CALENDAR_PREFS_EVENT, sync);
-      window.removeEventListener("storage", sync);
+      window.removeEventListener('storage', sync);
     };
   }, []);
   const { t } = useI18n();
@@ -117,20 +141,26 @@ export default function CalendarView() {
         setSelectedDate(today);
       }
       fetchDDays();
-      fetchBlocks(format(today, "yyyy-MM-dd"));
+      fetchBlocks(format(today, 'yyyy-MM-dd'));
     }
   }, [pageVisible]);
 
   const { rangeStart, rangeEnd } = useMemo(() => {
-    if (viewMode === "month") {
+    if (viewMode === 'month') {
       const ms = startOfMonth(currentDate);
       const me = endOfMonth(currentDate);
-      return { rangeStart: startOfWeek(ms, { weekStartsOn: 0 }), rangeEnd: endOfWeek(me, { weekStartsOn: 0 }) };
-    } else if (viewMode === "agenda") {
+      return {
+        rangeStart: startOfWeek(ms, { weekStartsOn: 0 }),
+        rangeEnd: endOfWeek(me, { weekStartsOn: 0 }),
+      };
+    } else if (viewMode === 'agenda') {
       // Agenda lists the whole month (no week padding).
       return { rangeStart: startOfMonth(currentDate), rangeEnd: endOfMonth(currentDate) };
-    } else if (viewMode === "week") {
-      return { rangeStart: startOfWeek(currentDate, { weekStartsOn: 0 }), rangeEnd: endOfWeek(currentDate, { weekStartsOn: 0 }) };
+    } else if (viewMode === 'week') {
+      return {
+        rangeStart: startOfWeek(currentDate, { weekStartsOn: 0 }),
+        rangeEnd: endOfWeek(currentDate, { weekStartsOn: 0 }),
+      };
     } else {
       return { rangeStart: currentDate, rangeEnd: currentDate };
     }
@@ -145,7 +175,7 @@ export default function CalendarView() {
   // scope we widen it a year out so the bottom agenda can list future items;
   // the grid still renders only the current month (it reads current-month keys).
   const dataEnd = useMemo(() => {
-    if (viewMode === "month" && bottomScope === "upcoming") {
+    if (viewMode === 'month' && bottomScope === 'upcoming') {
       const far = addMonths(startOfDay(new Date()), 12);
       return far > rangeEnd ? far : rangeEnd;
     }
@@ -156,7 +186,7 @@ export default function CalendarView() {
     fetchCategories();
     fetchTodos();
     fetchDDays();
-    fetchBlocks(format(new Date(), "yyyy-MM-dd"));
+    fetchBlocks(format(new Date(), 'yyyy-MM-dd'));
   }, []);
 
   useEffect(() => {
@@ -166,7 +196,7 @@ export default function CalendarView() {
   }, [currentDate, viewMode, dataEnd]);
 
   useEffect(() => {
-    if ((viewMode === "week" || viewMode === "day") && timelineRef.current) {
+    if ((viewMode === 'week' || viewMode === 'day') && timelineRef.current) {
       const now = new Date();
       const minutes = now.getHours() * 60 + now.getMinutes();
       const scrollTo = ((minutes - START_HOUR * 60) / 60) * HOUR_HEIGHT - 100;
@@ -176,14 +206,14 @@ export default function CalendarView() {
 
   const eventsByDate = useMemo(() => {
     const filteredEvents = projectFilter
-      ? events.filter(ev => ev.projectId === projectFilter)
+      ? events.filter((ev) => ev.projectId === projectFilter)
       : events;
     const map = new Map<string, typeof events>();
     // Place `ev` on every day of one occurrence (inclusive span), capped for safety.
     const placeSpan = (ev: (typeof events)[number], start: Date, spanDays: number) => {
       let d = start;
       for (let g = 0; g <= spanDays && g < 400; g++) {
-        const key = format(d, "yyyy-MM-dd");
+        const key = format(d, 'yyyy-MM-dd');
         const arr = map.get(key) || [];
         arr.push(ev);
         map.set(key, arr);
@@ -198,18 +228,23 @@ export default function CalendarView() {
       const spanDays = Math.max(0, differenceInCalendarDays(parseISO(endKey), base));
 
       const rule = ev.recurrenceRule;
-      if (rule !== "daily" && rule !== "weekly" && rule !== "monthly") {
+      if (rule !== 'daily' && rule !== 'weekly' && rule !== 'monthly') {
         placeSpan(ev, base, spanDays); // single- or multi-day, no recurrence
         return;
       }
       // Recurring: emit each occurrence that intersects the visible range.
       const advance = (dt: Date, k: number) =>
-        rule === "daily" ? addDays(dt, k) : rule === "weekly" ? addWeeks(dt, k) : addMonths(dt, k);
+        rule === 'daily' ? addDays(dt, k) : rule === 'weekly' ? addWeeks(dt, k) : addMonths(dt, k);
       // Fast-forward to the first occurrence that could still be visible.
       let k = 0;
       const diffDays = differenceInCalendarDays(rangeStart, base);
       if (diffDays > spanDays) {
-        k = rule === "daily" ? diffDays : rule === "weekly" ? Math.floor(diffDays / 7) : differenceInCalendarMonths(rangeStart, base);
+        k =
+          rule === 'daily'
+            ? diffDays
+            : rule === 'weekly'
+              ? Math.floor(diffDays / 7)
+              : differenceInCalendarMonths(rangeStart, base);
         k = Math.max(0, k - 1);
       }
       let occ = advance(base, k);
@@ -241,7 +276,7 @@ export default function CalendarView() {
   // Day-detail events are shown by time ("시간별").
   const selectedDateEvents = useMemo(() => {
     if (!selectedDate) return [];
-    const arr = eventsByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+    const arr = eventsByDate.get(format(selectedDate, 'yyyy-MM-dd')) || [];
     return [...arr].sort((a, b) => a.startTime.localeCompare(b.startTime));
   }, [selectedDate, eventsByDate]);
 
@@ -249,14 +284,16 @@ export default function CalendarView() {
   // Scope is user-configurable: "month" (through end of this month) or
   // "upcoming" (up to a year out). Only meaningful in month view.
   const bottomAgenda = useMemo(() => {
-    if (viewMode !== "month") return [];
+    if (viewMode !== 'month') return [];
     const start = startOfDay(new Date());
-    const end = bottomScope === "upcoming" ? addMonths(start, 12) : endOfMonth(currentDate);
+    const end = bottomScope === 'upcoming' ? addMonths(start, 12) : endOfMonth(currentDate);
     const out: { dateKey: string; day: Date; events: CalendarEvent[]; todos: Todo[] }[] = [];
     let d = start;
     for (let g = 0; d <= end && g < 400; g++) {
-      const key = format(d, "yyyy-MM-dd");
-      const evs = [...(eventsByDate.get(key) || [])].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const key = format(d, 'yyyy-MM-dd');
+      const evs = [...(eventsByDate.get(key) || [])].sort((a, b) =>
+        a.startTime.localeCompare(b.startTime),
+      );
       const tds = todosByDate.get(key) || [];
       if (evs.length + tds.length > 0) out.push({ dateKey: key, day: d, events: evs, todos: tds });
       d = addDays(d, 1);
@@ -268,13 +305,15 @@ export default function CalendarView() {
   // reorder sticks even when todos have different due times.
   const selectedDateTodos = useMemo(() => {
     if (!selectedDate) return [];
-    const arr = todosByDate.get(format(selectedDate, "yyyy-MM-dd")) || [];
+    const arr = todosByDate.get(format(selectedDate, 'yyyy-MM-dd')) || [];
     return [...arr].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id);
   }, [selectedDate, todosByDate]);
 
   const navigate = (direction: -1 | 1) => {
-    if (viewMode === "month" || viewMode === "agenda") setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
-    else if (viewMode === "week") setCurrentDate(direction === 1 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
+    if (viewMode === 'month' || viewMode === 'agenda')
+      setCurrentDate(direction === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+    else if (viewMode === 'week')
+      setCurrentDate(direction === 1 ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
     else setCurrentDate(direction === 1 ? addDays(currentDate, 1) : subDays(currentDate, 1));
   };
 
@@ -287,7 +326,7 @@ export default function CalendarView() {
   const jumpToMonth = (year: number, monthIndex: number) => {
     const d = new Date(year, monthIndex, 1);
     setCurrentDate(d);
-    if (viewMode === "day") setSelectedDate(d);
+    if (viewMode === 'day') setSelectedDate(d);
     setJumpOpen(false);
   };
 
@@ -302,28 +341,29 @@ export default function CalendarView() {
   };
 
   const headerTitle = () => {
-    if (viewMode === "month" || viewMode === "agenda") return format(currentDate, "MMMM yyyy", { locale: enUS });
-    if (viewMode === "week") {
+    if (viewMode === 'month' || viewMode === 'agenda')
+      return format(currentDate, 'MMMM yyyy', { locale: enUS });
+    if (viewMode === 'week') {
       const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
       const we = endOfWeek(currentDate, { weekStartsOn: 0 });
-      return `${format(ws, "M/d")} - ${format(we, "M/d")}`;
+      return `${format(ws, 'M/d')} - ${format(we, 'M/d')}`;
     }
-    return format(currentDate, "MMM d (EEE)", { locale: enUS });
+    return format(currentDate, 'MMM d (EEE)', { locale: enUS });
   };
 
   const handleAddEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEvent.title.trim() || !selectedDate) return;
-    const fallbackDate = format(selectedDate, "yyyy-MM-dd");
+    const fallbackDate = format(selectedDate, 'yyyy-MM-dd');
     const sDate = newEvent.startDate || fallbackDate;
     const eDate = newEvent.endDate || sDate;
-    const sTime = newEvent.allDay ? "00:00" : newEvent.startTime;
-    const eTime = newEvent.allDay ? "23:59" : newEvent.endTime;
+    const sTime = newEvent.allDay ? '00:00' : newEvent.startTime;
+    const eTime = newEvent.allDay ? '23:59' : newEvent.endTime;
     const startTime = `${sDate}T${sTime}:00`;
     const endTime = `${eDate}T${eTime}:00`;
     // Guard against an end that lands before the start (spanning date ranges).
     if (parseISO(endTime) < parseISO(startTime)) {
-      showToast("error", t("calendar.endBeforeStart"));
+      showToast('error', t('calendar.endBeforeStart'));
       return;
     }
     const cat = categories.find((c) => c.id === newEvent.categoryId);
@@ -336,11 +376,11 @@ export default function CalendarView() {
           endTime,
           allDay: newEvent.allDay,
           categoryId: newEvent.categoryId || undefined,
-          color: cat?.color || "#3b82f6",
+          color: cat?.color || '#3b82f6',
           projectId: newEvent.projectId,
           recurrenceRule: newEvent.recurrenceRule || undefined,
         });
-        showToast("success", t("calendar.eventCreated"));
+        showToast('success', t('calendar.eventCreated'));
       } else {
         await addEvent({
           title: newEvent.title.trim(),
@@ -350,16 +390,27 @@ export default function CalendarView() {
           allDay: newEvent.allDay,
           categoryId: newEvent.categoryId || undefined,
           recurrenceRule: newEvent.recurrenceRule || undefined,
-          color: cat?.color || "#3b82f6",
+          color: cat?.color || '#3b82f6',
           projectId: newEvent.projectId,
         });
-        showToast("success", t("calendar.eventCreated"));
+        showToast('success', t('calendar.eventCreated'));
       }
     } catch {
-      showToast("error", t("calendar.createFailed"));
+      showToast('error', t('calendar.createFailed'));
     }
-    setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
-    setRecurrence("");
+    setNewEvent({
+      title: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      startTime: '09:00',
+      endTime: '10:00',
+      allDay: false,
+      categoryId: 0,
+      projectId: null,
+      recurrenceRule: '',
+    });
+    setRecurrence('');
     setEditingEventId(null);
     setShowAddModal(false);
     const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
@@ -371,29 +422,36 @@ export default function CalendarView() {
   // defaults to the selected day. Editing sets these fields explicitly.
   useEffect(() => {
     if (showAddModal && editingEventId == null) {
-      setNewEvent((prev) => (prev.startDate || prev.endDate || prev.allDay ? { ...prev, startDate: "", endDate: "", allDay: false } : prev));
+      setNewEvent((prev) =>
+        prev.startDate || prev.endDate || prev.allDay
+          ? { ...prev, startDate: '', endDate: '', allDay: false }
+          : prev,
+      );
     }
   }, [showAddModal, editingEventId]);
 
   // Live-refresh the calendar when someone forwards an event/to-do to me.
   useSocketEvent(
-    "events:updated",
+    'events:updated',
     useCallback(() => {
       const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
       const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
       fetchEvents(start, end);
     }, [rangeStart, rangeEnd, fetchEvents]),
   );
-  useSocketEvent("todos:updated", useCallback(() => fetchTodos(), [fetchTodos]));
+  useSocketEvent(
+    'todos:updated',
+    useCallback(() => fetchTodos(), [fetchTodos]),
+  );
 
   const forwardEvent = async (toUserId: number): Promise<boolean> => {
     if (forwardingEventId == null) return false;
     const res = await api.post(`/events/${forwardingEventId}/forward`, { toUserId });
     if (res.success) {
-      showToast("success", t("calendar.forwarded"));
+      showToast('success', t('calendar.forwarded'));
       return true;
     }
-    showToast("error", res.error || t("calendar.forwardFailed"));
+    showToast('error', res.error || t('calendar.forwardFailed'));
     return false;
   };
 
@@ -405,32 +463,32 @@ export default function CalendarView() {
         startTime: `${v.date}T${v.startTime}:00`,
         endTime: `${v.date}T${v.endTime}:00`,
         allDay: v.allDay,
-        color: "#3b82f6",
+        color: '#3b82f6',
       });
-      showToast("success", t("calendar.eventCreated"));
+      showToast('success', t('calendar.eventCreated'));
       const start = format(rangeStart, "yyyy-MM-dd'T'00:00:00");
       const end = format(rangeEnd, "yyyy-MM-dd'T'23:59:59");
       fetchEvents(start, end);
       return true;
     } catch {
-      showToast("error", t("calendar.createFailed"));
+      showToast('error', t('calendar.createFailed'));
       return false;
     }
   };
 
   const quickCreateTodo = async (v: NLTodoValues): Promise<boolean> => {
-    const ok = await addTodo(v.title, v.priority, v.dueDate, "personal", "active", null, v.memo);
-    if (ok) showToast("success", t("calendar.todoCreated"));
-    else showToast("error", t("calendar.createFailed"));
+    const ok = await addTodo(v.title, v.priority, v.dueDate, 'personal', 'active', null, v.memo);
+    if (ok) showToast('success', t('calendar.todoCreated'));
+    else showToast('error', t('calendar.createFailed'));
     return !!ok;
   };
 
   const handleDeleteEvent = async (id: number) => {
     try {
       await deleteEvent(id);
-      showToast("success", t("calendar.eventDeleted"));
+      showToast('success', t('calendar.eventDeleted'));
     } catch {
-      showToast("error", t("calendar.createFailed"));
+      showToast('error', t('calendar.createFailed'));
     }
   };
 
@@ -442,7 +500,7 @@ export default function CalendarView() {
     if (isValid(evDate)) setSelectedDate(evDate);
     setNewEvent({
       title: ev.title,
-      description: ev.description || "",
+      description: ev.description || '',
       startDate: ev.startTime.slice(0, 10),
       endDate: ev.endTime.slice(0, 10),
       startTime: ev.startTime.slice(11, 16),
@@ -450,7 +508,7 @@ export default function CalendarView() {
       allDay: !!ev.allDay,
       categoryId: ev.categoryId || 0,
       projectId: ev.projectId ?? null,
-      recurrenceRule: ev.recurrenceRule || "",
+      recurrenceRule: ev.recurrenceRule || '',
     });
     setShowAddModal(true);
   };
@@ -468,18 +526,18 @@ export default function CalendarView() {
 
     dayEvents.forEach((ev) => {
       items.push({
-        type: "event",
+        type: 'event',
         title: ev.title,
-        time: eventTimeLabel(ev, t("calendar.allDay")),
-        color: ev.color || "#3b82f6",
+        time: eventTimeLabel(ev, t('calendar.allDay')),
+        color: ev.color || '#3b82f6',
       });
     });
 
     dayTodos.forEach((t) => {
       items.push({
-        type: "todo",
+        type: 'todo',
         title: t.title,
-        color: t.priority === "high" ? "#ef4444" : t.priority === "medium" ? "#f59e0b" : "#94a3b8",
+        color: t.priority === 'high' ? '#ef4444' : t.priority === 'medium' ? '#f59e0b' : '#94a3b8',
         completed: t.completed,
         categoryIcon: getCategoryInfo(t.category).icon,
       });
@@ -506,7 +564,11 @@ export default function CalendarView() {
           row so the month grid keeps as much vertical space as possible. */}
       <div className="flex flex-col gap-2 short:flex-row short:items-center short:gap-1 sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 py-2 sm:py-3 short:py-1 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-1 sm:gap-2">
-          <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous period">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+            aria-label="Previous period"
+          >
             <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <div className="relative flex-1 sm:flex-none min-w-0 sm:min-w-[120px]">
@@ -516,7 +578,7 @@ export default function CalendarView() {
               className="w-full font-semibold text-slate-900 dark:text-white text-center whitespace-nowrap px-1 py-0.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
               aria-haspopup="dialog"
               aria-expanded={jumpOpen}
-              title={t("calendar.jumpTo")}
+              title={t('calendar.jumpTo')}
             >
               {headerTitle()}
             </button>
@@ -533,41 +595,56 @@ export default function CalendarView() {
                 >
                   {/* Year stepper */}
                   <div className="flex items-center justify-between mb-3">
-                    <button type="button" onClick={() => setJumpYear((y) => y - 1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Previous year">
+                    <button
+                      type="button"
+                      onClick={() => setJumpYear((y) => y - 1)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                      aria-label="Previous year"
+                    >
                       <ChevronLeft className="w-4 h-4 text-slate-500" />
                     </button>
-                    <span className="font-semibold text-slate-900 dark:text-white tabular-nums text-lg">{jumpYear}</span>
-                    <button type="button" onClick={() => setJumpYear((y) => y + 1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next year">
+                    <span className="font-semibold text-slate-900 dark:text-white tabular-nums text-lg">
+                      {jumpYear}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setJumpYear((y) => y + 1)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                      aria-label="Next year"
+                    >
                       <ChevronRight className="w-4 h-4 text-slate-500" />
                     </button>
                   </div>
                   {/* Month grid */}
                   <div className="grid grid-cols-4 gap-1.5">
                     {Array.from({ length: 12 }, (_, i) => {
-                      const isCurrent = currentDate.getFullYear() === jumpYear && currentDate.getMonth() === i;
+                      const isCurrent =
+                        currentDate.getFullYear() === jumpYear && currentDate.getMonth() === i;
                       return (
                         <button
                           key={i}
                           type="button"
                           onClick={() => jumpToMonth(jumpYear, i)}
                           className={cn(
-                            "text-xs py-2 rounded-lg transition-colors",
+                            'text-xs py-2 rounded-lg transition-colors',
                             isCurrent
-                              ? "bg-blue-600 text-white font-semibold"
-                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700",
+                              ? 'bg-blue-600 text-white font-semibold'
+                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700',
                           )}
                         >
-                          {format(new Date(2000, i, 1), "MMM", { locale: enUS })}
+                          {format(new Date(2000, i, 1), 'MMM', { locale: enUS })}
                         </button>
                       );
                     })}
                   </div>
                   {/* Exact date */}
                   <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
-                    <label className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 block">{t("calendar.jumpToDate")}</label>
+                    <label className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 block">
+                      {t('calendar.jumpToDate')}
+                    </label>
                     <input
                       type="date"
-                      value={format(selectedDate ?? currentDate, "yyyy-MM-dd")}
+                      value={format(selectedDate ?? currentDate, 'yyyy-MM-dd')}
                       onChange={(e) => jumpToDate(e.target.value)}
                       className="w-full text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -576,14 +653,22 @@ export default function CalendarView() {
               </div>
             )}
           </div>
-          <button onClick={() => navigate(1)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Next period">
+          <button
+            onClick={() => navigate(1)}
+            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+            aria-label="Next period"
+          >
             <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-400" />
           </button>
           <button
-            onClick={() => { const today = new Date(); setCurrentDate(today); setSelectedDate(today); }}
+            onClick={() => {
+              const today = new Date();
+              setCurrentDate(today);
+              setSelectedDate(today);
+            }}
             className="text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 shrink-0"
           >
-            {t("common.today")}
+            {t('common.today')}
           </button>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 justify-between sm:justify-end">
@@ -591,43 +676,54 @@ export default function CalendarView() {
             <button
               onClick={() => setQuickAddOpen(true)}
               className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-900/60"
-              aria-label={t("ai.quickAddTitle")}
-              title={t("ai.quickAddTitle")}
+              aria-label={t('ai.quickAddTitle')}
+              title={t('ai.quickAddTitle')}
             >
               <Sparkles className="w-4 h-4" />
             </button>
             <button
               onClick={() => setSearchOpen(true)}
               className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-              aria-label={t("calendar.searchTitle")}
-              title={t("calendar.searchTitle")}
+              aria-label={t('calendar.searchTitle')}
+              title={t('calendar.searchTitle')}
             >
               <Search className="w-4 h-4" />
             </button>
             <select
-              value={projectFilter ?? ""}
+              value={projectFilter ?? ''}
               onChange={(e) => setProjectFilter(e.target.value ? Number(e.target.value) : null)}
               className="hidden sm:block text-xs px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none outline-none cursor-pointer max-w-[140px]"
             >
-              <option value="">{t("calendar.allProjects")}</option>
-              {projects.filter((p) => !p.archived).map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
+              <option value="">{t('calendar.allProjects')}</option>
+              {projects
+                .filter((p) => !p.archived)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
-            {(["month", "week", "day", "agenda"] as ViewMode[]).map((mode) => (
+            {(['month', 'week', 'day', 'agenda'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-md transition-colors",
+                  'text-xs px-2.5 py-1 rounded-md transition-colors',
                   viewMode === mode
-                    ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300",
+                    ? 'bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300',
                 )}
               >
-                {{ month: t("calendar.month"), week: t("calendar.week"), day: t("calendar.day"), agenda: t("calendar.agenda") }[mode]}
+                {
+                  {
+                    month: t('calendar.month'),
+                    week: t('calendar.week'),
+                    day: t('calendar.day'),
+                    agenda: t('calendar.agenda'),
+                  }[mode]
+                }
               </button>
             ))}
           </div>
@@ -635,7 +731,7 @@ export default function CalendarView() {
       </div>
 
       {/* === MONTH VIEW === */}
-      {viewMode === "month" && (
+      {viewMode === 'month' && (
         <MonthView
           days={days}
           currentDate={currentDate}
@@ -645,19 +741,34 @@ export default function CalendarView() {
           selectedDateEvents={selectedDateEvents}
           selectedDateTodos={selectedDateTodos}
           onSelectDate={setSelectedDate}
-          onDoubleClickDate={(day) => { setSelectedDate(day); setViewMode("day"); setCurrentDate(day); }}
+          onDoubleClickDate={(day) => {
+            setSelectedDate(day);
+            setViewMode('day');
+            setCurrentDate(day);
+          }}
           hoverDateKey={hoverDateKey}
           getHoverItems={getHoverItems}
           onDayHover={handleDayHover}
           onDayLeave={() => setHoverDateKey(null)}
           onShowAddModal={() => {
             setEditingEventId(null);
-            setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: "09:00", endTime: "10:00", allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
+            setNewEvent({
+              title: '',
+              description: '',
+              startDate: '',
+              endDate: '',
+              startTime: '09:00',
+              endTime: '10:00',
+              allDay: false,
+              categoryId: 0,
+              projectId: null,
+              recurrenceRule: '',
+            });
             setShowAddModal(true);
           }}
           onAddTodo={() => {
             const d = selectedDate ?? currentDate;
-            setTodoAddModalDate(format(d, "yyyy-MM-dd"));
+            setTodoAddModalDate(format(d, 'yyyy-MM-dd'));
             setTodoAddModalOpen(true);
           }}
           onDeleteEvent={handleDeleteEvent}
@@ -670,11 +781,11 @@ export default function CalendarView() {
           bottomScope={bottomScope}
           projectNameById={projectNameById}
           onLongPressDate={(date, type) => {
-            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-            if (type === "event") {
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            if (type === 'event') {
               setSelectedDate(date);
               setShowAddModal(true);
-            } else if (type === "todo") {
+            } else if (type === 'todo') {
               setTodoAddModalDate(dateStr);
               setTodoAddModalOpen(true);
             }
@@ -683,20 +794,26 @@ export default function CalendarView() {
       )}
 
       {/* === WEEK VIEW === */}
-      {viewMode === "week" && (
+      {viewMode === 'week' && (
         <WeekView
           days={days}
           eventsByDate={eventsByDate}
           todosByDate={todosByDate}
-          onDayClick={(day) => { setViewMode("day"); setCurrentDate(day); }}
-          onCellClick={(day) => { setSelectedDate(day); setShowAddModal(true); }}
+          onDayClick={(day) => {
+            setViewMode('day');
+            setCurrentDate(day);
+          }}
+          onCellClick={(day) => {
+            setSelectedDate(day);
+            setShowAddModal(true);
+          }}
           onDeleteEvent={handleDeleteEvent}
           onEventClick={setDetailEvent}
         />
       )}
 
       {/* === DAY VIEW === */}
-      {viewMode === "day" && (
+      {viewMode === 'day' && (
         <DayView
           currentDate={currentDate}
           events={events}
@@ -705,21 +822,37 @@ export default function CalendarView() {
           currentTimeTop={currentTimeTop}
           currentMinutes={currentMinutes}
           timelineRef={timelineRef}
-          onAddEvent={() => { setSelectedDate(currentDate); setShowAddModal(true); }}
+          onAddEvent={() => {
+            setSelectedDate(currentDate);
+            setShowAddModal(true);
+          }}
           onDeleteEvent={handleDeleteEvent}
           onEventClick={setDetailEvent}
           onCreateAt={(startHHMM, endHHMM) => {
             setEditingEventId(null);
             setSelectedDate(currentDate);
-            setNewEvent({ title: "", description: "", startDate: "", endDate: "", startTime: startHHMM, endTime: endHHMM, allDay: false, categoryId: 0, projectId: null, recurrenceRule: "" });
+            setNewEvent({
+              title: '',
+              description: '',
+              startDate: '',
+              endDate: '',
+              startTime: startHHMM,
+              endTime: endHHMM,
+              allDay: false,
+              categoryId: 0,
+              projectId: null,
+              recurrenceRule: '',
+            });
             setShowAddModal(true);
           }}
-          onUpdateTime={(id, startISO, endISO) => { updateEvent(id, { startTime: startISO, endTime: endISO }); }}
+          onUpdateTime={(id, startISO, endISO) => {
+            updateEvent(id, { startTime: startISO, endTime: endISO });
+          }}
         />
       )}
 
       {/* === AGENDA VIEW === */}
-      {viewMode === "agenda" && (
+      {viewMode === 'agenda' && (
         <AgendaView
           days={days}
           eventsByDate={eventsByDate}
@@ -732,7 +865,15 @@ export default function CalendarView() {
 
       {/* Add event modal */}
       {showAddModal && selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:bg-black/50" role="dialog" aria-modal="true" onClick={() => { setShowAddModal(false); setEditingEventId(null); }}>
+        <div
+          className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center sm:bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            setShowAddModal(false);
+            setEditingEventId(null);
+          }}
+        >
           <form
             onSubmit={handleAddEvent}
             onClick={(e) => e.stopPropagation()}
@@ -740,138 +881,184 @@ export default function CalendarView() {
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-2 flex-shrink-0 border-b border-slate-100 dark:border-slate-700/50 sm:border-0 sm:px-5 sm:pt-5 sm:pb-0">
               <h3 className="font-semibold text-slate-900 dark:text-white">
-                {format(selectedDate, "MMM d", { locale: enUS })} {editingEventId ? t("calendar.editEvent") || "Edit Event" : t("calendar.addEvent")}
+                {format(selectedDate, 'MMM d', { locale: enUS })}{' '}
+                {editingEventId ? t('calendar.editEvent') || 'Edit Event' : t('calendar.addEvent')}
               </h3>
-              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden" aria-label="Close">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingEventId(null);
+                }}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 sm:hidden"
+                aria-label="Close"
+              >
                 <X className="w-4 h-4 text-slate-500" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-3 space-y-4">
-            <input
-              type="text"
-              value={newEvent.title}
-              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-              placeholder={t("calendar.eventTitle")}
-              className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
-            <div>
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">{t("calendar.eventMemo")}</label>
-              <textarea
-                value={newEvent.description}
-                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                placeholder={t("calendar.eventMemoPlaceholder")}
-                rows={5}
-                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+              <input
+                type="text"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                placeholder={t('calendar.eventTitle')}
+                className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
               />
-            </div>
-            {categories.length > 0 && (
               <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">{t("calendar.category")}</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {categories.map((cat) => (
+                <label className="text-xs text-slate-500 dark:text-slate-400 mb-1 block">
+                  {t('calendar.eventMemo')}
+                </label>
+                <textarea
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  placeholder={t('calendar.eventMemoPlaceholder')}
+                  rows={5}
+                  className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/40 resize-none"
+                />
+              </div>
+              {categories.length > 0 && (
+                <div>
+                  <label className="text-xs text-slate-500 mb-1.5 block">
+                    {t('calendar.category')}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setNewEvent({ ...newEvent, categoryId: cat.id })}
+                        className={cn(
+                          'text-xs py-1 px-2.5 rounded-full border-2 transition-colors',
+                          newEvent.categoryId === cat.id
+                            ? 'border-current font-medium'
+                            : 'border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700',
+                        )}
+                        style={
+                          newEvent.categoryId === cat.id
+                            ? { color: cat.color, backgroundColor: cat.color + '15' }
+                            : undefined
+                        }
+                      >
+                        {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(() => {
+                const fallback = format(selectedDate, 'yyyy-MM-dd');
+                const sDate = newEvent.startDate || fallback;
+                const eDate = newEvent.endDate || sDate;
+                return (
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-500 mb-1 block">
+                          {t('calendar.startDate')}
+                        </label>
+                        <input
+                          type="date"
+                          value={sDate}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setNewEvent({
+                              ...newEvent,
+                              startDate: v,
+                              endDate: eDate < v ? v : eDate,
+                            });
+                          }}
+                          className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-500 mb-1 block">
+                          {t('calendar.endDate')}
+                        </label>
+                        <input
+                          type="date"
+                          value={eDate}
+                          min={sDate}
+                          onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
+                          className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newEvent.allDay}
+                        onChange={(e) => setNewEvent({ ...newEvent, allDay: e.target.checked })}
+                        className="rounded border-slate-300"
+                      />
+                      {t('calendar.allDayEvent')}
+                    </label>
+                    {!newEvent.allDay && (
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-slate-500 mb-1 block">
+                            {t('calendar.start')}
+                          </label>
+                          <input
+                            type="time"
+                            value={newEvent.startTime}
+                            onChange={(e) =>
+                              setNewEvent({ ...newEvent, startTime: e.target.value })
+                            }
+                            className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-slate-500 mb-1 block">
+                            {t('calendar.end')}
+                          </label>
+                          <input
+                            type="time"
+                            value={newEvent.endTime}
+                            onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+                            className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              <ProjectPicker
+                value={newEvent.projectId}
+                onChange={(pid) => setNewEvent({ ...newEvent, projectId: pid })}
+              />
+              <div>
+                <label className="text-xs text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1">
+                  <Repeat className="w-3.5 h-3.5" />
+                  {t('calendar.recurrence')}
+                </label>
+                <div className="flex gap-1.5">
+                  {(
+                    [
+                      { value: '', label: t('calendar.noRepeat') || 'None' },
+                      { value: 'daily', label: t('calendar.daily') },
+                      { value: 'weekly', label: t('calendar.weekly') },
+                      { value: 'monthly', label: t('calendar.monthly') },
+                    ] as const
+                  ).map((opt) => (
                     <button
-                      key={cat.id}
+                      key={opt.value}
                       type="button"
-                      onClick={() => setNewEvent({ ...newEvent, categoryId: cat.id })}
+                      onClick={() => setNewEvent({ ...newEvent, recurrenceRule: opt.value })}
                       className={cn(
-                        "text-xs py-1 px-2.5 rounded-full border-2 transition-colors",
-                        newEvent.categoryId === cat.id
-                          ? "border-current font-medium"
-                          : "border-transparent bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700",
+                        'text-xs py-1.5 px-3 rounded-lg border transition-colors',
+                        newEvent.recurrenceRule === opt.value
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-medium'
+                          : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50',
                       )}
-                      style={newEvent.categoryId === cat.id ? { color: cat.color, backgroundColor: cat.color + "15" } : undefined}
                     >
-                      {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                      {cat.name}
+                      {opt.label}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-            {(() => {
-              const fallback = format(selectedDate, "yyyy-MM-dd");
-              const sDate = newEvent.startDate || fallback;
-              const eDate = newEvent.endDate || sDate;
-              return (
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs text-slate-500 mb-1 block">{t("calendar.startDate")}</label>
-                      <input
-                        type="date"
-                        value={sDate}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setNewEvent({ ...newEvent, startDate: v, endDate: eDate < v ? v : eDate });
-                        }}
-                        className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs text-slate-500 mb-1 block">{t("calendar.endDate")}</label>
-                      <input
-                        type="date"
-                        value={eDate}
-                        min={sDate}
-                        onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
-                        className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none"
-                      />
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newEvent.allDay}
-                      onChange={(e) => setNewEvent({ ...newEvent, allDay: e.target.checked })}
-                      className="rounded border-slate-300"
-                    />
-                    {t("calendar.allDayEvent")}
-                  </label>
-                  {!newEvent.allDay && (
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-500 mb-1 block">{t("calendar.start")}</label>
-                        <input type="time" value={newEvent.startTime} onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-500 mb-1 block">{t("calendar.end")}</label>
-                        <input type="time" value={newEvent.endTime} onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })} className="w-full text-sm bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white outline-none" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            <ProjectPicker value={newEvent.projectId} onChange={(pid) => setNewEvent({ ...newEvent, projectId: pid })} />
-            <div>
-              <label className="text-xs text-slate-500 dark:text-slate-400 mb-1.5 flex items-center gap-1">
-                <Repeat className="w-3.5 h-3.5" />
-                {t("calendar.recurrence")}
-              </label>
-              <div className="flex gap-1.5">
-                {([
-                  { value: "", label: t("calendar.noRepeat") || "None" },
-                  { value: "daily", label: t("calendar.daily") },
-                  { value: "weekly", label: t("calendar.weekly") },
-                  { value: "monthly", label: t("calendar.monthly") },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setNewEvent({ ...newEvent, recurrenceRule: opt.value })}
-                    className={cn(
-                      "text-xs py-1.5 px-3 rounded-lg border transition-colors",
-                      newEvent.recurrenceRule === opt.value
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-medium"
-                        : "border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50",
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
             </div>
             <div className="flex-shrink-0 flex gap-2 px-5 py-3 border-t border-slate-100 dark:border-slate-700/50">
               {editingEventId && (
@@ -879,13 +1066,27 @@ export default function CalendarView() {
                   type="button"
                   onClick={() => setForwardingEventId(editingEventId)}
                   className="py-2.5 px-3 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm rounded-lg flex items-center gap-1"
-                  title={t("calendar.forward")}
+                  title={t('calendar.forward')}
                 >
-                  <Send className="w-4 h-4" /> {t("calendar.forward")}
+                  <Send className="w-4 h-4" /> {t('calendar.forward')}
                 </button>
               )}
-              <button type="submit" className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg">{editingEventId ? t("common.save") : t("common.add")}</button>
-              <button type="button" onClick={() => { setShowAddModal(false); setEditingEventId(null); }} className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg">{t("common.cancel")}</button>
+              <button
+                type="submit"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg"
+              >
+                {editingEventId ? t('common.save') : t('common.add')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingEventId(null);
+                }}
+                className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg"
+              >
+                {t('common.cancel')}
+              </button>
             </div>
           </form>
         </div>
@@ -903,7 +1104,9 @@ export default function CalendarView() {
       {detailEvent && (
         <EventDetailPopover
           event={detailEvent}
-          categoryName={detailEvent.categoryId ? categoryNameById[detailEvent.categoryId] : undefined}
+          categoryName={
+            detailEvent.categoryId ? categoryNameById[detailEvent.categoryId] : undefined
+          }
           projectName={detailEvent.projectId ? projectNameById[detailEvent.projectId] : undefined}
           onClose={() => setDetailEvent(null)}
           onEdit={handleEditEvent}
@@ -914,7 +1117,7 @@ export default function CalendarView() {
 
       <RecipientPickerModal
         open={forwardingEventId != null}
-        title={t("calendar.forwardEventTitle")}
+        title={t('calendar.forwardEventTitle')}
         onClose={() => setForwardingEventId(null)}
         onForward={forwardEvent}
       />
@@ -931,9 +1134,17 @@ export default function CalendarView() {
         initialDate={todoAddModalDate}
         onClose={() => setTodoAddModalOpen(false)}
         onAdd={async (values) => {
-          const ok = await addTodo(values.title, values.priority, values.dueDate, values.category, values.status, values.projectId ?? null, values.memo ?? null);
-          if (!ok) throw new Error("add failed");
-          showToast("success", t("calendar.todoCreated"));
+          const ok = await addTodo(
+            values.title,
+            values.priority,
+            values.dueDate,
+            values.category,
+            values.status,
+            values.projectId ?? null,
+            values.memo ?? null,
+          );
+          if (!ok) throw new Error('add failed');
+          showToast('success', t('calendar.todoCreated'));
         }}
       />
 
@@ -954,10 +1165,9 @@ export default function CalendarView() {
             projectId: values.projectId ?? null,
             memo: values.memo ?? null,
           });
-          showToast("success", t("calendar.todoUpdated"));
+          showToast('success', t('calendar.todoUpdated'));
         }}
       />
-
     </div>
   );
 }
